@@ -1,0 +1,212 @@
+"use client";
+import Link from "next/link";
+import { useRef, useState } from "react";
+import { Download, Plus, Trash2, Upload, Users } from "lucide-react";
+import { Avatar, Badge, Button, Card, EmptyState, Modal, Select } from "@/components/ui";
+import { TagList } from "@/components/pickers";
+import { Pagination, SearchBox, useParamSetter } from "@/components/list-toolbar";
+import { useOrg } from "@/components/org-context";
+import { useQuickCreate } from "@/components/quick-create";
+import { useAction } from "@/components/use-action";
+import { deleteContacts, importContacts } from "@/actions/crm";
+import { LIFECYCLES } from "@/lib/defaults";
+import { date } from "@/lib/format";
+import { parseCsv } from "@/lib/csv";
+
+type Row = {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  position: string | null;
+  lifecycle: string;
+  ownerId: string | null;
+  tags: string[];
+  company: { id: string; name: string } | null;
+  openDeals: number;
+  createdAt: string;
+};
+
+const LC_COLORS: Record<string, string> = { lead: "#64748b", mql: "#3b82f6", sql: "#8b5cf6", customer: "#16a34a", evangelist: "#f59e0b", churned: "#dc2626" };
+
+export function ContactsTable({ rows, total, page, pageSize, filters }: { rows: Row[]; total: number; page: number; pageSize: number; filters: Record<string, string> }) {
+  const { labels, members, tags, member, can } = useOrg();
+  const set = useParamSetter();
+  const quick = useQuickCreate();
+  const [sel, setSel] = useState<Set<string>>(new Set());
+  const [importing, setImporting] = useState(false);
+  const { run, pending } = useAction();
+  const ids = Array.from(sel);
+
+  return (
+    <div className="p-4 lg:p-6">
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <h1 className="mr-2 text-xl font-semibold">{labels.contact.plural}</h1>
+        <SearchBox initial={filters.q!} placeholder="Nome, e-mail, telefone…" />
+        <Select value={filters.lifecycle} onChange={(e) => set("lifecycle", e.target.value)} className="w-auto">
+          <option value="">Ciclo de vida</option>
+          {LIFECYCLES.map((l) => (
+            <option key={l.value} value={l.value}>{l.label}</option>
+          ))}
+        </Select>
+        <Select value={filters.owner} onChange={(e) => set("owner", e.target.value)} className="w-auto">
+          <option value="">Responsável</option>
+          <option value="me">Meus</option>
+          {members.map((m) => (
+            <option key={m.id} value={m.id}>{m.name}</option>
+          ))}
+        </Select>
+        {tags.length > 0 && (
+          <Select value={filters.tag} onChange={(e) => set("tag", e.target.value)} className="w-auto">
+            <option value="">Etiqueta</option>
+            {tags.map((t) => (
+              <option key={t.name}>{t.name}</option>
+            ))}
+          </Select>
+        )}
+        <div className="ml-auto flex gap-2">
+          <a href="/api/export/contacts" download>
+            <Button variant="secondary"><Download className="size-4" /> Exportar</Button>
+          </a>
+          {can("SALES") && (
+            <>
+              <Button variant="secondary" onClick={() => setImporting(true)}><Upload className="size-4" /> Importar</Button>
+              <Button onClick={() => quick("contact")}><Plus className="size-4" /> {labels.contact.singular}</Button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {ids.length > 0 && can("MANAGER") && (
+        <div className="mb-3 flex items-center gap-3 rounded-xl border border-brand/30 bg-brand/5 px-3 py-2 text-sm">
+          <b>{ids.length} selecionado(s)</b>
+          <Button size="sm" variant="danger" loading={pending} onClick={() => confirm("Excluir os contatos selecionados?") && run(() => deleteContacts(ids), { onSuccess: () => setSel(new Set()) })}>
+            <Trash2 className="size-3.5" /> Excluir
+          </Button>
+        </div>
+      )}
+
+      <Card className="overflow-x-auto">
+        {rows.length ? (
+          <table className="w-full text-sm">
+            <thead className="border-b border-line text-left text-xs text-muted">
+              <tr>
+                <th className="w-10 px-3 py-2.5">
+                  <input type="checkbox" className="accent-brand" checked={sel.size === rows.length} onChange={(e) => setSel(e.target.checked ? new Set(rows.map((r) => r.id)) : new Set())} />
+                </th>
+                <th className="px-3 py-2.5 font-medium">Nome</th>
+                <th className="px-3 py-2.5 font-medium">{labels.company.singular}</th>
+                <th className="px-3 py-2.5 font-medium">Contato</th>
+                <th className="px-3 py-2.5 font-medium">Ciclo</th>
+                <th className="px-3 py-2.5 font-medium">{labels.deal.plural} abertos</th>
+                <th className="px-3 py-2.5 font-medium">Responsável</th>
+                <th className="px-3 py-2.5 font-medium">Criado</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {rows.map((r) => {
+                const owner = member(r.ownerId);
+                const lc = LIFECYCLES.find((l) => l.value === r.lifecycle);
+                return (
+                  <tr key={r.id} className="hover:bg-surface-2/60">
+                    <td className="px-3">
+                      <input
+                        type="checkbox"
+                        className="accent-brand"
+                        checked={sel.has(r.id)}
+                        onChange={(e) => {
+                          const n = new Set(sel);
+                          if (e.target.checked) n.add(r.id);
+                          else n.delete(r.id);
+                          setSel(n);
+                        }}
+                      />
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <Link href={`/contacts/${r.id}`} className="flex items-center gap-2 font-medium hover:text-brand">
+                        <Avatar name={r.name} size={26} color="#94a3b8" /> <span>{r.name}{r.position && <span className="block text-xs font-normal text-muted">{r.position}</span>}</span>
+                      </Link>
+                      <TagList tags={r.tags} />
+                    </td>
+                    <td className="px-3 py-2.5">{r.company ? <Link href={`/companies/${r.company.id}`} className="hover:text-brand">{r.company.name}</Link> : <span className="text-muted">—</span>}</td>
+                    <td className="px-3 py-2.5 text-muted">
+                      <div>{r.email ?? "—"}</div>
+                      <div className="text-xs">{r.phone}</div>
+                    </td>
+                    <td className="px-3 py-2.5">{lc && <Badge color={LC_COLORS[r.lifecycle]}>{lc.label}</Badge>}</td>
+                    <td className="px-3 py-2.5 text-center">{r.openDeals || "—"}</td>
+                    <td className="px-3 py-2.5">{owner ? <span className="flex items-center gap-1.5"><Avatar name={owner.name} color={owner.avatarColor} size={20} /> {owner.name}</span> : "—"}</td>
+                    <td className="px-3 py-2.5 text-muted">{date(r.createdAt)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        ) : (
+          <EmptyState
+            icon={<Users className="size-6" />}
+            title={`Nenhum ${labels.contact.singular.toLowerCase()} encontrado`}
+            description="Cadastre manualmente ou importe uma planilha CSV."
+            action={can("SALES") && <Button onClick={() => quick("contact")}><Plus className="size-4" /> Adicionar</Button>}
+          />
+        )}
+      </Card>
+      <div className="mt-3 flex justify-end">
+        <Pagination page={page} total={total} pageSize={pageSize} />
+      </div>
+      <ImportModal open={importing} onClose={() => setImporting(false)} onImport={(rows) => run(() => importContacts(rows), { onSuccess: () => setImporting(false) })} pending={pending} />
+    </div>
+  );
+}
+
+function ImportModal({ open, onClose, onImport, pending }: { open: boolean; onClose: () => void; onImport: (rows: Record<string, string>[]) => void; pending: boolean }) {
+  const [rows, setRows] = useState<Record<string, string>[]>([]);
+  const ref = useRef<HTMLInputElement>(null);
+  return (
+    <Modal open={open} onClose={onClose} title="Importar contatos (CSV)" wide>
+      <div className="space-y-4 text-sm">
+        <p className="text-muted">
+          Use um arquivo CSV com cabeçalho. Colunas reconhecidas: <b>nome</b>, <b>email</b>, <b>telefone</b>, <b>whatsapp</b>, <b>cargo</b>, <b>empresa</b>, <b>origem</b>, <b>etiquetas</b>. Empresas inexistentes são criadas automaticamente.
+        </p>
+        <a
+          className="text-brand underline"
+          href={"data:text/csv;charset=utf-8," + encodeURIComponent("nome,email,telefone,cargo,empresa,origem,etiquetas\nMaria Silva,maria@acme.com,11999990000,Diretora,Acme,Site,VIP\n")}
+          download="modelo-contatos.csv"
+        >
+          Baixar planilha modelo
+        </a>
+        <input
+          ref={ref}
+          type="file"
+          accept=".csv,text/csv"
+          className="block w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-brand file:px-3 file:py-2 file:text-white"
+          onChange={async (e) => {
+            const f = e.target.files?.[0];
+            if (f) setRows(parseCsv(await f.text()));
+          }}
+        />
+        {rows.length > 0 && (
+          <div className="rounded-lg border border-line">
+            <p className="border-b border-line px-3 py-2 font-medium">{rows.length} linha(s) encontradas — prévia:</p>
+            <div className="max-h-48 overflow-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr>{Object.keys(rows[0]!).map((k) => <th key={k} className="px-2 py-1 text-left text-muted">{k}</th>)}</tr>
+                </thead>
+                <tbody>
+                  {rows.slice(0, 5).map((r, i) => (
+                    <tr key={i} className="border-t border-line">{Object.values(r).map((v, j) => <td key={j} className="px-2 py-1">{v}</td>)}</tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+        <div className="flex justify-end gap-2">
+          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button disabled={!rows.length} loading={pending} onClick={() => onImport(rows)}>Importar {rows.length || ""}</Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}

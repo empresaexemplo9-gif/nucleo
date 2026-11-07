@@ -1,0 +1,419 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  MANAGER
+  SALES
+  VIEWER
+}
+
+enum StageType {
+  OPEN
+  WON
+  LOST
+}
+
+enum DealStatus {
+  OPEN
+  WON
+  LOST
+}
+
+enum ActivityType {
+  CALL
+  MEETING
+  TASK
+  EMAIL
+  DEADLINE
+  LUNCH
+  WHATSAPP
+}
+
+enum EntityType {
+  DEAL
+  CONTACT
+  COMPANY
+}
+
+enum FieldType {
+  TEXT
+  TEXTAREA
+  NUMBER
+  CURRENCY
+  DATE
+  SELECT
+  MULTISELECT
+  BOOLEAN
+  URL
+  EMAIL
+  PHONE
+}
+
+model Organization {
+  id           String   @id @default(cuid())
+  name         String
+  slug         String   @unique
+  logoUrl      String?
+  primaryColor String   @default("#4f46e5")
+  accentColor  String   @default("#0ea5e9")
+  currency     String   @default("BRL")
+  locale       String   @default("pt-BR")
+  timezone     String   @default("America/Sao_Paulo")
+  customDomain String?  @unique
+  /// Rótulos personalizados das entidades (ex.: "Negócio" -> "Oportunidade")
+  labels       Json     @default("{}")
+  /// Configurações gerais (visibilidade, módulos ativos, etc.)
+  settings     Json     @default("{}")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  memberships  Membership[]
+  pipelines    Pipeline[]
+  deals        Deal[]
+  contacts     Contact[]
+  companies    Company[]
+  activities   Activity[]
+  notes        Note[]
+  products     Product[]
+  customFields CustomField[]
+  lostReasons  LostReason[]
+  tags         Tag[]
+  events       TimelineEvent[]
+  automations  Automation[]
+  goals        Goal[]
+  invites      Invite[]
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  avatarColor  String   @default("#6366f1")
+  phone        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  memberships    Membership[]
+  ownedDeals     Deal[]          @relation("DealOwner")
+  ownedContacts  Contact[]       @relation("ContactOwner")
+  ownedCompanies Company[]       @relation("CompanyOwner")
+  activities     Activity[]      @relation("ActivityAssignee")
+  createdActs    Activity[]      @relation("ActivityCreator")
+  notes          Note[]
+  events         TimelineEvent[]
+  goals          Goal[]
+}
+
+model Membership {
+  id        String       @id @default(cuid())
+  userId    String
+  orgId     String
+  role      Role         @default(SALES)
+  active    Boolean      @default(true)
+  createdAt DateTime     @default(now())
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, orgId])
+}
+
+model Invite {
+  id        String       @id @default(cuid())
+  orgId     String
+  email     String
+  role      Role         @default(SALES)
+  token     String       @unique
+  acceptedAt DateTime?
+  createdAt DateTime     @default(now())
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+}
+
+model Pipeline {
+  id        String       @id @default(cuid())
+  orgId     String
+  name      String
+  position  Int          @default(0)
+  isDefault Boolean      @default(false)
+  createdAt DateTime     @default(now())
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  stages    Stage[]
+  deals     Deal[]
+
+  @@index([orgId])
+}
+
+model Stage {
+  id          String    @id @default(cuid())
+  pipelineId  String
+  name        String
+  color       String    @default("#6366f1")
+  probability Int       @default(10)
+  position    Int       @default(0)
+  type        StageType @default(OPEN)
+  /// Dias sem movimentação até o negócio ser considerado "parado"
+  rottingDays Int?
+  pipeline    Pipeline  @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  deals       Deal[]
+  automations Automation[]
+
+  @@index([pipelineId])
+}
+
+model Company {
+  id           String       @id @default(cuid())
+  orgId        String
+  name         String
+  document     String?
+  domain       String?
+  industry     String?
+  size         String?
+  phone        String?
+  email        String?
+  website      String?
+  address      String?
+  city         String?
+  state        String?
+  country      String?
+  ownerId      String?
+  tags         String[]     @default([])
+  customFields Json         @default("{}")
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  org          Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  owner        User?        @relation("CompanyOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  contacts     Contact[]
+  deals        Deal[]
+  activities   Activity[]
+  notes        Note[]
+  events       TimelineEvent[]
+
+  @@index([orgId])
+}
+
+model Contact {
+  id           String       @id @default(cuid())
+  orgId        String
+  name         String
+  email        String?
+  phone        String?
+  whatsapp     String?
+  position     String?
+  companyId    String?
+  ownerId      String?
+  source       String?
+  lifecycle    String       @default("lead")
+  tags         String[]     @default([])
+  customFields Json         @default("{}")
+  birthday     DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  org          Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  company      Company?     @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  owner        User?        @relation("ContactOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  deals        Deal[]
+  activities   Activity[]
+  notes        Note[]
+  events       TimelineEvent[]
+
+  @@index([orgId])
+  @@index([companyId])
+}
+
+model Deal {
+  id             String       @id @default(cuid())
+  orgId          String
+  title          String
+  value          Decimal      @default(0) @db.Decimal(14, 2)
+  pipelineId     String
+  stageId        String
+  contactId      String?
+  companyId      String?
+  ownerId        String?
+  status         DealStatus   @default(OPEN)
+  position       Float        @default(0)
+  probability    Int?
+  expectedClose  DateTime?
+  source         String?
+  lostReason     String?
+  tags           String[]     @default([])
+  customFields   Json         @default("{}")
+  stageChangedAt DateTime     @default(now())
+  closedAt       DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  org            Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  pipeline       Pipeline     @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  stage          Stage        @relation(fields: [stageId], references: [id], onDelete: Restrict)
+  contact        Contact?     @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  company        Company?     @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  owner          User?        @relation("DealOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  products       DealProduct[]
+  activities     Activity[]
+  notes          Note[]
+  events         TimelineEvent[]
+
+  @@index([orgId, pipelineId, status])
+  @@index([stageId])
+}
+
+model Product {
+  id          String        @id @default(cuid())
+  orgId       String
+  name        String
+  sku         String?
+  description String?
+  price       Decimal       @default(0) @db.Decimal(14, 2)
+  unit        String?
+  active      Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  org         Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  deals       DealProduct[]
+
+  @@index([orgId])
+}
+
+model DealProduct {
+  id        String  @id @default(cuid())
+  dealId    String
+  productId String
+  quantity  Decimal @default(1) @db.Decimal(12, 2)
+  price     Decimal @default(0) @db.Decimal(14, 2)
+  discount  Decimal @default(0) @db.Decimal(5, 2)
+  deal      Deal    @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model Activity {
+  id          String       @id @default(cuid())
+  orgId       String
+  type        ActivityType @default(TASK)
+  title       String
+  description String?
+  dueAt       DateTime?
+  duration    Int?
+  done        Boolean      @default(false)
+  doneAt      DateTime?
+  dealId      String?
+  contactId   String?
+  companyId   String?
+  assigneeId  String?
+  createdById String?
+  createdAt   DateTime     @default(now())
+  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  deal        Deal?        @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  contact     Contact?     @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  company     Company?     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  assignee    User?        @relation("ActivityAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  createdBy   User?        @relation("ActivityCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([orgId, done, dueAt])
+}
+
+model Note {
+  id        String       @id @default(cuid())
+  orgId     String
+  content   String
+  pinned    Boolean      @default(false)
+  dealId    String?
+  contactId String?
+  companyId String?
+  authorId  String?
+  createdAt DateTime     @default(now())
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  deal      Deal?        @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  contact   Contact?     @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  company   Company?     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  author    User?        @relation(fields: [authorId], references: [id], onDelete: SetNull)
+}
+
+model TimelineEvent {
+  id        String       @id @default(cuid())
+  orgId     String
+  type      String
+  data      Json         @default("{}")
+  dealId    String?
+  contactId String?
+  companyId String?
+  userId    String?
+  createdAt DateTime     @default(now())
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  deal      Deal?        @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  contact   Contact?     @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  company   Company?     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user      User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([orgId, createdAt])
+}
+
+model CustomField {
+  id       String       @id @default(cuid())
+  orgId    String
+  entity   EntityType
+  key      String
+  label    String
+  type     FieldType    @default(TEXT)
+  options  String[]     @default([])
+  required Boolean      @default(false)
+  position Int          @default(0)
+  org      Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, entity, key])
+}
+
+model LostReason {
+  id    String       @id @default(cuid())
+  orgId String
+  label String
+  org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+}
+
+model Tag {
+  id    String       @id @default(cuid())
+  orgId String
+  name  String
+  color String       @default("#64748b")
+  org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, name])
+}
+
+model Automation {
+  id        String       @id @default(cuid())
+  orgId     String
+  name      String
+  /// DEAL_CREATED | DEAL_STAGE_ENTERED | DEAL_WON | DEAL_LOST
+  trigger   String
+  stageId   String?
+  /// CREATE_ACTIVITY | ADD_TAG | SET_OWNER | ADD_NOTE
+  action    String
+  config    Json         @default("{}")
+  active    Boolean      @default(true)
+  createdAt DateTime     @default(now())
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  stage     Stage?       @relation(fields: [stageId], references: [id], onDelete: Cascade)
+}
+
+model Goal {
+  id     String       @id @default(cuid())
+  orgId  String
+  userId String?
+  /// REVENUE | DEALS_WON | ACTIVITIES
+  metric String       @default("REVENUE")
+  /// YYYY-MM
+  period String
+  target Decimal      @db.Decimal(14, 2)
+  org    Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user   User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, period])
+}

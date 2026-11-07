@@ -1,0 +1,13 @@
+export const EVENT_LABELS: Record<string, string> = {
+  DEAL_CREATED: "criou o negócio",
+  DEAL_STAGE: "moveu de etapa",
+  DEAL_WON: "marcou como ganho",
+  DEAL_LOST: "marcou como perdido",
+  DEAL_REOPENED: "reabriu o negócio",
+  DEAL_UPDATED: "atualizou o negócio",
+  DEAL_OWNER: "alterou o responsável",
+  CONTACT_CREATED: "criou o contato",
+  COMPANY_CREATED: "criou a empresa",
+  ACTIVITY_DONE: "concluiu uma atividade",
+  AUTOMATION: "automação executada",
+};
