@@ -51,6 +51,7 @@ Next.js 16 (App Router, Server Actions) · React 19 · Tailwind CSS 4 · Prisma 
 5. Acesse `/register` e crie a primeira empresa — funil, etapas e motivos de perda já vêm configurados.
 
 > Usando outro Postgres (Supabase, RDS…)? Defina `DATABASE_URL` e `DATABASE_URL_UNPOOLED` (pode ser a mesma URL).
+> Se o projeto já tiver outro banco conectado, defina `CRM_DATABASE_URL` (e opcionalmente `CRM_DATABASE_URL_UNPOOLED`): elas têm prioridade sobre `DATABASE_URL`.
 
 **Domínio por cliente (whitelabel):** adicione o domínio do cliente em *Settings → Domains* da Vercel e informe o mesmo domínio em *Configurações → Marca* dentro da empresa do cliente.
 
