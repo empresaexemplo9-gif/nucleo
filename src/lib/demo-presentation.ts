@@ -179,6 +179,9 @@ export async function seedPresentation(email: string) {
   const orgId = org.id;
   const settings = (org.settings ?? {}) as Record<string, unknown>;
   if (settings.presentationSeeded) throw new Error(`A empresa "${org.name}" já recebeu os dados de apresentação`);
+  if (settings.presentationSeeding) throw new Error(`A carga da empresa "${org.name}" já foi iniciada em ${settings.presentationSeeding}`);
+  if (await db.product.count({ where: { orgId, sku: "PLT-01" } })) throw new Error(`A empresa "${org.name}" já possui os produtos DRAP`);
+  await db.organization.update({ where: { id: orgId }, data: { settings: { ...settings, presentationSeeding: new Date().toISOString() } } });
 
   /* ---------- equipe fictícia ---------- */
   const pw = await bcrypt.hash(randomBytes(18).toString("base64url"), 10);
@@ -395,7 +398,7 @@ export async function seedPresentation(email: string) {
     ],
   });
 
-  await db.organization.update({ where: { id: orgId }, data: { settings: { ...settings, presentationSeeded: new Date().toISOString() } } });
+  await db.organization.update({ where: { id: orgId }, data: { settings: { ...settings, presentationSeeding: undefined, presentationSeeded: new Date().toISOString() } } });
 
   return {
     org: org.name,
@@ -405,4 +408,23 @@ export async function seedPresentation(email: string) {
     contacts: COMPANIES.reduce((s, c) => s + c.contacts.length, 0) + PEOPLE.length,
     deals: DEALS.length + RENEWALS.length,
   };
+}
+
+/** Situação da carga numa conta, sem alterar nada. */
+export async function presentationStatus(email: string) {
+  const user = await db.user.findUnique({ where: { email: email.toLowerCase() }, include: { memberships: { include: { org: true }, orderBy: { createdAt: "asc" } } } });
+  if (!user) return { user: false };
+  const m = user.memberships.find((x) => x.role === "OWNER") ?? user.memberships[0];
+  if (!m) return { user: true, org: null };
+  const orgId = m.orgId;
+  const s = (m.org.settings ?? {}) as Record<string, unknown>;
+  const [products, companies, contacts, deals, activities, pipelines] = await Promise.all([
+    db.product.count({ where: { orgId } }),
+    db.company.count({ where: { orgId } }),
+    db.contact.count({ where: { orgId } }),
+    db.deal.count({ where: { orgId } }),
+    db.activity.count({ where: { orgId } }),
+    db.pipeline.count({ where: { orgId } }),
+  ]);
+  return { user: true, org: m.org.name, seeding: s.presentationSeeding ?? null, seeded: s.presentationSeeded ?? null, products, companies, contacts, deals, activities, pipelines };
 }

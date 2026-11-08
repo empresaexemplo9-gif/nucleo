@@ -1,5 +1,7 @@
 import { timingSafeEqual } from "crypto";
-import { seedPresentation } from "@/lib/demo-presentation";
+import { presentationStatus, seedPresentation } from "@/lib/demo-presentation";
+
+export const maxDuration = 300;
 
 // Rota temporária: popula a conta indicada com dados de apresentação. Remover após o uso.
 export async function GET(req: Request) {
@@ -11,6 +13,7 @@ export async function GET(req: Request) {
   const email = url.searchParams.get("email");
   if (!email) return Response.json({ ok: false, error: "Informe o e-mail" }, { status: 400 });
   try {
+    if (url.searchParams.get("status") === "1") return Response.json({ ok: true, ...(await presentationStatus(email)) });
     return Response.json({ ok: true, ...(await seedPresentation(email)) });
   } catch (e) {
     return Response.json({ ok: false, error: e instanceof Error ? e.message : String(e) }, { status: 400 });
