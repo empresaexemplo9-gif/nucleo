@@ -1,62 +1,20 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
-import { ArrowRight, CalendarPlus, KanbanSquare, Palette, Plus, Rocket, Sparkles, Users, X } from "lucide-react";
+import { ArrowRight, CalendarPlus, X } from "lucide-react";
+import { Button, EditorialTitle, Select } from "@/components/ui";
+import { useParamSetter } from "@/components/list-toolbar";
 import { useQuickCreate } from "@/components/quick-create";
 import { useOrg } from "@/components/org-context";
-import { Select } from "@/components/ui";
-import { useParamSetter } from "@/components/list-toolbar";
 
 export function PeriodSelect({ value, options }: { value: string; options: Record<string, string> }) {
   const set = useParamSetter();
   return (
-    <Select value={value} onChange={(e) => set("period", e.target.value === "month" ? "" : e.target.value)} className="w-auto min-w-44 font-medium">
+    <Select value={value} onChange={(e) => set("period", e.target.value === "month" ? "" : e.target.value)} className="w-auto min-w-44 font-mono text-xs uppercase tracking-[0.08em]">
       {Object.entries(options).map(([k, v]) => (
         <option key={k} value={k}>{v}</option>
       ))}
     </Select>
-  );
-}
-
-export function Welcome() {
-  const [open, setOpen] = useState(true);
-  if (!open) return null;
-  const steps = [
-    { href: "/settings", icon: Palette, title: "Personalize sua marca", text: "Logo, cores, moeda e nomes das entidades." },
-    { href: "/settings/pipelines", icon: KanbanSquare, title: "Ajuste seu funil", text: "Etapas, probabilidades e alertas." },
-    { href: "/settings/users", icon: Users, title: "Convide sua equipe", text: "Perfis de acesso por função." },
-    { href: "/settings/automations", icon: Sparkles, title: "Crie automações", text: "Follow-ups automáticos por etapa." },
-  ];
-  return (
-    <div className="bg-brand-gradient relative mb-6 overflow-hidden rounded-3xl p-6 text-white shadow-lift lg:p-8">
-      <div className="pointer-events-none absolute -right-20 -top-24 size-80 rounded-full bg-white/15 blur-3xl" />
-      <div className="pointer-events-none absolute inset-0 opacity-25 [background-image:radial-gradient(rgba(255,255,255,0.5)_1px,transparent_1px)] [background-size:18px_18px] [mask-image:linear-gradient(to_left,black,transparent_70%)]" />
-      <button onClick={() => setOpen(false)} className="absolute right-4 top-4 rounded-lg p-1 text-white/70 hover:bg-white/10 hover:text-white" aria-label="Fechar">
-        <X className="size-4" />
-      </button>
-      <div className="relative flex items-center gap-3">
-        <span className="flex size-11 items-center justify-center rounded-2xl bg-white/20 backdrop-blur">
-          <Rocket className="size-5" />
-        </span>
-        <div>
-          <h2 className="text-xl font-bold">Seu CRM está pronto!</h2>
-          <p className="text-sm text-white/80">Funil, etapas e motivos de perda já foram configurados. Dê os próximos passos:</p>
-        </div>
-      </div>
-      <div className="relative mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {steps.map((s, i) => (
-          <Link key={s.href} href={s.href} className="group rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur transition hover:bg-white/20">
-            <div className="flex items-center justify-between">
-              <s.icon className="size-5" />
-              <span className="text-xs font-semibold text-white/60">0{i + 1}</span>
-            </div>
-            <p className="mt-3 text-sm font-semibold">{s.title}</p>
-            <p className="mt-0.5 text-xs text-white/75">{s.text}</p>
-            <ArrowRight className="mt-2 size-4 opacity-0 transition group-hover:translate-x-1 group-hover:opacity-100" />
-          </Link>
-        ))}
-      </div>
-    </div>
   );
 }
 
@@ -65,25 +23,49 @@ export function HeroActions() {
   const { labels, can } = useOrg();
   if (!can("SALES")) return null;
   return (
-    <div className="mt-5 flex flex-wrap gap-2">
-      <button
-        onClick={() => quick("deal")}
-        className="inline-flex items-center gap-1.5 rounded-xl bg-white px-4 py-2 text-sm font-bold text-brand shadow-lg transition hover:-translate-y-0.5"
-      >
-        <Plus className="size-4" /> Novo {labels.deal.singular.toLowerCase()}
-      </button>
-      <button
-        onClick={() => quick("activity")}
-        className="inline-flex items-center gap-1.5 rounded-xl bg-white/15 px-4 py-2 text-sm font-semibold text-white ring-1 ring-white/30 backdrop-blur transition hover:bg-white/25"
-      >
-        <CalendarPlus className="size-4" /> Agendar {labels.activity.singular.toLowerCase()}
-      </button>
-      <Link
-        href="/deals"
-        className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold text-white/90 transition hover:text-white"
-      >
-        <KanbanSquare className="size-4" /> Ver funil <ArrowRight className="size-3.5" />
+    <div className="mt-8 flex flex-wrap items-center gap-3">
+      <Button size="lg" trail onClick={() => quick("deal")}>
+        Novo {labels.deal.singular.toLowerCase()}
+      </Button>
+      <Button size="lg" variant="secondary" trail={<CalendarPlus className="size-3.5" />} onClick={() => quick("activity")}>
+        Agendar {labels.activity.singular.toLowerCase()}
+      </Button>
+      <Link href="/deals" className="mono-label inline-flex items-center gap-1.5 px-2 text-[11px] text-fg-2 transition hover:text-fg">
+        Ver funil <ArrowRight className="size-3.5" />
       </Link>
+    </div>
+  );
+}
+
+export function Welcome() {
+  const [open, setOpen] = useState(true);
+  if (!open) return null;
+  const steps = [
+    { href: "/settings", title: "Personalize sua marca", text: "Logo, cores, moeda e nomes das entidades." },
+    { href: "/settings/pipelines", title: "Ajuste seu funil", text: "Etapas, probabilidades e alertas." },
+    { href: "/settings/users", title: "Convide sua equipe", text: "Perfis de acesso por função." },
+    { href: "/settings/automations", title: "Crie automações", text: "Follow-ups automáticos por etapa." },
+  ];
+  return (
+    <div className="card-drap card-grid-top animate-rise relative mb-10 p-6 lg:p-8">
+      <button onClick={() => setOpen(false)} className="absolute right-4 top-4 rounded-[var(--radius-sm)] border border-line p-1.5 text-muted hover:text-fg" aria-label="Fechar">
+        <X className="size-4" />
+      </button>
+      <p className="eyebrow relative">00 / Primeiros passos</p>
+      <h2 className="relative mt-2 text-[clamp(26px,3vw,40px)] font-medium tracking-[-0.035em]">
+        <EditorialTitle text="Seu CRM está pronto" highlight="pronto" />
+      </h2>
+      <p className="relative mt-1 text-fg-2">Funil, etapas e motivos de perda já foram configurados.</p>
+      <div className="relative mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {steps.map((s, i) => (
+          <Link key={s.href} href={s.href} className="group rounded-[var(--radius)] border border-line bg-[var(--surface-1)] p-4 transition duration-300 hover:-translate-y-0.5 hover:border-line-strong">
+            <span className="font-mono text-[11px] text-accent-text">{String(i + 1).padStart(2, "0")}</span>
+            <p className="mt-2 text-sm font-medium">{s.title}</p>
+            <p className="mt-0.5 text-xs text-muted">{s.text}</p>
+            <ArrowRight className="mt-3 size-4 text-muted transition group-hover:translate-x-1 group-hover:text-fg" />
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }

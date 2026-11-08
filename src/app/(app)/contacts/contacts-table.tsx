@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { Download, Plus, Trash2, Upload, Users } from "lucide-react";
-import { Avatar, Badge, Button, Card, cn, EmptyState, Modal, PageHeader, Select } from "@/components/ui";
+import { Avatar, Badge, Button, Card, EmptyState, FilterChip, Modal, PageHeader, Select } from "@/components/ui";
 import { TagList } from "@/components/pickers";
 import { Pagination, SearchBox, useParamSetter } from "@/components/list-toolbar";
 import { useOrg } from "@/components/org-context";
@@ -27,7 +27,7 @@ type Row = {
   createdAt: string;
 };
 
-const LC_COLORS: Record<string, string> = { lead: "#64748b", mql: "#3b82f6", sql: "#8b5cf6", customer: "#16a34a", evangelist: "#f59e0b", churned: "#dc2626" };
+const LC_COLORS: Record<string, string> = { lead: "var(--text-mute)", mql: "var(--accent-2)", sql: "var(--accent)", customer: "var(--ok)", evangelist: "var(--accent-text)", churned: "var(--err)" };
 
 export function ContactsTable({ rows, total, page, pageSize, filters, lifecycleCounts }: { rows: Row[]; total: number; page: number; pageSize: number; filters: Record<string, string>; lifecycleCounts: Record<string, number> }) {
   const { labels, members, tags, member, can } = useOrg();
@@ -39,8 +39,8 @@ export function ContactsTable({ rows, total, page, pageSize, filters, lifecycleC
   const ids = Array.from(sel);
 
   return (
-    <div className="mx-auto max-w-[1400px] p-4 lg:p-8">
-      <PageHeader
+    <div className="mx-auto max-w-[1400px] px-4 pb-16 pt-8 lg:px-8">
+      <PageHeader eyebrow="02 / Relacionamento"
         icon={<Users />}
         title={labels.contact.plural}
         description={`${total} ${total === 1 ? "registro" : "registros"} · pessoas com quem sua equipe se relaciona`}
@@ -64,19 +64,9 @@ export function ContactsTable({ rows, total, page, pageSize, filters, lifecycleC
           const color = l.value ? LC_COLORS[l.value]! : "var(--brand)";
           const count = l.value ? lifecycleCounts[l.value] ?? 0 : Object.values(lifecycleCounts).reduce((a, b) => a + b, 0);
           return (
-            <button
-              key={l.value || "all"}
-              onClick={() => set("lifecycle", l.value)}
-              className={cn(
-                "flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2 text-left transition hover:-translate-y-0.5",
-                active ? "text-white shadow-lift" : "border-line bg-surface shadow-soft hover:shadow-card",
-              )}
-              style={active ? { background: `linear-gradient(135deg, color-mix(in oklab, ${color} 75%, white), ${color})`, borderColor: "transparent" } : undefined}
-            >
-              {!active && <span className="size-2 rounded-full" style={{ background: color }} />}
-              <span className="text-xs font-semibold">{l.label}</span>
-              <span className={cn("rounded-md px-1.5 text-[11px] font-bold", active ? "bg-white/25" : "bg-surface-2 text-muted")}>{count}</span>
-            </button>
+            <FilterChip key={l.value || "all"} active={active} onClick={() => set("lifecycle", l.value)} count={count} dot={l.value ? color : undefined}>
+              {l.label}
+            </FilterChip>
           );
         })}
       </div>
@@ -100,7 +90,7 @@ export function ContactsTable({ rows, total, page, pageSize, filters, lifecycleC
       </div>
 
       {ids.length > 0 && can("MANAGER") && (
-        <div className="mb-3 flex items-center gap-3 rounded-xl border border-brand/30 bg-brand/5 px-3 py-2 text-sm">
+        <div className="card-drap mb-3 flex items-center gap-3 px-3 py-2 text-sm">
           <b>{ids.length} selecionado(s)</b>
           <Button size="sm" variant="danger" loading={pending} onClick={() => confirm("Excluir os contatos selecionados?") && run(() => deleteContacts(ids), { onSuccess: () => setSel(new Set()) })}>
             <Trash2 className="size-3.5" /> Excluir
@@ -201,7 +191,7 @@ function ImportModal({ open, onClose, onImport, pending }: { open: boolean; onCl
           ref={ref}
           type="file"
           accept=".csv,text/csv"
-          className="block w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-brand file:px-3 file:py-2 file:text-white"
+          className="block w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-brand file:px-3 file:py-2 file:text-[var(--chip-active-fg)]"
           onChange={async (e) => {
             const f = e.target.files?.[0];
             if (f) setRows(parseCsv(await f.text()));

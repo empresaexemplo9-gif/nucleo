@@ -28,24 +28,24 @@ export function RelatedDeals({ deals, defaults }: { deals: RelatedDeal[]; defaul
       />
       {deals.length > 0 && (
         <div className="mb-2 grid grid-cols-2 gap-2 text-xs">
-          <div className="rounded-xl bg-surface-2 p-2.5">
+          <div className="rounded-[10px] bg-surface-2 p-2.5">
             <p className="text-muted">Em aberto</p>
-            <p className="font-display font-bold">{fmt(open.reduce((s, d) => s + d.value, 0))}</p>
+            <p className="font-medium tracking-[-0.02em]">{fmt(open.reduce((s, d) => s + d.value, 0))}</p>
           </div>
-          <div className="rounded-xl bg-emerald-500/10 p-2.5">
+          <div className="rounded-[10px] bg-ok/10 p-2.5">
             <p className="text-muted">Ganhos</p>
-            <p className="font-display font-bold text-emerald-600">{fmt(won.reduce((s, d) => s + d.value, 0))}</p>
+            <p className="font-medium tracking-[-0.02em] text-ok">{fmt(won.reduce((s, d) => s + d.value, 0))}</p>
           </div>
         </div>
       )}
       <div className="divide-y divide-line">
         {deals.map((d) => (
-          <Link key={d.id} href={`/deals/${d.id}`} className="flex items-center justify-between gap-2 py-2 text-sm hover:text-brand">
+          <Link key={d.id} href={`/deals/${d.id}`} className="flex items-center justify-between gap-2 py-2 text-sm hover:text-accent-text">
             <span className="min-w-0">
               <span className="block truncate font-medium">{d.title}</span>
               <span className="text-xs text-muted">{fmt(d.value)}</span>
             </span>
-            {d.status === "OPEN" ? <Badge color={d.color} dot>{d.stage}</Badge> : <Badge color={d.status === "WON" ? "#16a34a" : "#dc2626"}>{d.status === "WON" ? "Ganho" : "Perdido"}</Badge>}
+            {d.status === "OPEN" ? <Badge color={d.color} dot>{d.stage}</Badge> : <Badge color={d.status === "WON" ? "var(--ok)" : "var(--err)"}>{d.status === "WON" ? "Ganho" : "Perdido"}</Badge>}
           </Link>
         ))}
         {!deals.length && <p className="py-2 text-sm text-muted">Nenhum ainda.</p>}

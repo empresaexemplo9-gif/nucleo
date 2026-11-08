@@ -2,10 +2,8 @@ import Link from "next/link";
 import {
   AlertTriangle,
   ArrowRight,
-  CalendarCheck,
   CalendarClock,
   CircleDollarSign,
-  Clock,
   Flame,
   KanbanSquare,
   Percent,
@@ -23,6 +21,7 @@ import { Ring, TrendChart } from "@/components/charts";
 import { Funnel } from "@/components/funnel";
 import { Sparkline } from "@/components/sparkline";
 import { ActivityIcon } from "@/components/activity-icon";
+import { Marquee, Terminal } from "@/components/terminal";
 import { Avatar, Badge, Card, CardHeader, EmptyState, IconTile, SectionTitle, StatCard } from "@/components/ui";
 import { HeroActions, PeriodSelect, Welcome } from "./dashboard-client";
 
@@ -73,6 +72,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         include: { stage: true, company: { select: { name: true } }, contact: { select: { name: true } } },
       }),
     ]);
+  const recentWins = await db.deal.findMany({ where: { ...base, status: "WON" }, orderBy: { closedAt: "desc" }, take: 10, select: { title: true, value: true } });
 
   const sum = (l: { value: unknown }[]) => l.reduce((s, d) => s + Number(d.value), 0);
   const openValue = sum(openDeals);
@@ -111,55 +111,67 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
 
   const summary =
     overdue > 0
-      ? `Você tem ${overdue} atividade(s) atrasada(s) — que tal começar por elas?`
+      ? `Você tem ${overdue} atividade(s) atrasada(s). Comece por elas e mantenha o funil em movimento.`
       : todayCount > 0
-        ? `Você tem ${todayCount} atividade(s) para hoje. Bora vender! 🚀`
-        : "Sua agenda de hoje está livre — ótimo momento para prospectar.";
+        ? `Você tem ${todayCount} atividade(s) para hoje e ${fmt(weighted, true)} em previsão ponderada.`
+        : "Sua agenda de hoje está livre — ótimo momento para prospectar novas oportunidades.";
+
+  const winsTicker = recentWins.map((w) => `${w.title} · ${fmt(Number(w.value), true)}`);
+  const ticker = winsTicker.length ? winsTicker : (pipeline?.stages ?? []).map((st) => st.name);
 
   return (
-    <div className="mx-auto max-w-[1400px] p-4 lg:p-8">
+    <div className="mx-auto max-w-[1320px] px-4 pb-16 pt-8 lg:px-8">
       {sp.welcome && <Welcome />}
 
-      {/* ======== Faixa de boas-vindas ======== */}
-      <section className="relative overflow-hidden rounded-3xl p-6 text-white shadow-lift lg:p-8" style={{ background: "linear-gradient(120deg, var(--brand), color-mix(in oklab, var(--brand) 50%, var(--accent)) 55%, var(--accent))" }}>
-        <div className="pointer-events-none absolute -right-16 -top-24 size-80 rounded-full bg-white/20 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-28 left-1/3 size-72 rounded-full bg-fuchsia-400/25 blur-3xl" />
-        <div className="pointer-events-none absolute inset-0 opacity-25 [background-image:radial-gradient(rgba(255,255,255,0.55)_1px,transparent_1px)] [background-size:20px_20px] [mask-image:linear-gradient(to_left,black,transparent_65%)]" />
-        <div className="relative flex flex-wrap items-center justify-between gap-6">
-          <div className="min-w-0 max-w-xl">
-            <p className="text-sm font-medium text-white/75 first-letter:uppercase">{dateFmt(now, "pt-BR", { weekday: "long", day: "numeric", month: "long" })}</p>
-            <h1 className="mt-1 text-3xl font-extrabold tracking-tight lg:text-[34px]">
-              {greeting}, {ctx.user.name.split(" ")[0]}! 👋
-            </h1>
-            <p className="mt-2 text-sm text-white/85 lg:text-base">{summary}</p>
-            <HeroActions />
-          </div>
-          <div className="grid w-full grid-cols-3 gap-2.5 sm:w-auto">
-            {[
-              { label: "Para hoje", value: todayCount, icon: CalendarCheck, href: "/activities?when=today&who=me" },
-              { label: "Atrasadas", value: overdue, icon: Clock, href: "/activities?when=overdue&who=me", alert: overdue > 0 },
-              { label: "Parados", value: rottingAll.length, icon: AlertTriangle, href: "/deals", alert: rottingAll.length > 0 },
-            ].map((x, i) => (
-              <Link
-                key={x.label}
-                href={x.href}
-                className="animate-float rounded-2xl border border-white/25 bg-white/12 p-3.5 text-center backdrop-blur-md transition hover:bg-white/20 sm:w-28"
-                style={{ animationDelay: `${i * 0.6}s` }}
-              >
-                <x.icon className="mx-auto size-5 opacity-90" />
-                <p className="font-display mt-1.5 text-2xl font-extrabold leading-none">{x.value}</p>
-                <p className="mt-1 text-[11px] font-medium text-white/80">
-                  {x.label}
-                  {x.alert && <span className="ml-1 inline-block size-1.5 animate-pulse rounded-full bg-rose-300" />}
-                </p>
-              </Link>
-            ))}
-          </div>
+      {/* ======== Hero editorial ======== */}
+      <section className="grid items-center gap-10 lg:grid-cols-[1.15fr_1fr]">
+        <div className="animate-rise min-w-0">
+          <span className="glass-pill mono-label inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[10.5px] text-fg-2">
+            <span className="size-1.5 rounded-full bg-[var(--accent)]" />
+            {ctx.org.slug}://painel · {dateFmt(now, "pt-BR", { day: "2-digit", month: "short" }).replace(".", "")}
+          </span>
+          <h1 className="mt-6 text-[clamp(44px,6.2vw,88px)] font-medium leading-[0.98] tracking-[-0.045em]">
+            {greeting},
+            <br />
+            <span className="serif-i text-grad pr-2">{ctx.user.name.split(" ")[0]}.</span>
+          </h1>
+          <p className="mt-6 max-w-xl text-[19px] font-light leading-relaxed text-fg-2">{summary}</p>
+          <HeroActions />
+        </div>
+
+        <div className="animate-rise relative min-w-0 [animation-delay:120ms]">
+          <Terminal
+            title={`drap-crm — ${ctx.org.name.toLowerCase()}`}
+            lines={[
+              { kind: "cmd", text: "crm status --hoje" },
+              { kind: todayCount ? "ok" : "info", text: `${String(todayCount).padStart(2, "0")} atividade(s) para hoje` },
+              { kind: overdue ? "warn" : "ok", text: overdue ? `${String(overdue).padStart(2, "0")} atividade(s) atrasada(s)` : "nenhuma atividade atrasada" },
+              { kind: rottingAll.length ? "warn" : "ok", text: `${String(rottingAll.length).padStart(2, "0")} ${L.deal.plural.toLowerCase()} parado(s)` },
+              { kind: "blank" },
+              { kind: "cmd", text: "crm pipeline --resumo" },
+              { kind: "ok", text: `aberto ${fmt(openValue, true)} · ponderado ${fmt(weighted, true)}` },
+              { kind: "ok", text: `ganho no mês ${fmt(monthWon, true)}${goalPct != null ? ` · meta ${goalPct}%` : ""}` },
+            ]}
+            footerLeft={`org: ${ctx.org.slug} · funil: ${pipeline?.name ?? "—"}`}
+            footerRight="healthy"
+          />
+          <Link href="/activities?when=overdue&who=me" className="glass-pill animate-float absolute -top-6 right-24 hidden rounded-[10px] px-3 py-2 shadow-card sm:block">
+            <p className="eyebrow text-[9.5px]">Atrasadas</p>
+            <p className="text-xl font-medium tracking-[-0.03em]">{String(overdue).padStart(2, "0")}</p>
+          </Link>
+          <Link href="/deals" className="glass-pill animate-float absolute -bottom-10 right-28 hidden rounded-[10px] px-3 py-2 shadow-card [animation-delay:1.2s] sm:block">
+            <p className="eyebrow text-[9.5px]">Pipeline aberto</p>
+            <p className="text-xl font-medium tracking-[-0.03em]">{fmt(openValue, true)}</p>
+          </Link>
         </div>
       </section>
 
+      <div className="-mx-4 mt-14 lg:-mx-8">
+        <Marquee items={ticker} />
+      </div>
+
       {/* ======== Seu dia ======== */}
-      <SectionTitle emoji="☀️" title="Seu dia" description="O que precisa da sua atenção agora" />
+      <SectionTitle index={1} description="Seu dia" title="O que precisa de atenção agora" highlight="agora" />
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="p-5 lg:col-span-2">
           <CardHeader
@@ -177,13 +189,13 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
               const late = a.dueAt && a.dueAt < now;
               const t = ACTIVITY_TYPES[a.type];
               return (
-                <li key={a.id} className={`flex items-center gap-3 rounded-xl border p-3 transition hover:shadow-card ${late ? "border-rose-500/25 bg-rose-500/[0.04]" : "border-line bg-surface-2/40"}`}>
-                  <IconTile color={late ? "#e11d48" : t.color} size={38} className="[&>svg]:size-[18px]">
+                <li key={a.id} className={`flex items-center gap-3 rounded-[10px] border p-3 transition duration-300 hover:-translate-y-px ${late ? "border-[color-mix(in_oklab,var(--err)_30%,transparent)] bg-[color-mix(in_oklab,var(--err)_5%,transparent)]" : "border-line bg-well"}`}>
+                  <IconTile color={late ? "var(--err)" : t.color} size={36} className="[&>svg]:size-4">
                     <ActivityIcon type={a.type} />
                   </IconTile>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold">{a.title}</p>
-                    <p className={`truncate text-xs ${late ? "font-semibold text-rose-600" : "text-muted"}`}>{a.dueAt ? dateTime(a.dueAt) : "Sem data"}</p>
+                    <p className="truncate text-sm font-medium">{a.title}</p>
+                    <p className={`truncate font-mono text-[11px] ${late ? "text-err" : "text-muted"}`}>{a.dueAt ? dateTime(a.dueAt) : "Sem data"}</p>
                     {a.deal && (
                       <Link href={`/deals/${a.deal.id}`} className="block truncate text-xs text-muted hover:text-brand">
                         {a.deal.title}
@@ -194,7 +206,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
               );
             })}
           </ul>
-          {!upcoming.length && <EmptyState icon={<CalendarClock />} title="Agenda livre 🎉" description="Nenhuma atividade pendente para você." />}
+          {!upcoming.length && <EmptyState icon={<CalendarClock />} title="Agenda livre" description="Nenhuma atividade pendente para você." />}
         </Card>
 
         <Card className="p-5">
@@ -202,21 +214,21 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
             icon={<AlertTriangle />}
             title={`${L.deal.plural} parados`}
             description="Precisam de um empurrão"
-            action={rottingAll.length > 0 ? <Badge color="#d97706" dot>{rottingAll.length}</Badge> : undefined}
+            action={rottingAll.length > 0 ? <Badge color="var(--warn)" dot>{rottingAll.length}</Badge> : undefined}
           />
           <ul className="space-y-1">
             {rotting.map((d) => (
               <li key={d.id}>
-                <Link href={`/deals/${d.id}`} className="-mx-2 flex items-center gap-3 rounded-xl px-2 py-2 transition hover:bg-surface-2">
-                  <span className="flex size-9 shrink-0 flex-col items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-rose-500 text-white shadow-sm">
-                    <span className="font-display text-sm font-extrabold leading-none">{daysSince(d.stageChangedAt)}</span>
-                    <span className="text-[8px] font-semibold uppercase">dias</span>
+                <Link href={`/deals/${d.id}`} className="-mx-2 flex items-center gap-3 rounded-[10px] px-2 py-2 transition hover:bg-surface-2">
+                  <span className="flex size-10 shrink-0 flex-col items-center justify-center rounded-[var(--radius-sm)] border border-[color-mix(in_oklab,var(--warn)_40%,transparent)] bg-[color-mix(in_oklab,var(--warn)_8%,transparent)] text-warn">
+                    <span className="text-sm font-medium leading-none">{daysSince(d.stageChangedAt)}</span>
+                    <span className="font-mono text-[8px] uppercase tracking-[0.1em]">dias</span>
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium">{d.title}</span>
                     <span className="text-xs text-muted">{d.stage.name}</span>
                   </span>
-                  <span className="font-display text-sm font-bold">{fmt(Number(d.value), true)}</span>
+                  <span className="text-sm font-medium tracking-[-0.02em]">{fmt(Number(d.value), true)}</span>
                 </Link>
               </li>
             ))}
@@ -226,14 +238,14 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       </div>
 
       {/* ======== Resultados ======== */}
-      <SectionTitle emoji="📈" title="Resultados" description={`${PERIODS[period]} · comparado ao período anterior`} action={<PeriodSelect value={period} options={PERIODS} />} />
+      <SectionTitle index={2} description={`Resultados · ${PERIODS[period]}`} title="Desempenho do período" highlight="período" action={<PeriodSelect value={period} options={PERIODS} />} />
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 2xl:grid-cols-6">
-        <StatCard className="animate-rise" label="Receita ganha" value={big(wonValue)} delta={delta(wonValue, prevWonValue)} sub="vs. anterior" icon={<Trophy />} color="#10b981" spark={<Sparkline id="won" values={series.map((s) => s.won)} color="#10b981" width={70} />} />
-        <StatCard className="animate-rise [animation-delay:50ms]" label="Taxa de conversão" value={`${winRate}%`} delta={prevWinRate || winRate ? winRate - prevWinRate : null} sub={`${won.length}G · ${lost}P`} icon={<Percent />} color="#8b5cf6" spark={<Sparkline id="rate" values={series.map((s) => s.rate)} color="#8b5cf6" width={70} />} />
-        <StatCard className="animate-rise [animation-delay:100ms]" label="Ticket médio" value={big(avgTicket)} delta={delta(avgTicket, prevTicket)} sub="vs. anterior" icon={<Target />} color="#f59e0b" spark={<Sparkline id="ticket" values={series.map((s) => s.ticket)} color="#f59e0b" width={70} />} />
-        <StatCard className="animate-rise [animation-delay:150ms]" label={`Novos ${L.deal.plural.toLowerCase()}`} value={String(created)} delta={delta(created, prevCreated)} sub={`ciclo ${cycle}d`} icon={<Plus />} color="#ec4899" spark={<Sparkline id="created" values={series.map((s) => s.created)} color="#ec4899" width={70} />} />
-        <StatCard className="animate-rise [animation-delay:200ms]" label="Pipeline aberto" value={big(openValue)} sub={`${openDeals.length} em andamento`} icon={<CircleDollarSign />} color="#6366f1" />
-        <StatCard className="animate-rise [animation-delay:250ms]" label="Previsão ponderada" value={big(weighted)} sub="valor × probabilidade" icon={<TrendingUp />} color="#0ea5e9" />
+        <StatCard className="animate-rise" label="Receita ganha" index={1} value={big(wonValue)} delta={delta(wonValue, prevWonValue)} sub="vs. anterior" icon={<Trophy />} color="var(--ok)" spark={<Sparkline id="won" values={series.map((s) => s.won)} color="var(--ok)" width={70} />} />
+        <StatCard className="animate-rise [animation-delay:50ms]" label="Taxa de conversão" index={2} value={`${winRate}%`} delta={prevWinRate || winRate ? winRate - prevWinRate : null} sub={`${won.length}G · ${lost}P`} icon={<Percent />} color="var(--accent-2)" spark={<Sparkline id="rate" values={series.map((s) => s.rate)} color="var(--accent-2)" width={70} />} />
+        <StatCard className="animate-rise [animation-delay:100ms]" label="Ticket médio" index={3} value={big(avgTicket)} delta={delta(avgTicket, prevTicket)} sub="vs. anterior" icon={<Target />} color="var(--accent)" spark={<Sparkline id="ticket" values={series.map((s) => s.ticket)} color="var(--accent)" width={70} />} />
+        <StatCard className="animate-rise [animation-delay:150ms]" label={`Novos ${L.deal.plural.toLowerCase()}`} index={4} value={String(created)} delta={delta(created, prevCreated)} sub={`ciclo ${cycle}d`} icon={<Plus />} color="var(--accent-2-text)" spark={<Sparkline id="created" values={series.map((s) => s.created)} color="var(--accent-2-text)" width={70} />} />
+        <StatCard className="animate-rise [animation-delay:200ms]" label="Pipeline aberto" index={5} value={big(openValue)} sub={`${openDeals.length} em andamento`} icon={<CircleDollarSign />} color="var(--accent-text)" />
+        <StatCard className="animate-rise [animation-delay:250ms]" label="Previsão ponderada" index={6} value={big(weighted)} sub="valor × probabilidade" icon={<TrendingUp />} color="var(--accent-2)" />
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-3">
@@ -244,7 +256,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
             description="Negócios ganhos nos últimos 6 meses"
             action={
               <div className="text-right">
-                <p className="text-brand-gradient font-display text-xl font-extrabold">{fmt(monthly.reduce((s, m) => s + m.value, 0), true)}</p>
+                <p className="text-grad text-2xl font-medium tracking-[-0.03em]">{fmt(monthly.reduce((s, m) => s + m.value, 0), true)}</p>
                 <p className="text-[11px] text-muted">{monthly.reduce((s, m) => s + (m.count ?? 0), 0)} fechados</p>
               </div>
             }
@@ -252,22 +264,22 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           <TrendChart data={monthly} />
         </Card>
 
-        <Card className="ring-gradient flex flex-col p-5">
+        <Card grid className="flex flex-col p-5">
           <CardHeader icon={<Target />} title="Meta do mês" description={dateFmt(now, "pt-BR", { month: "long", year: "numeric" })} />
           {goal ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-4">
               <Ring value={goalPct ?? 0} size={156} stroke={14}>
-                <span className="font-display text-4xl font-extrabold">{goalPct}%</span>
-                <span className="text-[11px] font-medium text-muted">{(goalPct ?? 0) >= 100 ? "meta batida! 🎉" : "atingido"}</span>
+                <span className="text-[40px] font-medium leading-none tracking-[-0.045em]">{goalPct}%</span>
+                <span className="eyebrow mt-1 text-[9.5px]">{(goalPct ?? 0) >= 100 ? "meta batida" : "atingido"}</span>
               </Ring>
               <div className="grid w-full grid-cols-2 gap-2 text-center">
-                <div className="rounded-xl bg-emerald-500/10 p-2.5">
-                  <p className="text-[11px] font-medium text-emerald-700 dark:text-emerald-400">Realizado</p>
-                  <p className="font-display text-sm font-extrabold">{fmt(monthWon, true)}</p>
+                <div className="rounded-[10px] border border-line bg-well p-2.5">
+                  <p className="eyebrow text-[9.5px] text-ok">Realizado</p>
+                  <p className="text-sm font-medium tracking-[-0.02em]">{fmt(monthWon, true)}</p>
                 </div>
-                <div className="rounded-xl bg-brand/10 p-2.5">
-                  <p className="text-[11px] font-medium text-brand">Faltam</p>
-                  <p className="font-display text-sm font-extrabold">{fmt(Math.max(0, Number(goal.target) - monthWon), true)}</p>
+                <div className="rounded-[10px] border border-line bg-well p-2.5">
+                  <p className="eyebrow text-[9.5px] text-accent-text">Faltam</p>
+                  <p className="text-sm font-medium tracking-[-0.02em]">{fmt(Math.max(0, Number(goal.target) - monthWon), true)}</p>
                 </div>
               </div>
             </div>
@@ -278,7 +290,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
               description="Defina uma meta de receita para engajar o time."
               action={
                 ctx.role !== "SALES" && ctx.role !== "VIEWER" ? (
-                  <Link href="/settings/goals" className="text-sm font-semibold text-brand hover:underline">Definir meta →</Link>
+                  <Link href="/settings/goals" className="text-sm font-medium text-brand hover:underline">Definir meta →</Link>
                 ) : undefined
               }
             />
@@ -288,9 +300,10 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
 
       {/* ======== Pipeline & equipe ======== */}
       <SectionTitle
-        emoji="🎯"
+        index={3}
         title="Pipeline e equipe"
-        description={pipeline ? `Funil ${pipeline.name}` : undefined}
+        highlight="equipe"
+        description={pipeline ? `Pipeline · ${pipeline.name}` : "Pipeline"}
         action={
           <Link href="/deals" className="inline-flex items-center gap-1 text-xs font-semibold text-brand hover:underline">
             Abrir funil <ArrowRight className="size-3" />
@@ -308,18 +321,17 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           <ul className="space-y-1">
             {hot.map((d, i) => (
               <li key={d.id}>
-                <Link href={`/deals/${d.id}`} className="-mx-2 flex items-center gap-3 rounded-xl px-2 py-2 transition hover:bg-surface-2">
+                <Link href={`/deals/${d.id}`} className="-mx-2 flex items-center gap-3 rounded-[10px] px-2 py-2 transition hover:bg-surface-2">
                   <span
-                    className="flex size-9 shrink-0 items-center justify-center rounded-xl text-sm font-extrabold text-white shadow-sm"
-                    style={{ background: `linear-gradient(140deg, color-mix(in oklab, ${d.stage.color} 70%, white), ${d.stage.color})` }}
+                    className="flex size-9 shrink-0 items-center justify-center rounded-[var(--radius-sm)] border border-line bg-well font-mono text-xs text-accent-text"
                   >
-                    {i + 1}
+                    {String(i + 1).padStart(2, "0")}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-semibold">{d.title}</span>
+                    <span className="block truncate text-sm font-medium">{d.title}</span>
                     <span className="block truncate text-xs text-muted">{d.company?.name ?? d.contact?.name ?? "—"} · {d.stage.name}</span>
                   </span>
-                  <span className="font-display text-sm font-extrabold">{fmt(Number(d.value), true)}</span>
+                  <span className="text-sm font-medium tracking-[-0.02em]">{fmt(Number(d.value), true)}</span>
                 </Link>
               </li>
             ))}
@@ -333,15 +345,15 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
             <ol className="space-y-3.5">
               {ranking.map((r, i) => (
                 <li key={r.id} className="flex items-center gap-3">
-                  <span className="w-6 shrink-0 text-center text-lg">{["🥇", "🥈", "🥉"][i] ?? <span className="text-xs font-bold text-muted">{i + 1}º</span>}</span>
+                  <span className={`w-6 shrink-0 font-mono text-xs ${i === 0 ? "text-accent-text" : "text-muted"}`}>{String(i + 1).padStart(2, "0")}</span>
                   <Avatar name={r.name} color={r.color} size={32} />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-baseline justify-between gap-2">
-                      <p className="truncate text-sm font-semibold">{r.name}</p>
-                      <p className="font-display text-sm font-extrabold">{fmt(r.value, true)}</p>
+                      <p className="truncate text-sm font-medium">{r.name}</p>
+                      <p className="text-sm font-medium tracking-[-0.02em]">{fmt(r.value, true)}</p>
                     </div>
-                    <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-surface-3">
-                      <div className="h-full rounded-full" style={{ width: `${(r.value / topValue) * 100}%`, background: "linear-gradient(90deg, var(--brand), var(--accent))" }} />
+                    <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-3">
+                      <div className="h-full rounded-full" style={{ width: `${(r.value / topValue) * 100}%`, background: "var(--grad)" }} />
                     </div>
                   </div>
                 </li>

@@ -9,7 +9,8 @@ import { str } from "./helpers";
 
 export type FormState = { error?: string } | undefined;
 
-const COLORS = ["#6366f1", "#0ea5e9", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#14b8a6"];
+/** Cores de avatar (dados do usuário), na paleta DRAP. */
+const COLORS = ["#b48a4f", "#3c78c0", "#17905f", "#8a672f", "#2d63a3", "#4b505a"];
 const pickColor = () => COLORS[Math.floor(Math.random() * COLORS.length)]!;
 
 export async function login(_: FormState, fd: FormData): Promise<FormState> {
@@ -56,7 +57,8 @@ export async function register(_: FormState, fd: FormData): Promise<FormState> {
       data: {
         name: company,
         slug,
-        primaryColor: str(fd, "color") ?? "#4f46e5",
+        primaryColor: str(fd, "color") ?? "#b48a4f",
+        accentColor: "#3c78c0",
         settings: { segment: str(fd, "segment") },
       },
     });

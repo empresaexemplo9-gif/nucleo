@@ -57,7 +57,7 @@ export function Feed({
               <button
                 key={k}
                 onClick={() => setTab(k)}
-                className={cn("-mb-px flex items-center gap-1.5 rounded-t-lg border border-b-0 px-3.5 py-2 text-sm font-medium transition", tab === k ? "border-line bg-surface text-brand" : "border-transparent text-muted hover:text-fg")}
+                className={cn("-mb-px flex items-center gap-1.5 rounded-t-lg border border-b-0 px-3.5 py-2 text-sm font-medium transition", tab === k ? "border-line bg-surface text-fg" : "border-transparent text-muted hover:text-fg")}
               >
                 <I className="size-4" /> {l}
               </button>
@@ -90,7 +90,7 @@ export function Feed({
 
       {pending_.length > 0 && (
         <div>
-          <h3 className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-muted"><span className="size-1.5 rounded-full bg-brand" /> Próximos passos</h3>
+          <h3 className="eyebrow mb-2 flex items-center gap-2"><span className="size-1.5 rounded-full bg-[var(--accent)]" /> Próximos passos</h3>
           <div className="space-y-2">
             {pending_.map((a) => (
               <ActivityRow key={a.id} a={a} onEdit={() => setEdit(a)} />
@@ -109,7 +109,7 @@ export function Feed({
 
       <div>
         <div className="mb-2 flex items-center justify-between">
-          <h3 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-muted"><span className="size-1.5 rounded-full bg-muted" /> Histórico</h3>
+          <h3 className="eyebrow flex items-center gap-2"><span className="size-1.5 rounded-full bg-muted" /> Histórico</h3>
           <Tabs
             value={filter}
             onChange={setFilter}
@@ -165,12 +165,12 @@ export function ActivityRow({ a, onEdit, showLinks }: { a: FeedActivity; onEdit?
   const t = ACTIVITY_TYPES[a.type as keyof typeof ACTIVITY_TYPES];
   const who = member(a.assigneeId);
   return (
-    <Card className={cn("group relative flex items-start gap-3 p-3.5 transition hover:shadow-lift", a.done && "opacity-70", overdue && "border-rose-500/30")}>
+    <Card className={cn("group relative flex items-start gap-3 p-3.5 transition hover:shadow-lift", a.done && "opacity-70", overdue && "border-err/30")}>
       <button
         onClick={() => run(() => toggleActivity(a.id, !a.done))}
         className={cn(
           "z-10 mt-1.5 flex size-5 shrink-0 items-center justify-center rounded-full border-2 transition",
-          a.done ? "border-emerald-500 bg-emerald-500 text-white" : "border-line-strong bg-surface hover:border-emerald-500 hover:bg-emerald-500/10",
+          a.done ? "border-ok bg-ok text-[var(--surface-1)]" : "border-line-strong bg-surface hover:border-ok hover:bg-ok/10",
         )}
         aria-label={a.done ? "Reabrir" : "Concluir"}
       >
@@ -178,12 +178,12 @@ export function ActivityRow({ a, onEdit, showLinks }: { a: FeedActivity; onEdit?
       </button>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className="flex size-6 items-center justify-center rounded-md" style={{ color: t?.color, background: `color-mix(in oklab, ${t?.color ?? "#64748b"} 13%, transparent)` }}>
+          <span className="flex size-6 items-center justify-center rounded-md" style={{ color: t?.color, background: `color-mix(in oklab, ${t?.color ?? "var(--text-mute)"} 13%, transparent)` }}>
             <ActivityIcon type={a.type} className="size-3.5" />
           </span>
           <p className={cn("truncate text-sm font-medium", a.done && "line-through")}>{a.title}</p>
         </div>
-        <p className={cn("mt-1 text-xs", overdue ? "font-medium text-rose-600" : "text-muted")}>
+        <p className={cn("mt-1 text-xs", overdue ? "font-medium text-err" : "text-muted")}>
           {a.dueAt ? dateTime(a.dueAt) : "Sem data"}
           {overdue && " · atrasada"}
           {who && ` · ${who.name}`}
@@ -200,7 +200,7 @@ export function ActivityRow({ a, onEdit, showLinks }: { a: FeedActivity; onEdit?
             <Pencil className="size-3.5" />
           </button>
         )}
-        <button onClick={() => confirm("Excluir atividade?") && run(() => deleteActivity(a.id))} className="rounded p-1 text-muted hover:bg-surface-2 hover:text-red-600" aria-label="Excluir">
+        <button onClick={() => confirm("Excluir atividade?") && run(() => deleteActivity(a.id))} className="rounded p-1 text-muted hover:bg-surface-2 hover:text-err" aria-label="Excluir">
           <Trash2 className="size-3.5" />
         </button>
       </div>
@@ -213,11 +213,11 @@ function NoteRow({ n }: { n: FeedNote }) {
   const { run } = useAction();
   const author = member(n.authorId);
   return (
-    <Card className={cn("group relative flex gap-3 p-3.5", n.pinned ? "border-amber-300/70 bg-amber-50/80 dark:border-amber-700/50 dark:bg-amber-950/20" : "bg-surface")}>
+    <Card className={cn("group relative flex gap-3 p-3.5", n.pinned ? "border-warn/40 bg-warn/5" : "")}>
       <span className="z-10">{author ? <Avatar name={author.name} color={author.avatarColor} size={34} ring /> : <MessageSquare className="size-5 text-muted" />}</span>
       <div className="min-w-0 flex-1">
         <p className="text-xs text-muted">
-          <b className="text-fg">{author?.name ?? "Sistema"}</b> · {relative(n.createdAt)}{n.pinned && <span className="ml-1.5 font-medium text-amber-600">· fixada</span>}
+          <b className="text-fg">{author?.name ?? "Sistema"}</b> · {relative(n.createdAt)}{n.pinned && <span className="ml-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-warn">· fixada</span>}
         </p>
         <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-fg-2">{n.content}</p>
       </div>
@@ -225,7 +225,7 @@ function NoteRow({ n }: { n: FeedNote }) {
         <button onClick={() => run(() => togglePinNote(n.id))} className="rounded p-1 text-muted hover:bg-surface-2" aria-label="Fixar">
           {n.pinned ? <PinOff className="size-3.5" /> : <Pin className="size-3.5" />}
         </button>
-        <button onClick={() => confirm("Excluir nota?") && run(() => deleteNote(n.id))} className="rounded p-1 text-muted hover:bg-surface-2 hover:text-red-600" aria-label="Excluir">
+        <button onClick={() => confirm("Excluir nota?") && run(() => deleteNote(n.id))} className="rounded p-1 text-muted hover:bg-surface-2 hover:text-err" aria-label="Excluir">
           <Trash2 className="size-3.5" />
         </button>
       </div>

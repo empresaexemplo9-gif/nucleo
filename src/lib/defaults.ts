@@ -1,11 +1,12 @@
 import type { Prisma } from "@prisma/client";
 
+/** Cores iniciais das etapas (dados editáveis pelo cliente), derivadas da paleta DRAP. */
 export const DEFAULT_STAGES = [
-  { name: "Prospecção", color: "#64748b", probability: 10, rottingDays: 7 },
-  { name: "Qualificação", color: "#3b82f6", probability: 25, rottingDays: 7 },
-  { name: "Apresentação", color: "#8b5cf6", probability: 45, rottingDays: 10 },
-  { name: "Proposta", color: "#f59e0b", probability: 65, rottingDays: 10 },
-  { name: "Negociação", color: "#f97316", probability: 85, rottingDays: 14 },
+  { name: "Prospecção", color: "#7d828c", probability: 10, rottingDays: 7 },
+  { name: "Qualificação", color: "#3c78c0", probability: 25, rottingDays: 7 },
+  { name: "Apresentação", color: "#2d63a3", probability: 45, rottingDays: 10 },
+  { name: "Proposta", color: "#b48a4f", probability: 65, rottingDays: 10 },
+  { name: "Negociação", color: "#8a672f", probability: 85, rottingDays: 14 },
 ];
 
 export const DEFAULT_LOST_REASONS = [
@@ -18,13 +19,13 @@ export const DEFAULT_LOST_REASONS = [
 ];
 
 export const ACTIVITY_TYPES = {
-  CALL: { label: "Ligação", color: "#0ea5e9" },
-  MEETING: { label: "Reunião", color: "#8b5cf6" },
-  TASK: { label: "Tarefa", color: "#64748b" },
-  EMAIL: { label: "E-mail", color: "#f59e0b" },
-  DEADLINE: { label: "Prazo", color: "#ef4444" },
-  LUNCH: { label: "Almoço", color: "#10b981" },
-  WHATSAPP: { label: "WhatsApp", color: "#22c55e" },
+  CALL: { label: "Ligação", color: "var(--accent-2)" },
+  MEETING: { label: "Reunião", color: "var(--accent)" },
+  TASK: { label: "Tarefa", color: "var(--text-dim)" },
+  EMAIL: { label: "E-mail", color: "var(--accent-2-text)" },
+  DEADLINE: { label: "Prazo", color: "var(--err)" },
+  LUNCH: { label: "Almoço", color: "var(--accent-text)" },
+  WHATSAPP: { label: "WhatsApp", color: "var(--ok)" },
 } as const;
 
 export const LIFECYCLES = [
@@ -45,16 +46,16 @@ export async function setupOrganization(tx: Prisma.TransactionClient, orgId: str
   await tx.stage.createMany({
     data: [
       ...DEFAULT_STAGES.map((s, i) => ({ ...s, pipelineId: pipeline.id, position: i })),
-      { name: "Ganho", color: "#16a34a", probability: 100, position: 100, type: "WON" as const, pipelineId: pipeline.id },
-      { name: "Perdido", color: "#dc2626", probability: 0, position: 101, type: "LOST" as const, pipelineId: pipeline.id },
+      { name: "Ganho", color: "#17905f", probability: 100, position: 100, type: "WON" as const, pipelineId: pipeline.id },
+      { name: "Perdido", color: "#cf3a56", probability: 0, position: 101, type: "LOST" as const, pipelineId: pipeline.id },
     ],
   });
   await tx.lostReason.createMany({ data: DEFAULT_LOST_REASONS.map((label) => ({ orgId, label })) });
   await tx.tag.createMany({
     data: [
-      { orgId, name: "Quente", color: "#ef4444" },
-      { orgId, name: "VIP", color: "#a855f7" },
-      { orgId, name: "Retorno", color: "#0ea5e9" },
+      { orgId, name: "Quente", color: "#cf3a56" },
+      { orgId, name: "VIP", color: "#b48a4f" },
+      { orgId, name: "Retorno", color: "#3c78c0" },
     ],
   });
   return pipeline;

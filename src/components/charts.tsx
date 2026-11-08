@@ -2,16 +2,16 @@
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useOrg } from "./org-context";
 
-const axis = { fontSize: 11, fill: "var(--muted)" };
+const axis = { fontSize: 10.5, fill: "var(--text-mute)", fontFamily: "var(--font-mono)" };
 
 function Tip({ active, payload, label, money, unit }: { active?: boolean; payload?: { value: number; payload: Record<string, unknown> }[]; label?: string; money?: boolean; unit?: string }) {
   const { fmt } = useOrg();
   if (!active || !payload?.length) return null;
   const p = payload[0]!;
-  const color = (p.payload.color as string) ?? "var(--brand)";
+  const color = (p.payload.color as string) ?? "var(--accent)";
   return (
-    <div className="rounded-xl border border-line bg-surface px-3 py-2 text-xs shadow-lift">
-      <p className="mb-1 font-semibold capitalize text-fg">{label ?? String(p.payload.name)}</p>
+    <div className="card-drap px-3 py-2 text-xs">
+      <p className="eyebrow mb-1 text-[10px]">{label ?? String(p.payload.name)}</p>
       <p className="flex items-center gap-1.5 text-fg-2">
         <span className="size-2 rounded-full" style={{ background: color }} />
         {money ? fmt(p.value) : `${p.value}${unit ? " " + unit : ""}`}
@@ -29,22 +29,22 @@ export function TrendChart({ data, height = 260 }: { data: { name: string; value
       <AreaChart data={data} margin={{ top: 10, right: 8, bottom: 0, left: 0 }}>
         <defs>
           <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--brand)" stopOpacity={0.28} />
-            <stop offset="100%" stopColor="var(--brand)" stopOpacity={0} />
+            <stop offset="0%" stopColor="var(--accent)" stopOpacity={0.28} />
+            <stop offset="100%" stopColor="var(--accent)" stopOpacity={0} />
           </linearGradient>
         </defs>
-        <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 4" />
+        <CartesianGrid vertical={false} stroke="var(--line)" strokeDasharray="3 4" />
         <XAxis dataKey="name" tick={axis} axisLine={false} tickLine={false} dy={6} />
         <YAxis tick={axis} axisLine={false} tickLine={false} width={76} tickFormatter={(v) => fmt(v, true)} />
         <Tooltip cursor={{ stroke: "var(--brand)", strokeOpacity: 0.3, strokeDasharray: "4 4" }} content={<Tip money />} />
         <Area
           type="monotone"
           dataKey="value"
-          stroke="var(--brand)"
+          stroke="var(--accent)"
           strokeWidth={2.5}
           fill="url(#trendFill)"
-          dot={{ r: 3, fill: "var(--surface)", stroke: "var(--brand)", strokeWidth: 2 }}
-          activeDot={{ r: 5, fill: "var(--brand)", stroke: "var(--surface)", strokeWidth: 2 }}
+          dot={{ r: 3, fill: "var(--surface-1)", stroke: "var(--accent)", strokeWidth: 2 }}
+          activeDot={{ r: 5, fill: "var(--accent)", stroke: "var(--surface-1)", strokeWidth: 2 }}
         />
       </AreaChart>
     </ResponsiveContainer>
@@ -59,14 +59,14 @@ export function ColumnChart({ data, money = true, height = 240 }: { data: { name
       <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
         <defs>
           <linearGradient id="colFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--brand)" stopOpacity={1} />
-            <stop offset="100%" stopColor="var(--brand)" stopOpacity={0.65} />
+            <stop offset="0%" stopColor="var(--accent)" stopOpacity={1} />
+            <stop offset="100%" stopColor="var(--accent)" stopOpacity={0.65} />
           </linearGradient>
         </defs>
-        <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 4" />
+        <CartesianGrid vertical={false} stroke="var(--line)" strokeDasharray="3 4" />
         <XAxis dataKey="name" tick={axis} axisLine={false} tickLine={false} dy={6} />
         <YAxis tick={axis} axisLine={false} tickLine={false} width={76} tickFormatter={(v) => (money ? fmt(v, true) : String(v))} />
-        <Tooltip cursor={{ fill: "var(--surface-2)", radius: 6 }} content={<Tip money={money} />} />
+        <Tooltip cursor={{ fill: "var(--tint-2)", radius: 6 }} content={<Tip money={money} />} />
         <Bar dataKey="value" fill="url(#colFill)" radius={[6, 6, 2, 2]} maxBarSize={34} />
       </BarChart>
     </ResponsiveContainer>
@@ -80,17 +80,17 @@ export function HBarChart({ data, money = true, unit }: { data: { name: string; 
     <ResponsiveContainer width="100%" height={Math.max(120, data.length * 40)}>
       <BarChart data={data} layout="vertical" margin={{ top: 0, right: 76, bottom: 0, left: 0 }} barCategoryGap={8}>
         <XAxis type="number" hide />
-        <YAxis type="category" dataKey="name" tick={{ ...axis, fill: "var(--fg-2)" }} axisLine={false} tickLine={false} width={112} />
-        <Tooltip cursor={{ fill: "var(--surface-2)", radius: 6 }} content={<Tip money={money} unit={unit} />} />
+        <YAxis type="category" dataKey="name" tick={{ ...axis, fill: "var(--text-dim)" }} axisLine={false} tickLine={false} width={112} />
+        <Tooltip cursor={{ fill: "var(--tint-2)", radius: 6 }} content={<Tip money={money} unit={unit} />} />
         <Bar
           dataKey="value"
           radius={[2, 6, 6, 2]}
           maxBarSize={22}
-          background={{ fill: "var(--surface-2)", radius: 6 }}
-          label={{ position: "right", fontSize: 11, fill: "var(--muted)", formatter: (v: unknown) => (money ? fmt(Number(v), true) : String(v)) }}
+          background={{ fill: "var(--tint-2)", radius: 6 }}
+          label={{ position: "right", fontSize: 11, fill: "var(--text-mute)", formatter: (v: unknown) => (money ? fmt(Number(v), true) : String(v)) }}
         >
           {data.map((d, i) => (
-            <Cell key={i} fill={d.color ?? "var(--brand)"} />
+            <Cell key={i} fill={d.color ?? "var(--accent)"} />
           ))}
         </Bar>
       </BarChart>
@@ -108,8 +108,8 @@ export function Ring({ value, size = 132, stroke = 12, children }: { value: numb
       <svg width={size} height={size} className="-rotate-90">
         <defs>
           <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="var(--brand)" />
-            <stop offset="100%" stopColor="var(--accent)" />
+            <stop offset="0%" stopColor="var(--accent)" />
+            <stop offset="100%" stopColor="var(--accent-2)" />
           </linearGradient>
         </defs>
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--surface-3)" strokeWidth={stroke} />

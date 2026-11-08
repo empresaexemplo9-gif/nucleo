@@ -51,7 +51,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   for (let i = openStages.length - 2; i >= 0; i--) for (const id of reached.get(openStages[i + 1]!.name)!) reached.get(openStages[i]!.name)!.add(id);
   const funnel = [
     ...openStages.map((s) => ({ name: s.name, value: reached.get(s.name)!.size, color: s.color })),
-    { name: "Ganho", value: created.filter((d) => d.status === "WON").length, color: "#16a34a" },
+    { name: "Ganho", value: created.filter((d) => d.status === "WON").length, color: "var(--ok)" },
   ];
 
   const won = closed.filter((d) => d.status === "WON");
@@ -104,10 +104,10 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const L = ctx.labels;
 
   return (
-    <div className="mx-auto max-w-[1400px] space-y-4 p-4 lg:p-8">
-      <PageHeader
+    <div className="mx-auto max-w-[1400px] space-y-4 px-4 pb-16 pt-8 lg:px-8">
+      <PageHeader eyebrow="06 / Análise"
         icon={<BarChart3 />}
-        title="Relatórios"
+        title="Relatórios de vendas" highlight="vendas"
         description="Conversão, desempenho da equipe, perdas e previsão de receita."
         actions={
           <>
@@ -120,10 +120,10 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
       />
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <StatCard label="Novos no período" value={String(created.length)} icon={<Sparkles />} color="#6366f1" />
-        <StatCard label="Ganhos" value={fmt(wonValue, true)} sub={`${won.length} negócio(s)`} icon={<Trophy />} color="#10b981" />
-        <StatCard label="Perdidos" value={String(lost.length)} sub={`${fmt(lost.reduce((s, d) => s + Number(d.value), 0), true)} em valor`} icon={<ThumbsDown />} color="#e11d48" />
-        <StatCard label="Conversão" value={`${won.length + lost.length ? Math.round((won.length / (won.length + lost.length)) * 100) : 0}%`} sub="ganhos ÷ fechados" icon={<Percent />} color="#8b5cf6" />
+        <StatCard label="Novos no período" value={String(created.length)} icon={<Sparkles />} color="var(--accent)" index={1} />
+        <StatCard label="Ganhos" value={fmt(wonValue, true)} sub={`${won.length} negócio(s)`} icon={<Trophy />} color="var(--ok)" index={2} />
+        <StatCard label="Perdidos" value={String(lost.length)} sub={`${fmt(lost.reduce((s, d) => s + Number(d.value), 0), true)} em valor`} icon={<ThumbsDown />} color="var(--err)" index={3} />
+        <StatCard label="Conversão" value={`${won.length + lost.length ? Math.round((won.length / (won.length + lost.length)) * 100) : 0}%`} sub="ganhos ÷ fechados" icon={<Percent />} color="var(--accent-2)" index={4} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -187,7 +187,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
         <Card className="p-5">
           <h2 className="mb-3 text-sm font-semibold">Motivos de perda</h2>
           {reasons.size ? (
-            <HBarChart data={[...reasons.entries()].sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value, color: "#94a3b8" }))} money={false} />
+            <HBarChart data={[...reasons.entries()].sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value, color: "var(--text-mute)" }))} money={false} />
           ) : (
             <p className="text-sm text-muted">Nenhuma perda no período.</p>
           )}

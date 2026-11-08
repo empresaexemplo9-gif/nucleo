@@ -63,8 +63,8 @@ model Organization {
   name         String
   slug         String   @unique
   logoUrl      String?
-  primaryColor String   @default("#4f46e5")
-  accentColor  String   @default("#0ea5e9")
+  primaryColor String   @default("#b48a4f")
+  accentColor  String   @default("#3c78c0")
   currency     String   @default("BRL")
   locale       String   @default("pt-BR")
   timezone     String   @default("America/Sao_Paulo")

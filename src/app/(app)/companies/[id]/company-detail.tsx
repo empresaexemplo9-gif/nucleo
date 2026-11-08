@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Users, ArrowLeft, Building2, Globe, Pencil, Phone, Plus, Trash2 } from "lucide-react";
-import { Avatar, Button, Card, CardHeader, colorFor, Modal } from "@/components/ui";
+import { Avatar, Button, Card, CardHeader, Modal } from "@/components/ui";
 import { CustomFieldValues, InfoRow } from "@/components/custom-fields";
 import { TagList } from "@/components/pickers";
 import { Feed, type FeedActivity, type FeedEvent, type FeedNote } from "@/components/feed";
@@ -34,17 +34,16 @@ export function CompanyDetail({
   const self = { id: company.id, label: company.name };
   const site = company.website && (company.website.startsWith("http") ? company.website : `https://${company.website}`);
   return (
-    <div className="mx-auto max-w-[1400px] p-4 lg:p-8">
+    <div className="mx-auto max-w-[1400px] px-4 pb-16 pt-8 lg:px-8">
       <Link href="/companies" className="mb-4 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm text-muted transition hover:bg-surface hover:text-fg">
         <ArrowLeft className="size-4" /> {labels.company.plural}
       </Link>
-      <Card className="relative flex flex-wrap items-center gap-5 overflow-hidden p-6">
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(160deg,color-mix(in_oklab,var(--brand)_12%,transparent),color-mix(in_oklab,var(--accent)_5%,transparent)_40%,transparent_65%)]" />
-        <span className="relative flex size-16 items-center justify-center rounded-2xl text-2xl font-bold text-white shadow-lift" style={{ background: `linear-gradient(140deg, color-mix(in oklab, ${colorFor(company.name)} 80%, white), ${colorFor(company.name)})` }}>
+      <Card grid className="relative flex flex-wrap items-center gap-5 overflow-hidden p-6">
+        <span className="relative flex size-16 items-center justify-center rounded-[var(--radius)] border border-line bg-well font-serif text-3xl italic text-accent-text">
           {company.name[0]}
         </span>
         <div className="relative min-w-0 flex-1">
-          <h1 className="text-2xl font-bold">{company.name}</h1>
+          <h1 className="text-[clamp(28px,3vw,40px)] font-medium leading-[1.05] tracking-[-0.04em]">{company.name}</h1>
           <p className="text-sm text-muted">{[company.industry, company.city, company.state].filter(Boolean).join(" · ") || "—"}</p>
           <div className="mt-1.5"><TagList tags={company.tags} /></div>
         </div>
@@ -80,7 +79,7 @@ export function CompanyDetail({
             />
             <div className="divide-y divide-line">
               {contacts.map((c) => (
-                <Link key={c.id} href={`/contacts/${c.id}`} className="flex items-center gap-2 py-2 text-sm hover:text-brand">
+                <Link key={c.id} href={`/contacts/${c.id}`} className="flex items-center gap-2 py-2 text-sm hover:text-accent-text">
                   <Avatar name={c.name} size={32} />
                   <span className="min-w-0">
                     <span className="block truncate font-medium">{c.name}</span>

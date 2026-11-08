@@ -18,7 +18,7 @@ import {
 import { SortableContext, useSortable, verticalListSortingStrategy, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { AlertTriangle, Building2, CalendarClock, KanbanSquare, List, Plus, Search, ThumbsDown, ThumbsUp, Trash2, User } from "lucide-react";
-import { Avatar, Badge, Button, Card, cn, EmptyState, Input, Select, Tabs } from "@/components/ui";
+import { Avatar, Badge, Button, Card, cn, EditorialTitle, EmptyState, Input, Select, Tabs } from "@/components/ui";
 import { TagList } from "@/components/pickers";
 import { useOrg } from "@/components/org-context";
 import { useQuickCreate } from "@/components/quick-create";
@@ -88,43 +88,38 @@ export function DealsView({
 
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col">
-      <div className="border-b border-line bg-surface/60 px-4 pb-3 pt-5 backdrop-blur lg:px-8">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex min-w-0 items-center gap-3">
-            <span className="bg-brand-gradient flex size-11 shrink-0 items-center justify-center rounded-2xl text-white shadow-[0_8px_20px_-6px_color-mix(in_oklab,var(--brand)_60%,transparent)]">
-              <KanbanSquare className="size-5" />
-            </span>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <h1 className="truncate text-[22px] font-bold leading-tight">{labels.deal.plural}</h1>
-                <Select value={pipelineId} onChange={(e) => setParam("pipeline", e.target.value)} className="h-8 w-auto min-w-32 rounded-lg text-xs font-semibold">
-                  {pipelines.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-              <p className="mt-0.5 text-sm text-muted">Arraste os cartões entre as etapas para avançar a negociação.</p>
+      <div className="border-b border-line px-4 pb-4 pt-7 lg:px-8">
+        <div className="flex flex-wrap items-end justify-between gap-5">
+          <div className="min-w-0">
+            <p className="eyebrow mb-2">01 / Pipeline · {pipelines.find((p) => p.id === pipelineId)?.name}</p>
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-[clamp(32px,3.6vw,48px)] font-medium leading-none tracking-[-0.04em]">
+                <EditorialTitle text={labels.deal.plural} />
+              </h1>
+              <Select value={pipelineId} onChange={(e) => setParam("pipeline", e.target.value)} className="h-9 w-auto min-w-36 font-mono text-[11px] uppercase tracking-[0.08em]">
+                {pipelines.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </Select>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="hidden items-stretch divide-x divide-line rounded-xl border border-line bg-surface shadow-soft sm:flex">
-              <div className="px-4 py-1.5">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted">Total</p>
-                <p className="font-display text-sm font-bold">{fmt(total, total >= 1e6)}</p>
-              </div>
-              <div className="px-4 py-1.5">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted">Ponderado</p>
-                <p className="font-display text-sm font-bold text-brand">{fmt(weighted, weighted >= 1e6)}</p>
-              </div>
-              <div className="px-4 py-1.5">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted">Qtd.</p>
-                <p className="font-display text-sm font-bold">{deals.length}</p>
-              </div>
+          <div className="flex items-center gap-3">
+            <div className="card-drap hidden items-stretch divide-x divide-line sm:flex">
+              {[
+                ["Total", fmt(total, total >= 1e6), false],
+                ["Ponderado", fmt(weighted, weighted >= 1e6), true],
+                ["Qtd.", String(deals.length).padStart(2, "0"), false],
+              ].map(([l, v, hl]) => (
+                <div key={l as string} className="px-4 py-2">
+                  <p className="eyebrow text-[9.5px]">{l}</p>
+                  <p className={`text-[15px] font-medium tracking-[-0.02em] ${hl ? "text-accent-text" : ""}`}>{v}</p>
+                </div>
+              ))}
             </div>
-            <Button onClick={() => quick("deal", { pipelineId })}>
-              <Plus className="size-4" /> {labels.deal.singular}
+            <Button trail={<Plus className="size-3.5" />} onClick={() => quick("deal", { pipelineId })}>
+              {labels.deal.singular}
             </Button>
           </div>
         </div>
@@ -258,8 +253,8 @@ function Board({ stages, allStages, deals: initial, pipelineId }: { stages: Stag
       </div>
       {activeId && (
         <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center gap-4 p-4">
-          <DropZone id="WON" label="Ganho" className="bg-emerald-600/90" icon={<ThumbsUp className="size-5" />} />
-          <DropZone id="LOST" label="Perdido" className="bg-rose-600/90" icon={<ThumbsDown className="size-5" />} />
+          <DropZone id="WON" label="Ganho" className="bg-ok" icon={<ThumbsUp className="size-5" />} />
+          <DropZone id="LOST" label="Perdido" className="bg-err" icon={<ThumbsDown className="size-5" />} />
         </div>
       )}
       <DragOverlay>{active && <DealCard deal={active} stage={allStages.find((s) => s.id === active.stageId)} dragging />}</DragOverlay>
@@ -281,7 +276,7 @@ function DropZone({ id, label, className, icon }: { id: string; label: string; c
     <div
       ref={setNodeRef}
       className={cn(
-        "animate-in pointer-events-auto flex h-20 w-64 items-center justify-center gap-2.5 rounded-2xl border-2 border-dashed border-white/40 text-lg font-semibold text-white shadow-pop backdrop-blur transition",
+        "animate-in pointer-events-auto flex h-20 w-64 items-center justify-center gap-2.5 rounded-[var(--radius)] border-2 border-dashed border-[var(--on-accent)]/40 font-mono text-sm uppercase tracking-[0.12em] text-[var(--surface-1)] shadow-pop transition",
         className,
         isOver ? "scale-105 border-white opacity-100" : "opacity-85",
       )}
@@ -298,31 +293,19 @@ function Column({ stage, deals, highlight, pipelineId }: { stage: StageDef; deal
   const total = deals.reduce((s, d) => s + d.value, 0);
   const weighted = total * (stage.probability / 100);
   return (
-    <div
-      className="flex w-[300px] shrink-0 flex-col rounded-2xl border backdrop-blur-sm"
-      style={{
-        background: `linear-gradient(180deg, color-mix(in oklab, ${stage.color} 12%, var(--surface)) 0%, color-mix(in oklab, ${stage.color} 5%, transparent) 140px, color-mix(in oklab, var(--surface-2) 55%, transparent))`,
-        borderColor: `color-mix(in oklab, ${stage.color} 22%, var(--border))`,
-      }}
-    >
-      <div className="relative px-3.5 pb-3 pt-3.5">
+    <div className="card-drap flex w-[300px] shrink-0 flex-col overflow-hidden">
+      <div className="relative border-b border-line px-4 pb-3 pt-4">
+        <div className="absolute inset-x-0 top-0 h-[2px]" style={{ background: stage.color }} />
         <div className="flex items-center gap-2">
-          <span
-            className="flex h-6 items-center gap-1.5 rounded-lg px-2 text-[12px] font-bold text-white shadow-sm"
-            style={{ background: `linear-gradient(135deg, color-mix(in oklab, ${stage.color} 75%, white), ${stage.color})`, boxShadow: `0 4px 12px -4px ${stage.color}` }}
-          >
-            {stage.name}
-          </span>
-          <span className="ml-auto flex size-6 items-center justify-center rounded-full bg-surface text-[11px] font-bold text-fg-2 shadow-soft">{deals.length}</span>
+          <span className="size-2 rounded-full" style={{ background: stage.color }} />
+          <h3 className="mono-label flex-1 truncate text-[11px] text-fg">{stage.name}</h3>
+          <span className="font-mono text-[11px] text-muted">{String(deals.length).padStart(2, "0")}</span>
         </div>
         <div className="mt-2.5 flex items-baseline justify-between">
-          <span className="font-display text-lg font-extrabold">{fmt(total, total >= 1e6)}</span>
-          <span className="text-[11px] font-medium text-muted" title="Valor ponderado pela probabilidade da etapa">
+          <span className="text-xl font-medium tracking-[-0.03em]">{fmt(total, total >= 1e6)}</span>
+          <span className="font-mono text-[10.5px] text-muted" title="Valor ponderado pela probabilidade da etapa">
             {stage.probability}% · {fmt(weighted, true)}
           </span>
-        </div>
-        <div className="mt-2 h-1 overflow-hidden rounded-full bg-surface/70">
-          <div className="h-full rounded-full" style={{ width: `${stage.probability}%`, background: stage.color }} />
         </div>
       </div>
       <div
@@ -335,14 +318,14 @@ function Column({ stage, deals, highlight, pipelineId }: { stage: StageDef; deal
           ))}
         </SortableContext>
         {!deals.length && (
-          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-line-strong/70 px-3 py-6 text-center text-xs text-muted">
+          <div className="mono-label flex flex-col items-center justify-center rounded-[10px] border border-dashed border-line-strong px-3 py-6 text-center text-[10px] text-muted">
             <KanbanSquare className="mb-1.5 size-5 opacity-50" />
             Arraste um cartão para cá
           </div>
         )}
         <button
           onClick={() => quick("deal", { pipelineId, stageId: stage.id })}
-          className="flex w-full items-center justify-center gap-1 rounded-xl border border-dashed border-transparent py-2 text-xs font-semibold text-muted transition hover:border-line-strong hover:bg-surface hover:text-brand"
+          className="mono-label flex w-full items-center justify-center gap-1 rounded-[10px] border border-dashed border-transparent py-2 text-[10px] text-muted transition hover:border-line-strong hover:bg-surface hover:text-fg"
         >
           <Plus className="size-3.5" /> Adicionar {labels.deal.singular.toLowerCase()}
         </button>
@@ -371,13 +354,13 @@ function DealCard({ deal, stage, dragging }: { deal: BoardDeal; stage?: StageDef
     <Link href={`/deals/${deal.id}`} draggable={false} onClick={(e) => dragging && e.preventDefault()} className="block">
       <div
         className={cn(
-          "group relative cursor-grab overflow-hidden rounded-xl border border-line bg-surface p-3.5 pl-4 shadow-card transition duration-150 hover:-translate-y-0.5 hover:border-line-strong hover:shadow-lift active:cursor-grabbing",
-          dragging && "rotate-[2.5deg] scale-[1.02] shadow-pop ring-2 ring-brand/40",
+          "group relative cursor-grab overflow-hidden rounded-[10px] border border-line bg-[var(--card-bg)] p-3.5 pl-4 shadow-[0_10px_30px_-24px_var(--shadow)] transition duration-300 ease-[var(--ease)] hover:-translate-y-0.5 hover:border-line-strong hover:shadow-card active:cursor-grabbing",
+          dragging && "rotate-[2.5deg] scale-[1.02] shadow-pop ring-1 ring-[var(--accent)]",
         )}
       >
-        <div className="absolute inset-y-0 left-0 w-1" style={{ background: rotting ? "linear-gradient(180deg,#fbbf24,#f43f5e)" : stage?.color ?? "var(--brand)", opacity: rotting ? 1 : 0.85 }} />
+        <div className="absolute inset-y-0 left-0 w-[3px]" style={{ background: rotting ? "var(--warn)" : stage?.color ?? "var(--accent)" }} />
         <div className="flex items-start justify-between gap-2">
-          <p className="line-clamp-2 text-[13px] font-semibold leading-snug text-fg">{deal.title}</p>
+          <p className="line-clamp-2 text-[13.5px] font-medium leading-snug tracking-[-0.01em] text-fg">{deal.title}</p>
           {owner && <Avatar name={owner.name} color={owner.avatarColor} size={24} ring />}
         </div>
         {(deal.company || deal.contact) && (
@@ -392,10 +375,10 @@ function DealCard({ deal, stage, dragging }: { deal: BoardDeal; stage?: StageDef
           </div>
         )}
         <div className="mt-3 flex items-center justify-between gap-2 border-t border-dashed border-line pt-2.5">
-          <span className="font-display text-sm font-bold">{fmt(deal.value)}</span>
+          <span className="text-[15px] font-medium tracking-[-0.02em]">{fmt(deal.value)}</span>
           <span className="flex items-center gap-1">
             {rotting && (
-              <span title={`Parado há ${days} dias nesta etapa`} className="flex items-center gap-0.5 rounded-md bg-amber-500/12 px-1.5 py-0.5 text-[10px] font-semibold text-amber-600">
+              <span title={`Parado há ${days} dias nesta etapa`} className="flex items-center gap-0.5 rounded-[5px] border border-warn/35 px-1.5 py-0.5 font-mono text-[10px] text-warn">
                 <AlertTriangle className="size-3" /> {days}d
               </span>
             )}
@@ -403,15 +386,15 @@ function DealCard({ deal, stage, dragging }: { deal: BoardDeal; stage?: StageDef
               <span
                 title={`${deal.nextActivity.title}${due ? " — " + date(due) : ""}`}
                 className={cn(
-                  "flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold",
-                  overdue ? "bg-rose-500/12 text-rose-600" : "bg-emerald-500/12 text-emerald-600",
+                  "flex items-center gap-1 rounded-[5px] border px-1.5 py-0.5 font-mono text-[10px]",
+                  overdue ? "border-err/35 text-err" : "border-ok/35 text-ok",
                 )}
               >
                 <ActivityIcon type={deal.nextActivity.type} className="size-3" />
                 {due ? date(due, "pt-BR", { day: "2-digit", month: "2-digit" }) : ""}
               </span>
             ) : (
-              <span title="Nenhuma atividade agendada" className="flex items-center gap-1 rounded-md bg-surface-2 px-1.5 py-0.5 text-[10px] font-semibold text-muted">
+              <span title="Nenhuma atividade agendada" className="flex items-center gap-1 rounded-[5px] border border-line px-1.5 py-0.5 font-mono text-[10px] text-muted">
                 <CalendarClock className="size-3" /> agendar
               </span>
             )}
@@ -456,7 +439,7 @@ function DealList({ deals, stages }: { deals: BoardDeal[]; stages: StageDef[] })
   return (
     <div className="flex-1 overflow-auto px-4 py-5 lg:px-8">
       {ids.length > 0 && (
-        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-brand/30 bg-brand/5 px-3 py-2 text-sm">
+        <div className="card-drap mb-3 flex flex-wrap items-center gap-2 px-3 py-2 text-sm">
           <b>{ids.length} selecionado(s)</b>
           <Select className="h-8 w-auto" defaultValue="" onChange={(e) => e.target.value && run(() => bulkDeals(ids, "owner", e.target.value), { onSuccess: () => setSel(new Set()) })}>
             <option value="">Alterar responsável…</option>
@@ -479,7 +462,7 @@ function DealList({ deals, stages }: { deals: BoardDeal[]; stages: StageDef[] })
       )}
       <Card className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="sticky top-0 z-10 border-b border-line bg-surface-2/80 text-left text-[11px] uppercase tracking-wider text-muted backdrop-blur">
+          <thead className="sticky top-0 z-10 border-b border-line bg-surface-2 text-left font-mono text-[10.5px] uppercase tracking-[0.1em] text-muted">
             <tr>
               <th className="w-10 px-3">
                 <input type="checkbox" className="accent-brand" checked={sel.size === deals.length} onChange={(e) => setSel(e.target.checked ? new Set(deals.map((d) => d.id)) : new Set())} />
@@ -516,10 +499,10 @@ function DealList({ deals, stages }: { deals: BoardDeal[]; stages: StageDef[] })
                     <Link href={`/deals/${d.id}`} className="font-medium hover:text-brand">{d.title}</Link>
                     <TagList tags={d.tags} />
                   </td>
-                  <td className="px-3 py-3 text-right font-display font-bold">{fmt(d.value)}</td>
+                  <td className="px-3 py-3 text-right font-medium tracking-[-0.02em]">{fmt(d.value)}</td>
                   <td className="px-3 py-2.5">
                     {st && <Badge color={st.color} dot>{st.name}</Badge>}
-                    {d.status !== "OPEN" && <Badge color={d.status === "WON" ? "#16a34a" : "#dc2626"} className="ml-1">{d.status === "WON" ? "Ganho" : "Perdido"}</Badge>}
+                    {d.status !== "OPEN" && <Badge color={d.status === "WON" ? "var(--ok)" : "var(--err)"} className="ml-1">{d.status === "WON" ? "Ganho" : "Perdido"}</Badge>}
                   </td>
                   <td className="px-3 py-2.5 text-muted">{d.company?.name ?? d.contact?.name ?? "—"}</td>
                   <td className="px-3 py-2.5">

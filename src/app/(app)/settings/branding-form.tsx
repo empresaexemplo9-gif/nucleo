@@ -8,7 +8,7 @@ import type { Labels, OrgSettings } from "@/lib/labels";
 const CURRENCIES = [["BRL", "Real (R$)"], ["USD", "Dólar (US$)"], ["EUR", "Euro (€)"], ["GBP", "Libra (£)"], ["ARS", "Peso argentino"], ["MXN", "Peso mexicano"], ["CLP", "Peso chileno"], ["COP", "Peso colombiano"], ["PYG", "Guarani"], ["UYU", "Peso uruguaio"], ["AOA", "Kwanza"], ["MZN", "Metical"]];
 const LOCALES = [["pt-BR", "Português (Brasil)"], ["pt-PT", "Português (Portugal)"], ["en-US", "English (US)"], ["es-ES", "Español"]];
 const TIMEZONES = ["America/Sao_Paulo", "America/Manaus", "America/Fortaleza", "America/Recife", "America/Cuiaba", "America/Rio_Branco", "America/Noronha", "Europe/Lisbon", "America/New_York", "America/Mexico_City", "America/Argentina/Buenos_Aires", "UTC"];
-const PRESETS = ["#4f46e5", "#2563eb", "#0891b2", "#059669", "#16a34a", "#ca8a04", "#ea580c", "#dc2626", "#db2777", "#9333ea", "#0f172a"];
+const PRESETS = ["#b48a4f", "#3c78c0", "#4f46e5", "#2563eb", "#0891b2", "#059669", "#16a34a", "#ca8a04", "#ea580c", "#dc2626", "#db2777", "#9333ea", "#0f172a"];
 
 export function BrandingForm({
   org,
@@ -28,7 +28,7 @@ export function BrandingForm({
   return (
     <div className="space-y-6">
       <Card className="p-5">
-        <h2 className="text-base font-bold">Marca (whitelabel)</h2>
+        <h2 className="text-base font-semibold">Marca (whitelabel)</h2>
         <p className="mb-4 text-sm text-muted">Deixe o CRM com a cara da sua empresa. Tudo é aplicado instantaneamente para toda a equipe.</p>
         <form
           onSubmit={(e) => {
@@ -84,24 +84,37 @@ export function BrandingForm({
             <Field label="Domínio próprio (opcional)" hint={`Aponte o domínio para a Vercel (Settings → Domains) e informe aqui. A tela de login exibirá sua marca. Alternativa: /login?org=${org.slug}`}>
               <Input name="customDomain" defaultValue={org.customDomain ?? ""} placeholder="crm.suaempresa.com.br" />
             </Field>
-            <Button loading={pending}>Salvar marca</Button>
+            <Button trail loading={pending}>Salvar marca</Button>
           </div>
           <div>
-            <p className="mb-2 text-xs font-medium text-muted">Pré-visualização</p>
-            <div className="overflow-hidden rounded-xl border border-line">
-              <div className="flex items-center gap-2 p-3 text-white" style={{ background: `linear-gradient(135deg, ${primary}, ${accent})` }}>
+            <p className="eyebrow mb-2 text-[10px]">Pré-visualização</p>
+            <div className="card-drap overflow-hidden">
+              <div className="flex items-center gap-2.5 border-b border-line p-3">
                 {logo ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={logo} alt="" className="size-8 rounded bg-white/90 object-contain p-0.5" />
+                  <img src={logo} alt="" className="size-8 rounded-[var(--radius-sm)] border border-line bg-[var(--surface-1)] object-contain p-0.5" />
                 ) : (
-                  <span className="flex size-8 items-center justify-center rounded-lg bg-white/20 font-bold">{name[0]}</span>
+                  <span className="relative flex size-8 items-center justify-center overflow-hidden rounded-[var(--radius-sm)]" style={{ background: "var(--btn-bg)" }}>
+                    <span className="absolute h-[140%] w-[3px] rotate-[32deg] rounded-full" style={{ background: primary }} />
+                  </span>
                 )}
-                <span className="truncate text-sm font-semibold">{name}</span>
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-semibold">{name}</span>
+                  <span className="block font-mono text-[9px] uppercase tracking-[0.18em] text-muted">CRM · Business</span>
+                </span>
               </div>
-              <div className="space-y-2 bg-surface p-3">
-                <div className="rounded-md px-2 py-1.5 text-xs font-medium" style={{ background: `color-mix(in oklab, ${primary} 12%, transparent)`, color: primary }}>Item ativo do menu</div>
-                <div className="rounded-md px-2 py-1.5 text-xs text-muted">Item do menu</div>
-                <button type="button" className="w-full rounded-md py-1.5 text-xs font-medium text-white" style={{ background: primary }}>Botão principal</button>
+              <div className="space-y-1.5 p-3">
+                <div className="flex items-center gap-2 rounded-[var(--radius-sm)] border border-line bg-[var(--surface-1)] px-2 py-1.5 text-xs">
+                  <span className="font-mono text-[10px]" style={{ color: primary }}>01</span> Item ativo
+                  <span className="ml-auto size-1.5 rounded-full" style={{ background: primary }} />
+                </div>
+                <div className="flex items-center gap-2 px-2 py-1.5 text-xs text-fg-2">
+                  <span className="font-mono text-[10px] text-muted">02</span> Item do menu
+                </div>
+                <p className="px-2 pt-1 text-lg font-medium tracking-[-0.03em]">
+                  Título com <span className="serif-i" style={{ color: primary }}>destaque</span>
+                </p>
+                <div className="h-1 rounded-full" style={{ background: `linear-gradient(100deg, ${primary}, ${accent})` }} />
               </div>
             </div>
           </div>
@@ -109,7 +122,7 @@ export function BrandingForm({
       </Card>
 
       <Card className="p-5">
-        <h2 className="text-base font-bold">Nomenclatura</h2>
+        <h2 className="text-base font-semibold">Nomenclatura</h2>
         <p className="mb-4 text-sm text-muted">Adapte os termos ao seu negócio — ex.: “Negócios” → “Oportunidades”, “Imóveis”, “Matrículas”, “Projetos”.</p>
         <form
           onSubmit={(e) => {
@@ -134,7 +147,7 @@ export function BrandingForm({
       </Card>
 
       <Card className="p-5">
-        <h2 className="text-base font-bold">Preferências e módulos</h2>
+        <h2 className="text-base font-semibold">Preferências e módulos</h2>
         <p className="mb-4 text-sm text-muted">Ative apenas o que sua operação usa para manter o CRM simples.</p>
         <form
           onSubmit={(e) => {

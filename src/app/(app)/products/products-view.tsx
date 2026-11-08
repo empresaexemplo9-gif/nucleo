@@ -14,8 +14,8 @@ export function ProductsView({ products }: { products: P[] }) {
   const { run, pending } = useAction();
   const cur = edit === "new" ? null : edit;
   return (
-    <div className="mx-auto max-w-6xl p-4 lg:p-8">
-      <PageHeader
+    <div className="mx-auto max-w-6xl px-4 pb-16 pt-8 lg:px-8">
+      <PageHeader eyebrow="05 / Catálogo"
         icon={<Package />}
         title={labels.product.plural}
         description={`Catálogo de produtos e serviços para compor o valor dos ${labels.deal.plural.toLowerCase()}.`}
@@ -47,8 +47,8 @@ export function ProductsView({ products }: { products: P[] }) {
                     </div>
                   </td>
                   <td className="whitespace-nowrap px-4 py-2.5 font-mono text-xs text-muted">{p.sku ?? "—"}</td>
-                  <td className="px-4 py-2.5 text-right font-display font-bold">{fmt(p.price)}{p.unit && <span className="text-xs font-normal text-muted"> /{p.unit}</span>}</td>
-                  <td className="px-4 py-2.5">{p.active ? <Badge color="#16a34a" dot>Ativo</Badge> : <Badge>Inativo</Badge>}</td>
+                  <td className="px-4 py-2.5 text-right font-display font-semibold">{fmt(p.price)}{p.unit && <span className="text-xs font-normal text-muted"> /{p.unit}</span>}</td>
+                  <td className="px-4 py-2.5">{p.active ? <Badge color="var(--ok)" dot>Ativo</Badge> : <Badge>Inativo</Badge>}</td>
                   <td className="px-4 py-2.5 text-muted">{p.uses}</td>
                   <td className="px-4 py-2.5 text-right">
                     {can("MANAGER") && (

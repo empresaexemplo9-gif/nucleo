@@ -89,11 +89,11 @@ export async function createPipeline(name: string): Promise<ActionResult> {
     const p = await db.pipeline.create({ data: { orgId: ctx.org.id, name: name.trim(), position: count, isDefault: count === 0 } });
     await db.stage.createMany({
       data: [
-        { pipelineId: p.id, name: "Novo", color: "#64748b", probability: 10, position: 0 },
-        { pipelineId: p.id, name: "Em andamento", color: "#3b82f6", probability: 50, position: 1 },
-        { pipelineId: p.id, name: "Fechamento", color: "#f59e0b", probability: 80, position: 2 },
-        { pipelineId: p.id, name: "Ganho", color: "#16a34a", probability: 100, position: 100, type: "WON" },
-        { pipelineId: p.id, name: "Perdido", color: "#dc2626", probability: 0, position: 101, type: "LOST" },
+        { pipelineId: p.id, name: "Novo", color: "#7d828c", probability: 10, position: 0 },
+        { pipelineId: p.id, name: "Em andamento", color: "#3c78c0", probability: 50, position: 1 },
+        { pipelineId: p.id, name: "Fechamento", color: "#b48a4f", probability: 80, position: 2 },
+        { pipelineId: p.id, name: "Ganho", color: "#17905f", probability: 100, position: 100, type: "WON" },
+        { pipelineId: p.id, name: "Perdido", color: "#cf3a56", probability: 0, position: 101, type: "LOST" },
       ],
     });
     revalidatePath("/", "layout");

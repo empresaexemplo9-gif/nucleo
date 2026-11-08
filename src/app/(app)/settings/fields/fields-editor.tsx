@@ -33,7 +33,7 @@ export function FieldsEditor() {
     <Card className="p-5">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-base font-bold">Campos personalizados</h2>
+          <h2 className="text-base font-semibold">Campos personalizados</h2>
           <p className="text-sm text-muted">Capture as informações específicas do seu negócio em cada cadastro.</p>
         </div>
         <Button onClick={() => { setType("TEXT"); setEdit("new"); }}><Plus className="size-4" /> Novo campo</Button>
@@ -51,7 +51,7 @@ export function FieldsEditor() {
         {list.map((f, i) => (
           <div key={f.id} className="flex items-center gap-3 px-3 py-2.5">
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium">{f.label} {f.required && <span className="text-red-500">*</span>}</p>
+              <p className="text-sm font-medium">{f.label} {f.required && <span className="text-err">*</span>}</p>
               <p className="text-xs text-muted">
                 {TYPES[f.type]}
                 {f.options.length > 0 && ` · ${f.options.join(", ")}`}

@@ -6,7 +6,7 @@ import { Button, Field, Input, Select } from "@/components/ui";
 
 function ErrorBox({ error }: { error?: string }) {
   if (!error) return null;
-  return <div className="animate-in rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-300">{error}</div>;
+  return <div className="animate-in rounded-[var(--radius-sm)] border border-[color-mix(in_oklab,var(--err)_40%,transparent)] bg-[color-mix(in_oklab,var(--err)_8%,transparent)] px-3 py-2.5 text-sm text-err">{error}</div>;
 }
 
 export function LoginForm({ next, org, allowSignup }: { next?: string; org?: string | null; allowSignup: boolean }) {
@@ -22,11 +22,11 @@ export function LoginForm({ next, org, allowSignup }: { next?: string; org?: str
         <Input name="password" type="password" autoComplete="current-password" required placeholder="••••••••" className="h-11" />
       </Field>
       <ErrorBox error={state?.error} />
-      <Button size="lg" className="w-full" loading={pending}>Entrar</Button>
+      <Button size="lg" trail className="w-full justify-between" loading={pending}>Entrar</Button>
       {allowSignup && (
         <p className="text-center text-sm text-muted">
           Ainda não tem conta?{" "}
-          <Link href="/register" className="font-medium text-brand hover:underline">
+          <Link href="/register" className="font-medium text-accent-text underline-offset-4 hover:underline">
             Criar conta grátis
           </Link>
         </p>
@@ -57,7 +57,7 @@ export function RegisterForm() {
           </Select>
         </Field>
         <Field label="Cor da marca">
-          <input type="color" name="color" defaultValue="#4f46e5" className="h-9 w-14 cursor-pointer rounded-lg" />
+          <input type="color" name="color" defaultValue="#b48a4f" className="h-9 w-14 cursor-pointer rounded-lg" />
         </Field>
       </div>
       <Field label="E-mail">
@@ -67,10 +67,10 @@ export function RegisterForm() {
         <Input name="password" type="password" required minLength={8} autoComplete="new-password" />
       </Field>
       <ErrorBox error={state?.error} />
-      <Button size="lg" className="w-full" loading={pending}>Criar minha conta</Button>
+      <Button size="lg" trail className="w-full justify-between" loading={pending}>Criar minha conta</Button>
       <p className="text-center text-sm text-muted">
         Já tem conta?{" "}
-        <Link href="/login" className="font-medium text-brand hover:underline">
+        <Link href="/login" className="font-medium text-accent-text underline-offset-4 hover:underline">
           Entrar
         </Link>
       </p>
@@ -95,7 +95,7 @@ export function InviteForm({ token, email, existing }: { token: string; email: s
         <Input name="password" type="password" required minLength={8} />
       </Field>
       <ErrorBox error={state?.error} />
-      <Button size="lg" className="w-full" loading={pending}>Aceitar convite</Button>
+      <Button size="lg" trail className="w-full justify-between" loading={pending}>Aceitar convite</Button>
     </form>
   );
 }

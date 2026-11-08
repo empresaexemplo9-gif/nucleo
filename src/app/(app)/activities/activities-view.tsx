@@ -46,8 +46,8 @@ export function ActivitiesView({
   const groupLabel = (k: string) => (k === "sem-data" ? "Sem data" : k === today ? "Hoje" : k === tomorrow ? "Amanhã" : date(new Date(k + "T12:00:00Z"), "pt-BR", { weekday: "long", day: "2-digit", month: "long" }));
 
   return (
-    <div className="mx-auto max-w-6xl p-4 lg:p-8">
-      <PageHeader
+    <div className="mx-auto max-w-6xl px-4 pb-16 pt-8 lg:px-8">
+      <PageHeader eyebrow="04 / Agenda"
         icon={<CalendarCheck />}
         title={labels.activity.plural}
         description="Ligações, reuniões e tarefas da equipe — nada de follow-up esquecido."
@@ -96,9 +96,9 @@ export function ActivitiesView({
                 key={k}
                 onClick={() => set("when", k === "pending" ? "" : k!)}
                 className={cn(
-                  "rounded-full border px-3.5 py-1.5 text-xs font-semibold shadow-soft transition",
-                  when === k ? "border-brand bg-brand text-white shadow-[0_4px_12px_-4px_color-mix(in_oklab,var(--brand)_70%,transparent)]" : "border-line bg-surface text-fg-2 hover:border-line-strong",
-                  k === "overdue" && counts.overdue > 0 && when !== k && "border-rose-300 text-rose-600",
+                  "mono-label rounded-[var(--radius-sm)] border px-3 py-2 text-[11px] transition duration-300",
+                  when === k ? "border-transparent bg-[var(--chip-active-bg)] text-[var(--chip-active-fg)]" : "border-line-strong bg-surface text-fg hover:border-[var(--text-mute)]",
+                  k === "overdue" && counts.overdue > 0 && when !== k && "border-err text-err",
                 )}
               >
                 {l}
@@ -109,7 +109,7 @@ export function ActivitiesView({
             <div className="space-y-5">
               {Array.from(groups.entries()).map(([k, list]) => (
                 <div key={k}>
-                  <h3 className={cn("mb-2 text-xs font-semibold uppercase tracking-wide", k !== "sem-data" && k < today && when !== "done" ? "text-red-600" : "text-muted")}>
+                  <h3 className={cn("mb-2 text-xs font-semibold uppercase tracking-wide", k !== "sem-data" && k < today && when !== "done" ? "text-err" : "text-muted")}>
                     {groupLabel(k)} <span className="font-normal">· {list.length}</span>
                   </h3>
                   <div className="space-y-2">
@@ -174,7 +174,7 @@ function MonthCalendar({ activities, month, onEdit }: { activities: FeedActivity
           const out = d.getMonth() !== m.getMonth();
           return (
             <div key={d.toISOString()} className={cn("min-h-28 border-b border-r border-line p-1.5 transition hover:bg-surface-2/40", out && "bg-surface-2/50")}>
-              <span className={cn("inline-flex size-6 items-center justify-center rounded-full text-xs", dayKey(d) === today ? "bg-brand font-semibold text-white" : out ? "text-muted/60" : "text-muted")}>
+              <span className={cn("inline-flex size-6 items-center justify-center rounded-full text-xs", dayKey(d) === today ? "bg-[var(--chip-active-bg)] font-medium text-[var(--chip-active-fg)]" : out ? "text-muted/60" : "text-muted")}>
                 {d.getDate()}
               </span>
               <div className="mt-1 space-y-0.5">

@@ -49,7 +49,7 @@ export function AutomationsManager({ automations }: { automations: A[] }) {
     <Card className="p-5">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-base font-bold">Automações</h2>
+          <h2 className="text-base font-semibold">Automações</h2>
           <p className="text-sm text-muted">Regras “quando… então…” que trabalham por você e garantem que nenhum lead fique sem follow-up.</p>
         </div>
         <Button onClick={() => open({})}><Plus className="size-4" /> Nova automação</Button>
@@ -57,7 +57,7 @@ export function AutomationsManager({ automations }: { automations: A[] }) {
       <div className="space-y-2">
         {automations.map((a) => (
           <div key={a.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-line p-3">
-            <Zap className={a.active ? "size-4 text-amber-500" : "size-4 text-muted"} />
+            <Zap className={a.active ? "size-4 text-warn" : "size-4 text-muted"} />
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium">{a.name}</p>
               <p className="flex flex-wrap items-center gap-1 text-xs text-muted">

@@ -2,33 +2,12 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import {
-  BarChart3,
-  Building2,
-  CalendarCheck,
-  ChevronsUpDown,
-  KanbanSquare,
-  LayoutDashboard,
-  LogOut,
-  Menu,
-  Moon,
-  Package,
-  Plus,
-  Search,
-  Settings,
-  Sun,
-  User,
-  Users,
-  X,
-  Briefcase,
-  Check,
-  ChevronRight,
-} from "lucide-react";
+import { Building2, CalendarCheck, Check, ChevronsUpDown, KanbanSquare, LogOut, Menu, Moon, Plus, Search, Sun, User, X } from "lucide-react";
 import { Avatar, Badge, Button, cn } from "./ui";
+import { BrandMark } from "./brand-mark";
 import { useOrg } from "./org-context";
 import { QuickCreateProvider, useQuickCreate } from "./quick-create";
 import { logout, setTheme, switchOrg } from "@/actions/auth";
-import { currentHour } from "@/lib/format";
 
 export function AppShell({ children, orgs, overdue, dark }: { children: React.ReactNode; orgs: { id: string; name: string }[]; overdue: number; dark: boolean }) {
   const [mobile, setMobile] = useState(false);
@@ -40,16 +19,24 @@ export function AppShell({ children, orgs, overdue, dark }: { children: React.Re
   }
   return (
     <QuickCreateProvider>
-      <div className="app-canvas flex min-h-screen">
+      <div aria-hidden className="bg-grid" />
+      <div aria-hidden className="bg-orbs">
+        <span />
+        <span />
+        <span />
+        <span />
+      </div>
+      <div aria-hidden className="bg-noise" />
+      <div className="relative flex min-h-screen">
         <aside
           className={cn(
-            "sidebar-vivid fixed inset-y-0 left-0 z-40 w-64 shrink-0 transition-transform duration-200 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0",
-            mobile ? "translate-x-0 shadow-pop" : "-translate-x-full",
+            "glass-nav fixed inset-y-0 left-0 z-40 w-[264px] shrink-0 border-r border-line transition-transform duration-300 ease-[var(--ease)] lg:sticky lg:top-0 lg:h-screen lg:translate-x-0",
+            mobile ? "translate-x-0 bg-[var(--menu-bg)] shadow-pop" : "-translate-x-full",
           )}
         >
           <Sidebar orgs={orgs} overdue={overdue} onClose={() => setMobile(false)} />
         </aside>
-        {mobile && <div className="fixed inset-0 z-30 bg-slate-950/40 backdrop-blur-sm lg:hidden" onClick={() => setMobile(false)} />}
+        {mobile && <div className="fixed inset-0 z-30 bg-[color-mix(in_oklab,var(--bg)_60%,transparent)] backdrop-blur-sm lg:hidden" onClick={() => setMobile(false)} />}
         <div className="flex min-w-0 flex-1 flex-col">
           <Topbar onMenu={() => setMobile(true)} initialDark={dark} />
           <main className="min-w-0 flex-1">{children}</main>
@@ -60,7 +47,7 @@ export function AppShell({ children, orgs, overdue, dark }: { children: React.Re
   );
 }
 
-type NavItem = { href: string; label: string; icon: typeof Users; badge?: number };
+type NavItem = { href: string; label: string; badge?: number };
 
 function Sidebar({ orgs, overdue, onClose }: { orgs: { id: string; name: string }[]; overdue: number; onClose: () => void }) {
   const { org, labels, settings, can, user, role } = useOrg();
@@ -68,66 +55,61 @@ function Sidebar({ orgs, overdue, onClose }: { orgs: { id: string; name: string 
   const quick = useQuickCreate();
   const [switcher, setSwitcher] = useState(false);
   const groups: { title: string; items: (NavItem | false)[] }[] = [
-    { title: "Visão geral", items: [{ href: "/", label: "Painel", icon: LayoutDashboard }] },
+    { title: "Visão geral", items: [{ href: "/", label: "Painel" }] },
     {
       title: "Vendas",
       items: [
-        { href: "/deals", label: labels.deal.plural, icon: KanbanSquare },
-        { href: "/activities", label: labels.activity.plural, icon: CalendarCheck, badge: overdue },
-        settings.modules.products && { href: "/products", label: labels.product.plural, icon: Package },
+        { href: "/deals", label: labels.deal.plural },
+        { href: "/activities", label: labels.activity.plural, badge: overdue },
+        settings.modules.products && { href: "/products", label: labels.product.plural },
       ],
     },
     {
       title: "Relacionamento",
       items: [
-        { href: "/contacts", label: labels.contact.plural, icon: Users },
-        settings.modules.companies && { href: "/companies", label: labels.company.plural, icon: Building2 },
+        { href: "/contacts", label: labels.contact.plural },
+        settings.modules.companies && { href: "/companies", label: labels.company.plural },
       ],
     },
-    { title: "Análise", items: [{ href: "/reports", label: "Relatórios", icon: BarChart3 }] },
+    {
+      title: "Análise",
+      items: [{ href: "/reports", label: "Relatórios" }, can("MANAGER") && { href: "/settings", label: "Configurações" }],
+    },
   ];
-  const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
+  const isActive = (href: string) =>
+    href === "/" ? pathname === "/" : href === "/settings" ? pathname.startsWith("/settings") && !pathname.startsWith("/settings/profile") : pathname.startsWith(href);
   const roleLabel = { OWNER: "Proprietário", ADMIN: "Administrador", MANAGER: "Gestor", SALES: "Vendedor", VIEWER: "Leitura" }[role];
+  let n = 0;
 
   return (
     <div className="flex h-full flex-col">
-      <div className="relative px-3 pb-2 pt-3">
-        <button
-          onClick={() => setSwitcher((s) => !s)}
-          className="flex w-full items-center gap-2.5 rounded-xl p-2 text-left transition hover:bg-white/10"
-        >
-          {org.logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={org.logoUrl} alt="" className="size-9 rounded-xl bg-white object-contain p-0.5 shadow-lg" />
-          ) : (
-            <span className="flex size-9 items-center justify-center rounded-xl bg-white text-sm font-extrabold text-brand shadow-lg">
-              {org.name[0]}
-            </span>
-          )}
+      <div className="relative border-b border-line px-4 py-4">
+        <button onClick={() => setSwitcher((s) => !s)} className="flex w-full items-center gap-3 rounded-[10px] p-1 text-left transition hover:bg-tint">
+          <BrandMark logoUrl={org.logoUrl} />
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-semibold">{org.name}</span>
-            <span className="block truncate text-[11px] text-[var(--sb-muted)]">{orgs.length > 1 ? `${orgs.length} empresas` : "Espaço de trabalho"}</span>
+            <span className="block truncate text-[15px] font-semibold tracking-[-0.02em]">{org.name}</span>
+            <span className="block truncate font-mono text-[9.5px] uppercase tracking-[0.18em] text-muted">CRM · Business</span>
           </span>
-          <ChevronsUpDown className="size-4 text-[var(--sb-muted)]" />
+          <ChevronsUpDown className="size-4 text-muted" />
         </button>
-        <button onClick={onClose} className="absolute right-2 top-2 rounded-lg p-1 text-white/70 lg:hidden" aria-label="Fechar menu">
+        <button onClick={onClose} className="absolute right-3 top-3 rounded-md p-1 text-muted lg:hidden" aria-label="Fechar menu">
           <X className="size-4" />
         </button>
         {switcher && (
-          <div className="animate-in absolute left-3 right-3 top-full z-50 mt-1 rounded-xl border border-line bg-surface p-1.5 text-fg shadow-pop">
-            <p className="px-2 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wider text-muted">Suas empresas</p>
+          <div className="card-drap animate-in absolute left-4 right-4 top-full z-50 mt-1 p-1.5 shadow-pop">
+            <p className="eyebrow px-2 pb-1 pt-1 text-[10px]">Suas empresas</p>
             {orgs.map((o) => (
               <button
                 key={o.id}
                 onClick={() => switchOrg(o.id)}
-                className={cn("flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-surface-2", o.id === org.id && "font-semibold text-brand")}
+                className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-tint", o.id === org.id && "font-medium text-accent-text")}
               >
-                <Briefcase className="size-3.5" /> <span className="truncate">{o.name}</span>
+                <span className="truncate">{o.name}</span>
                 {o.id === org.id && <Check className="ml-auto size-3.5" />}
               </button>
             ))}
             <div className="my-1 border-t border-line" />
-            <Link href="/register" className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-muted hover:bg-surface-2 hover:text-fg">
+            <Link href="/register" className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-fg-2 hover:bg-tint">
               <Plus className="size-3.5" /> Criar nova empresa
             </Link>
           </div>
@@ -135,50 +117,40 @@ function Sidebar({ orgs, overdue, onClose }: { orgs: { id: string; name: string 
       </div>
 
       {can("SALES") && (
-        <div className="px-3 pb-2">
-          <button
-            onClick={() => quick("deal")}
-            className="group flex w-full items-center gap-2 rounded-xl bg-white px-3 py-2.5 text-sm font-semibold text-brand shadow-[0_8px_24px_-8px_rgba(0,0,0,0.45)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_28px_-8px_rgba(0,0,0,0.5)]"
-          >
-            <span className="flex size-5 items-center justify-center rounded-md bg-brand text-white transition group-hover:rotate-90">
-              <Plus className="size-3.5" />
-            </span>
+        <div className="px-4 pt-4">
+          <Button className="w-full justify-between" trail={<Plus className="size-3.5" />} onClick={() => quick("deal")}>
             Novo {labels.deal.singular.toLowerCase()}
-          </button>
+          </Button>
         </div>
       )}
 
-      <nav className="scroll-thin flex-1 space-y-4 overflow-y-auto px-3 py-2">
+      <nav className="scroll-thin flex-1 space-y-5 overflow-y-auto px-4 py-5">
         {groups.map((g) => {
           const items = g.items.filter(Boolean) as NavItem[];
           if (!items.length) return null;
           return (
             <div key={g.title}>
-              <p className="mb-1.5 px-2.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--sb-muted)]">{g.title}</p>
-              <div className="space-y-0.5">
-                {items.map((n) => {
-                  const active = isActive(n.href);
+              <p className="eyebrow mb-1.5 px-2 text-[10px]">{g.title}</p>
+              <div className="space-y-px">
+                {items.map((it) => {
+                  n += 1;
+                  const active = isActive(it.href);
                   return (
                     <Link
-                      key={n.href}
-                      href={n.href}
+                      key={it.href}
+                      href={it.href}
                       className={cn(
-                        "group relative flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm font-medium transition",
-                        active ? "bg-white/16 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.15)]" : "text-[var(--sb-fg)] hover:bg-white/8",
+                        "group relative flex items-center gap-3 rounded-[var(--radius-sm)] px-2 py-2 text-sm transition duration-300",
+                        active ? "bg-[var(--surface-1)] text-fg shadow-[0_0_0_1px_var(--line),0_8px_20px_-14px_var(--shadow)]" : "text-fg-2 hover:bg-tint hover:text-fg",
                       )}
                     >
-                      {active && <span className="absolute -left-3 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-white shadow-[0_0_12px_rgba(255,255,255,0.8)]" />}
-                      <span
-                        className={cn(
-                          "flex size-7 items-center justify-center rounded-lg transition",
-                          active ? "bg-white text-brand shadow-md" : "bg-white/10 text-white/80 group-hover:bg-white/15 group-hover:text-white",
-                        )}
-                      >
-                        <n.icon className="size-[15px]" />
-                      </span>
-                      <span className="flex-1 truncate">{n.label}</span>
-                      {!!n.badge && (
-                        <span className="min-w-5 animate-pulse rounded-full bg-rose-500 px-1.5 py-px text-center text-[10px] font-bold text-white shadow-[0_0_0_2px_rgba(255,255,255,0.25)]">{n.badge}</span>
+                      <span className={cn("w-5 font-mono text-[10.5px] tabular-nums", active ? "text-accent-text" : "text-muted")}>{String(n).padStart(2, "0")}</span>
+                      <span className="flex-1 truncate">{it.label}</span>
+                      {active && <span className="size-1.5 rounded-full bg-[var(--accent)]" />}
+                      {!!it.badge && (
+                        <span className="rounded-[6px] border border-[color-mix(in_oklab,var(--err)_40%,transparent)] bg-[color-mix(in_oklab,var(--err)_10%,transparent)] px-1.5 font-mono text-[10px] text-err">
+                          {String(it.badge).padStart(2, "0")}
+                        </span>
                       )}
                     </Link>
                   );
@@ -189,26 +161,12 @@ function Sidebar({ orgs, overdue, onClose }: { orgs: { id: string; name: string 
         })}
       </nav>
 
-      <div className="space-y-1 border-t border-white/10 p-3">
-        {can("MANAGER") && (
-          <Link
-            href="/settings"
-            className={cn(
-              "flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm font-medium transition",
-              pathname.startsWith("/settings") && !pathname.startsWith("/settings/profile") ? "bg-white/16 text-white" : "text-[var(--sb-fg)] hover:bg-white/8",
-            )}
-          >
-            <span className="flex size-7 items-center justify-center rounded-lg bg-white/10 text-white/80">
-              <Settings className="size-[15px]" />
-            </span>
-            Configurações
-          </Link>
-        )}
-        <Link href="/settings/profile" className="flex items-center gap-2.5 rounded-xl bg-white/8 p-2 ring-1 ring-white/10 transition hover:bg-white/12">
-          <span className="rounded-full ring-2 ring-white/40"><Avatar name={user.name} color={user.avatarColor} size={32} /></span>
+      <div className="border-t border-line p-4">
+        <Link href="/settings/profile" className="flex items-center gap-3 rounded-[10px] p-1.5 transition hover:bg-tint">
+          <Avatar name={user.name} color={user.avatarColor} size={32} />
           <span className="min-w-0 flex-1">
             <span className="block truncate text-sm font-medium">{user.name}</span>
-            <span className="block truncate text-[11px] text-[var(--sb-muted)]">{roleLabel}</span>
+            <span className="block truncate font-mono text-[10px] uppercase tracking-[0.1em] text-muted">{roleLabel}</span>
           </span>
         </Link>
       </div>
@@ -216,17 +174,8 @@ function Sidebar({ orgs, overdue, onClose }: { orgs: { id: string; name: string 
   );
 }
 
-const TITLES: [string, string][] = [
-  ["/deals/", "Detalhes"],
-  ["/contacts/", "Detalhes"],
-  ["/companies/", "Detalhes"],
-  ["/settings", "Configurações"],
-  ["/reports", "Relatórios"],
-];
-
 function Topbar({ onMenu, initialDark }: { onMenu: () => void; initialDark: boolean }) {
   const { user, labels, can } = useOrg();
-  const pathname = usePathname();
   const quick = useQuickCreate();
   const [menu, setMenu] = useState<"new" | "user" | null>(null);
   const [dark, setDark] = useState(initialDark);
@@ -236,86 +185,78 @@ function Topbar({ onMenu, initialDark }: { onMenu: () => void; initialDark: bool
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, []);
-  const toggleTheme = () => {
-    const next = !dark;
+  const applyTheme = (next: boolean) => {
     setDark(next);
-    document.documentElement.classList.toggle("dark", next);
+    const root = document.documentElement;
+    root.classList.toggle("dark", next);
+    root.dataset.theme = next ? "dark" : "light";
+    try {
+      localStorage.setItem("theme", next ? "dark" : "light");
+    } catch {}
     setTheme(next ? "dark" : "light");
   };
-  const section =
-    pathname === "/"
-      ? "Painel"
-      : pathname.startsWith("/deals")
-        ? labels.deal.plural
-        : pathname.startsWith("/contacts")
-          ? labels.contact.plural
-          : pathname.startsWith("/companies")
-            ? labels.company.plural
-            : pathname.startsWith("/activities")
-              ? labels.activity.plural
-              : pathname.startsWith("/products")
-                ? labels.product.plural
-                : TITLES.find(([p]) => pathname.startsWith(p))?.[1] ?? "";
-  const isDetail = /^\/(deals|contacts|companies)\/[^/]+/.test(pathname);
-  const hour = currentHour();
-  const greeting = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
 
   return (
-    <header className="glass sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-line/70 px-4 lg:px-8" ref={ref}>
-      <button onClick={onMenu} className="rounded-lg p-1.5 text-muted hover:bg-surface-2 lg:hidden" aria-label="Menu">
+    <header className="glass-nav sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-line px-4 lg:px-8" ref={ref}>
+      <button onClick={onMenu} className="rounded-md p-1.5 text-fg-2 hover:bg-tint lg:hidden" aria-label="Menu">
         <Menu className="size-5" />
       </button>
-      <div className="hidden min-w-0 items-center gap-1.5 text-sm md:flex">
-        <span className="text-muted">{greeting}, {user.name.split(" ")[0]}</span>
-        {section && (
-          <>
-            <ChevronRight className="size-3.5 text-muted/60" />
-            <span className={cn("font-medium", isDetail ? "text-muted" : "text-fg")}>{section}</span>
-            {isDetail && (
-              <>
-                <ChevronRight className="size-3.5 text-muted/60" />
-                <span className="font-medium text-fg">Detalhes</span>
-              </>
-            )}
-          </>
-        )}
-      </div>
       <button
         onClick={() => window.dispatchEvent(new Event("open-palette"))}
-        className="group flex h-9 w-full max-w-sm items-center gap-2 rounded-[10px] border border-line bg-surface-2/70 px-3 text-sm text-muted transition hover:border-line-strong hover:bg-surface md:ml-auto"
+        className="flex h-10 min-w-0 w-full max-w-sm items-center gap-2.5 rounded-[10px] border border-line-strong bg-[var(--field-bg)] px-3 text-sm text-muted transition hover:border-[var(--text-mute)]"
       >
         <Search className="size-4" />
         <span className="flex-1 truncate text-left">Buscar em tudo…</span>
-        <kbd className="hidden rounded-md border border-line bg-surface px-1.5 py-0.5 font-sans text-[10px] font-medium shadow-soft sm:inline">⌘K</kbd>
+        <kbd className="hidden rounded-[6px] border border-line px-1.5 py-0.5 font-mono text-[10px] sm:inline">⌘K</kbd>
       </button>
-      <div className="ml-auto flex items-center gap-1.5 md:ml-0">
+      <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2.5">
+        <span className="mono-label hidden items-center gap-2 text-[10px] text-muted xl:flex">
+          <span className="dot-ok" /> Todos os sistemas operacionais
+        </span>
+        <div className="flex items-center rounded-full border border-line-strong bg-surface p-0.5" role="group" aria-label="Tema">
+          <button
+            onClick={() => applyTheme(false)}
+            aria-label="Tema claro"
+            aria-pressed={!dark}
+            className={cn("flex size-7 items-center justify-center rounded-full transition", !dark ? "bg-[var(--chip-active-bg)] text-[var(--chip-active-fg)]" : "text-muted hover:text-fg")}
+          >
+            <Sun className="size-3.5" />
+          </button>
+          <button
+            onClick={() => applyTheme(true)}
+            aria-label="Tema escuro"
+            aria-pressed={dark}
+            className={cn("flex size-7 items-center justify-center rounded-full transition", dark ? "bg-[var(--chip-active-bg)] text-[var(--chip-active-fg)]" : "text-muted hover:text-fg")}
+          >
+            <Moon className="size-3.5" />
+          </button>
+        </div>
         {can("SALES") && (
           <div className="relative">
-            <Button onClick={() => setMenu(menu === "new" ? null : "new")} className="h-9">
-              <Plus className="size-4" /> <span className="hidden sm:inline">Criar</span>
+            <Button onClick={() => setMenu(menu === "new" ? null : "new")} trail={<Plus className="size-3.5" />}>
+              <span className="hidden sm:inline">Criar</span>
             </Button>
             {menu === "new" && (
-              <div className="animate-in absolute right-0 mt-2 w-64 rounded-xl border border-line bg-surface p-1.5 shadow-pop">
-                <p className="px-2.5 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wider text-muted">Criar novo</p>
+              <div className="card-drap animate-in absolute right-0 mt-2 w-72 p-1.5 shadow-pop">
+                <p className="eyebrow px-2.5 pb-1.5 pt-1.5 text-[10px]">Criar novo</p>
                 {(
                   [
-                    ["deal", labels.deal.singular, KanbanSquare, "#6366f1", "Oportunidade no funil"],
-                    ["contact", labels.contact.singular, User, "#0ea5e9", "Pessoa de contato"],
-                    ["company", labels.company.singular, Building2, "#f59e0b", "Organização cliente"],
-                    ["activity", labels.activity.singular, CalendarCheck, "#10b981", "Ligação, reunião, tarefa…"],
+                    ["deal", labels.deal.singular, KanbanSquare, "Oportunidade no funil"],
+                    ["contact", labels.contact.singular, User, "Pessoa de contato"],
+                    ["company", labels.company.singular, Building2, "Organização cliente"],
+                    ["activity", labels.activity.singular, CalendarCheck, "Ligação, reunião, tarefa…"],
                   ] as const
-                ).map(([k, l, I, c, d]) => (
+                ).map(([k, l, I, d], i) => (
                   <button
                     key={k}
                     onClick={() => {
                       setMenu(null);
                       quick(k);
                     }}
-                    className="flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left hover:bg-surface-2"
+                    className="flex w-full items-center gap-3 rounded-[var(--radius-sm)] px-2.5 py-2 text-left transition hover:bg-tint"
                   >
-                    <span className="flex size-8 items-center justify-center rounded-lg" style={{ background: `color-mix(in oklab, ${c} 13%, transparent)`, color: c }}>
-                      <I className="size-4" />
-                    </span>
+                    <span className="w-5 font-mono text-[10.5px] text-muted">{String(i + 1).padStart(2, "0")}</span>
+                    <I className="size-4 text-accent-text" />
                     <span>
                       <span className="block text-sm font-medium">{l}</span>
                       <span className="block text-xs text-muted">{d}</span>
@@ -326,15 +267,12 @@ function Topbar({ onMenu, initialDark }: { onMenu: () => void; initialDark: bool
             )}
           </div>
         )}
-        <button onClick={toggleTheme} className="flex size-9 items-center justify-center rounded-[10px] border border-line bg-surface text-muted shadow-soft transition hover:text-fg" aria-label="Alternar tema">
-          {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
-        </button>
         <div className="relative">
-          <button onClick={() => setMenu(menu === "user" ? null : "user")} className="rounded-full ring-2 ring-transparent transition hover:ring-brand/30" aria-label="Menu do usuário">
-            <Avatar name={user.name} color={user.avatarColor} size={34} />
+          <button onClick={() => setMenu(menu === "user" ? null : "user")} className="rounded-full" aria-label="Menu do usuário">
+            <Avatar name={user.name} color={user.avatarColor} size={36} />
           </button>
           {menu === "user" && (
-            <div className="animate-in absolute right-0 mt-2 w-60 rounded-xl border border-line bg-surface p-1.5 shadow-pop">
+            <div className="card-drap animate-in absolute right-0 mt-2 w-64 p-1.5 shadow-pop">
               <div className="flex items-center gap-2.5 border-b border-line px-2.5 pb-2.5 pt-1.5">
                 <Avatar name={user.name} color={user.avatarColor} size={36} />
                 <div className="min-w-0">
@@ -342,10 +280,10 @@ function Topbar({ onMenu, initialDark }: { onMenu: () => void; initialDark: bool
                   <p className="truncate text-xs text-muted">{user.email}</p>
                 </div>
               </div>
-              <Link href="/settings/profile" onClick={() => setMenu(null)} className="mt-1 flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm hover:bg-surface-2">
+              <Link href="/settings/profile" onClick={() => setMenu(null)} className="mt-1 flex items-center gap-2 rounded-md px-2.5 py-2 text-sm hover:bg-tint">
                 <User className="size-4 text-muted" /> Meu perfil
               </Link>
-              <button onClick={() => logout()} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-rose-600 hover:bg-rose-500/10">
+              <button onClick={() => logout()} className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm text-err hover:bg-tint">
                 <LogOut className="size-4" /> Sair
               </button>
             </div>
@@ -408,8 +346,8 @@ function CommandPalette() {
     router.push(`/${h.type === "company" ? "companies" : h.type + "s"}/${h.id}`);
   };
   return (
-    <div className="fixed inset-0 z-[60] flex items-start justify-center bg-slate-950/45 p-4 pt-[12vh] backdrop-blur-sm" onMouseDown={() => setOpen(false)}>
-      <div className="animate-in w-full max-w-xl overflow-hidden rounded-2xl border border-line bg-surface shadow-pop" onMouseDown={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[60] flex items-start justify-center bg-[color-mix(in_oklab,var(--bg)_55%,transparent)] p-4 pt-[12vh] backdrop-blur-md" onMouseDown={() => setOpen(false)}>
+      <div className="card-drap animate-in w-full max-w-xl overflow-hidden shadow-pop" onMouseDown={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-2 border-b border-line px-4">
           <Search className="size-4 text-muted" />
           <input
@@ -432,7 +370,7 @@ function CommandPalette() {
               key={h.type + h.id}
               onMouseEnter={() => setIdx(i)}
               onClick={() => go(h)}
-              className={cn("flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition", i === idx && "bg-brand/8 ring-1 ring-brand/15")}
+              className={cn("flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition", i === idx && "bg-tint ring-1 ring-line-strong")}
             >
               <span className="w-20 shrink-0"><Badge>{typeLabel[h.type]}</Badge></span>
               <span className="min-w-0 flex-1">
@@ -450,7 +388,7 @@ function CommandPalette() {
                   setOpen(false);
                   a.run();
                 }}
-                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-muted hover:bg-surface-2 hover:text-fg"
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-fg-2 hover:bg-tint hover:text-fg"
               >
                 <Plus className="size-4" /> {a.label}
               </button>

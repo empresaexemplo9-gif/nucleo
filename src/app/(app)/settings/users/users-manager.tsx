@@ -32,7 +32,7 @@ export function UsersManager({ me, myRole, members, invites }: { me: string; myR
       <Card className="p-5">
         <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 className="text-base font-bold">Equipe</h2>
+            <h2 className="text-base font-semibold">Equipe</h2>
             <p className="text-sm text-muted">{members.filter((m) => m.active).length} usuário(s) ativo(s)</p>
           </div>
           <Button onClick={() => setOpen(true)}><UserPlus className="size-4" /> Adicionar usuário</Button>
@@ -45,7 +45,7 @@ export function UsersManager({ me, myRole, members, invites }: { me: string; myR
                 <p className="text-sm font-medium">{m.name} {m.userId === me && <span className="text-xs text-muted">(você)</span>}</p>
                 <p className="text-xs text-muted">{m.email}</p>
               </div>
-              {!m.active && <Badge color="#dc2626">Desativado</Badge>}
+              {!m.active && <Badge color="var(--err)">Desativado</Badge>}
               <Select
                 className="w-44"
                 value={m.role}
@@ -66,7 +66,7 @@ export function UsersManager({ me, myRole, members, invites }: { me: string; myR
 
       {invites.length > 0 && (
         <Card className="p-5">
-          <h2 className="mb-3 text-base font-bold">Convites pendentes</h2>
+          <h2 className="mb-3 text-base font-semibold">Convites pendentes</h2>
           <div className="divide-y divide-line">
             {invites.map((i) => (
               <div key={i.id} className="flex items-center gap-3 py-2.5 text-sm">
@@ -82,7 +82,7 @@ export function UsersManager({ me, myRole, members, invites }: { me: string; myR
       )}
 
       <Card className="p-5">
-        <h2 className="mb-3 text-base font-bold">Perfis de acesso</h2>
+        <h2 className="mb-3 text-base font-semibold">Perfis de acesso</h2>
         <div className="grid gap-2 sm:grid-cols-2">
           {Object.values(ROLES).map((r) => (
             <div key={r.label} className="rounded-lg border border-line p-3">

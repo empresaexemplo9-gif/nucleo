@@ -36,7 +36,7 @@ export function useOrg() {
     const r = { VIEWER: 0, SALES: 1, MANAGER: 2, ADMIN: 3, OWNER: 4 };
     return r[v.role] >= r[min];
   };
-  const tagColor = (name: string) => v.tags.find((t) => t.name === name)?.color ?? "#64748b";
+  const tagColor = (name: string) => v.tags.find((t) => t.name === name)?.color ?? "var(--text-mute)";
   const member = (id?: string | null) => v.members.find((m) => m.id === id);
   return { ...v, fmt, can, tagColor, member };
 }

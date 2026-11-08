@@ -64,8 +64,8 @@ export function ActivityForm({
               if (!touched) setTitle("");
             }}
             className={cn(
-              "flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition",
-              type === k ? "border-brand bg-brand/10 text-brand" : "border-line text-muted hover:bg-surface-2",
+              "mono-label flex items-center gap-1.5 rounded-[var(--radius-sm)] border px-2.5 py-1.5 text-[10.5px] transition",
+              type === k ? "border-transparent bg-[var(--chip-active-bg)] text-[var(--chip-active-fg)]" : "border-line-strong bg-surface text-fg-2 hover:border-[var(--text-mute)]",
             )}
           >
             <ActivityIcon type={k} className="size-3.5" /> {v.label}

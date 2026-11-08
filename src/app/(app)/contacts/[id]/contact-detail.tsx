@@ -33,20 +33,19 @@ export function ContactDetail({
   const self = { id: contact.id, label: contact.name };
 
   return (
-    <div className="mx-auto max-w-[1400px] p-4 lg:p-8">
+    <div className="mx-auto max-w-[1400px] px-4 pb-16 pt-8 lg:px-8">
       <Link href="/contacts" className="mb-4 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm text-muted transition hover:bg-surface hover:text-fg">
         <ArrowLeft className="size-4" /> {labels.contact.plural}
       </Link>
-      <Card className="relative flex flex-wrap items-center gap-5 overflow-hidden p-6">
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(160deg,color-mix(in_oklab,var(--brand)_12%,transparent),color-mix(in_oklab,var(--accent)_5%,transparent)_40%,transparent_65%)]" />
+      <Card grid className="relative flex flex-wrap items-center gap-5 overflow-hidden p-6">
         <span className="relative rounded-full p-1 ring-1 ring-line"><Avatar name={contact.name} size={64} /></span>
         <div className="relative min-w-0 flex-1">
-          <h1 className="text-2xl font-bold">{contact.name}</h1>
+          <h1 className="text-[clamp(28px,3vw,40px)] font-medium leading-[1.05] tracking-[-0.04em]">{contact.name}</h1>
           <p className="text-sm text-muted">
             {[contact.position, contact.company?.label].filter(Boolean).join(" · ") || "—"}
           </p>
           <div className="mt-1.5 flex flex-wrap items-center gap-2">
-            <Badge color="#6366f1" dot>{LIFECYCLES.find((l) => l.value === contact.lifecycle)?.label}</Badge>
+            <Badge color="var(--accent-2)" dot>{LIFECYCLES.find((l) => l.value === contact.lifecycle)?.label}</Badge>
             <TagList tags={contact.tags} />
           </div>
         </div>
@@ -58,7 +57,7 @@ export function ContactDetail({
             <a href={`tel:${contact.phone}`}><Button variant="secondary"><Phone className="size-4" /> Ligar</Button></a>
           )}
           {wa && (
-            <a href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer"><Button variant="secondary"><MessageCircle className="size-4 text-emerald-600" /> WhatsApp</Button></a>
+            <a href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer"><Button variant="secondary"><MessageCircle className="size-4 text-ok" /> WhatsApp</Button></a>
           )}
           {can("SALES") && <Button variant="secondary" onClick={() => setEditing(true)}><Pencil className="size-4" /> Editar</Button>}
           {can("MANAGER") && (
@@ -78,7 +77,7 @@ export function ContactDetail({
             <InfoRow label="WhatsApp" value={contact.whatsapp} />
             <InfoRow
               label={labels.company.singular}
-              value={contact.company && <Link href={`/companies/${contact.company.id}`} className="inline-flex items-center gap-1 text-brand hover:underline"><Building2 className="size-3.5" />{contact.company.label}</Link>}
+              value={contact.company && <Link href={`/companies/${contact.company.id}`} className="inline-flex items-center gap-1 text-accent-text underline-offset-4 hover:underline"><Building2 className="size-3.5" />{contact.company.label}</Link>}
             />
             <InfoRow label="Responsável" value={owner?.name} />
             <InfoRow label="Origem" value={contact.source} />

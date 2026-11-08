@@ -61,48 +61,38 @@ export function DealDetail({
   const editable = can("SALES");
 
   return (
-    <div className="mx-auto max-w-[1400px] p-4 lg:p-8">
+    <div className="mx-auto max-w-[1400px] px-4 pb-16 pt-8 lg:px-8">
       <Link href={`/deals?pipeline=${deal.pipelineId}`} className="mb-4 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm text-muted transition hover:bg-surface hover:text-fg">
         <ArrowLeft className="size-4" /> Voltar para {pipelineName}
       </Link>
-      <Card className="relative overflow-hidden">
-        <div
-          className="pointer-events-none absolute inset-0"
-          style={{
-            background:
-              deal.status === "WON"
-                ? "linear-gradient(160deg, color-mix(in oklab, #16a34a 14%, transparent), transparent 55%)"
-                : deal.status === "LOST"
-                  ? "linear-gradient(160deg, color-mix(in oklab, #e11d48 12%, transparent), transparent 55%)"
-                  : "linear-gradient(160deg, color-mix(in oklab, var(--brand) 12%, transparent), color-mix(in oklab, var(--accent) 5%, transparent) 40%, transparent 65%)",
-          }}
-        />
+      <Card grid className="relative overflow-hidden">
         <div className="relative p-5 lg:p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 {current && deal.status === "OPEN" && <Badge color={current.color} dot>{current.name}</Badge>}
-                {deal.status === "WON" && <Badge color="#16a34a" dot>Ganho</Badge>}
-                {deal.status === "LOST" && <Badge color="#e11d48" dot>Perdido</Badge>}
+                {deal.status === "WON" && <Badge color="var(--ok)" dot>Ganho</Badge>}
+                {deal.status === "LOST" && <Badge color="var(--err)" dot>Perdido</Badge>}
                 <TagList tags={deal.tags} />
               </div>
-              <h1 className="mt-2 text-2xl font-bold leading-tight">{deal.title}</h1>
+              <p className="eyebrow mt-3">{labels.deal.singular} · {pipelineName}</p>
+              <h1 className="mt-1 text-[clamp(28px,3.2vw,44px)] font-medium leading-[1.05] tracking-[-0.04em]">{deal.title}</h1>
               <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
                 <div>
-                  <p className="text-[11px] font-medium uppercase tracking-wider text-muted">Valor</p>
-                  <p className="font-display text-xl font-bold">{fmt(deal.value)}</p>
+                  <p className="eyebrow text-[10px]">Valor</p>
+                  <p className="text-2xl font-medium tracking-[-0.03em]">{fmt(deal.value)}</p>
                 </div>
                 <div>
-                  <p className="text-[11px] font-medium uppercase tracking-wider text-muted">Ponderado</p>
-                  <p className="font-display text-xl font-bold text-brand">{fmt((deal.value * prob) / 100)}</p>
+                  <p className="eyebrow text-[10px]">Ponderado</p>
+                  <p className="text-grad text-2xl font-medium tracking-[-0.03em]">{fmt((deal.value * prob) / 100)}</p>
                 </div>
                 <div>
-                  <p className="text-[11px] font-medium uppercase tracking-wider text-muted">Probabilidade</p>
-                  <p className="font-display text-xl font-bold">{prob}%</p>
+                  <p className="eyebrow text-[10px]">Probabilidade</p>
+                  <p className="text-2xl font-medium tracking-[-0.03em]">{prob}%</p>
                 </div>
                 {owner && (
                   <div>
-                    <p className="text-[11px] font-medium uppercase tracking-wider text-muted">Responsável</p>
+                    <p className="eyebrow text-[10px]">Responsável</p>
                     <p className="mt-0.5 flex items-center gap-1.5 font-medium">
                       <Avatar name={owner.name} color={owner.avatarColor} size={22} /> {owner.name}
                     </p>
@@ -133,7 +123,7 @@ export function DealDetail({
                   <Button
                     variant="secondary"
                     size="icon"
-                    className="size-9 text-muted hover:text-rose-600"
+                    className="size-9 text-muted hover:text-err"
                     aria-label="Excluir"
                     onClick={() => confirm("Excluir este registro definitivamente?") && run(() => deleteDeal(deal.id), { onSuccess: () => router.push("/deals") })}
                   >
@@ -156,10 +146,10 @@ export function DealDetail({
                   onClick={() => run(() => moveDeal(deal.id, s.id))}
                   title={`Mover para ${s.name}`}
                   className={cn(
-                    "group relative h-11 min-w-28 flex-1 text-xs font-semibold transition disabled:cursor-default",
+                    "group relative h-11 min-w-28 flex-1 font-mono text-[10.5px] uppercase tracking-[0.08em] transition disabled:cursor-default",
                     i === 0 ? "rounded-l-xl" : "-ml-2",
                     i === open.length - 1 && "rounded-r-xl",
-                    reached ? "text-white" : "bg-surface-2 text-muted enabled:hover:bg-brand/10 enabled:hover:text-brand",
+                    reached ? "text-[var(--on-data)]" : "bg-well text-muted enabled:hover:bg-tint enabled:hover:text-fg",
                   )}
                   style={{
                     clipPath:
@@ -168,7 +158,7 @@ export function DealDetail({
                         : i === 0
                           ? "polygon(0 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 0 100%)"
                           : "polygon(0 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 0 100%, 10px 50%)",
-                    ...(reached ? { background: deal.status === "LOST" ? "#94a3b8" : s.color } : {}),
+                    ...(reached ? { background: deal.status === "LOST" ? "var(--text-mute)" : s.color } : {}),
                   }}
                 >
                   <span className="flex flex-col items-center justify-center px-4 leading-tight">
@@ -180,7 +170,7 @@ export function DealDetail({
             })}
           </div>
           {deal.status === "LOST" && deal.lostReason && (
-            <p className="mt-4 flex items-center gap-2 rounded-xl border border-rose-500/20 bg-rose-500/8 px-3 py-2.5 text-sm text-rose-700 dark:text-rose-300">
+            <p className="mt-4 flex items-center gap-2 rounded-[10px] border border-err/20 bg-err/8 px-3 py-2.5 text-sm text-err">
               <ThumbsDown className="size-4" /> Motivo da perda: <b>{deal.lostReason}</b>
             </p>
           )}
@@ -204,17 +194,17 @@ export function DealDetail({
             <CardHeader icon={<User />} title={labels.contact.singular} />
             {deal.contact ? (
               <div>
-                <Link href={`/contacts/${deal.contact.id}`} className="flex items-center gap-2 font-medium hover:text-brand">
+                <Link href={`/contacts/${deal.contact.id}`} className="flex items-center gap-2 font-medium hover:text-accent-text">
                   <Avatar name={deal.contact.label} size={36} /> <span className="leading-tight">{deal.contact.label}{deal.contact.position && <span className="block text-xs font-normal text-muted">{deal.contact.position}</span>}</span>
                 </Link>
                                 <div className="mt-3 grid gap-1.5 text-sm">
                   {deal.contact.email && (
-                    <a href={`mailto:${deal.contact.email}`} className="flex items-center gap-2 rounded-lg bg-surface-2 px-2.5 py-1.5 text-fg-2 transition hover:bg-brand/10 hover:text-brand">
+                    <a href={`mailto:${deal.contact.email}`} className="flex items-center gap-2 rounded-lg bg-surface-2 px-2.5 py-1.5 text-fg-2 transition hover:bg-tint hover:text-fg">
                       <Mail className="size-3.5" /> {deal.contact.email}
                     </a>
                   )}
                   {deal.contact.phone && (
-                    <a href={`tel:${deal.contact.phone}`} className="flex items-center gap-2 rounded-lg bg-surface-2 px-2.5 py-1.5 text-fg-2 transition hover:bg-brand/10 hover:text-brand">
+                    <a href={`tel:${deal.contact.phone}`} className="flex items-center gap-2 rounded-lg bg-surface-2 px-2.5 py-1.5 text-fg-2 transition hover:bg-tint hover:text-fg">
                       <Phone className="size-3.5" /> {deal.contact.phone}
                     </a>
                   )}
@@ -223,7 +213,7 @@ export function DealDetail({
                       href={`https://wa.me/${(deal.contact.whatsapp || deal.contact.phone)!.replace(/\D/g, "")}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="flex items-center gap-2 rounded-lg bg-emerald-500/10 px-2.5 py-1.5 font-medium text-emerald-700 transition hover:bg-emerald-500/20 dark:text-emerald-400"
+                      className="flex items-center gap-2 rounded-lg bg-ok/10 px-2.5 py-1.5 font-medium text-ok transition hover:bg-ok/20"
                     >
                       <MessageCircle className="size-3.5" /> Abrir WhatsApp
                     </a>
@@ -239,7 +229,7 @@ export function DealDetail({
               <>
                 <h3 className="mb-2 mt-5 border-t border-line pt-4 text-sm font-semibold">{labels.company.singular}</h3>
                 {deal.company ? (
-                  <Link href={`/companies/${deal.company.id}`} className="flex items-center gap-2 text-sm font-medium hover:text-brand">
+                  <Link href={`/companies/${deal.company.id}`} className="flex items-center gap-2 text-sm font-medium hover:text-accent-text">
                     <Building2 className="size-4 text-muted" /> {deal.company.label}
                     {deal.company.city && <span className="text-xs font-normal text-muted">· {deal.company.city}</span>}
                   </Link>
@@ -277,7 +267,7 @@ export function DealDetail({
                       </div>
                       <span className="font-medium">{fmt(p.quantity * p.price * (1 - p.discount / 100))}</span>
                       {editable && (
-                        <button onClick={() => run(() => removeDealProduct(p.id))} className="text-muted opacity-0 hover:text-red-600 group-hover:opacity-100" aria-label="Remover">
+                        <button onClick={() => run(() => removeDealProduct(p.id))} className="text-muted opacity-0 hover:text-err group-hover:opacity-100" aria-label="Remover">
                           <X className="size-3.5" />
                         </button>
                       )}

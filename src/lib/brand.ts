@@ -1,6 +1,7 @@
 import "server-only";
 import { headers } from "next/headers";
 import { db } from "./db";
+import { DRAP_PRIMARY, DRAP_SECONDARY } from "./brand-colors";
 
 export const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || "Núcleo CRM";
 
@@ -14,7 +15,7 @@ export async function getPublicBrand(slug?: string | null) {
     orgId: org?.id ?? null,
     name: org?.name ?? APP_NAME,
     logoUrl: org?.logoUrl ?? null,
-    primaryColor: org?.primaryColor ?? "#4f46e5",
-    accentColor: org?.accentColor ?? "#0ea5e9",
+    primaryColor: org?.primaryColor ?? DRAP_PRIMARY,
+    accentColor: org?.accentColor ?? DRAP_SECONDARY,
   };
 }

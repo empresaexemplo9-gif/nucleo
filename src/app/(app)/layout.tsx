@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { requireContext } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { setTimeZone } from "@/lib/format";
+import { brandOverrideCss } from "@/lib/brand-colors";
 import { OrgProvider } from "@/components/org-context";
 import { AppShell } from "@/components/shell";
 
@@ -9,6 +10,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const ctx = await requireContext();
   const orgId = ctx.org.id;
   setTimeZone(ctx.org.timezone);
+  const brandCss = brandOverrideCss(ctx.org.primaryColor, ctx.org.accentColor);
   const [members, tags, fields, pipelines, lostReasons, myOrgs, overdue] = await Promise.all([
     db.membership.findMany({ where: { orgId, active: true }, include: { user: true }, orderBy: { user: { name: "asc" } } }),
     db.tag.findMany({ where: { orgId }, orderBy: { name: "asc" } }),
@@ -39,7 +41,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         lostReasons: lostReasons.map((l) => l.label),
       }}
     >
-      <style>{`:root{--brand:${safeColor(ctx.org.primaryColor)};--accent:${safeColor(ctx.org.accentColor)}}`}</style>
+      {brandCss && <style>{brandCss}</style>}
       <AppShell dark={(await cookies()).get("theme")?.value === "dark"} orgs={myOrgs.map((m) => ({ id: m.org.id, name: m.org.name }))} overdue={overdue}>
         {children}
       </AppShell>
@@ -47,6 +49,3 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   );
 }
 
-function safeColor(c: string) {
-  return /^#[0-9a-fA-F]{3,8}$/.test(c) ? c : "#4f46e5";
-}

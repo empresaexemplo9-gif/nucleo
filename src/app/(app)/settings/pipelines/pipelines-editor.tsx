@@ -8,7 +8,8 @@ import { createPipeline, deletePipeline, saveStages, updatePipeline, type StageI
 type Stage = StageInput & { deals?: number; key: string };
 type P = { id: string; name: string; isDefault: boolean; deals: number; stages: (StageInput & { id: string; deals: number })[] };
 
-const COLORS = ["#64748b", "#3b82f6", "#8b5cf6", "#f59e0b", "#f97316", "#ec4899", "#14b8a6", "#0ea5e9"];
+/** Cores sugeridas para novas etapas (dado salvo na etapa), na paleta DRAP. */
+const COLORS = ["#7d828c", "#3c78c0", "#2d63a3", "#b48a4f", "#8a672f", "#17905f", "#4b505a", "#c39b5f"];
 
 export function PipelinesEditor({ pipelines }: { pipelines: P[] }) {
   const [sel, setSel] = useState(pipelines.find((p) => p.isDefault)?.id ?? pipelines[0]?.id);
@@ -19,7 +20,7 @@ export function PipelinesEditor({ pipelines }: { pipelines: P[] }) {
   return (
     <div className="space-y-4">
       <Card className="p-5">
-        <h2 className="text-base font-bold">Funis de vendas</h2>
+        <h2 className="text-base font-semibold">Funis de vendas</h2>
         <p className="mb-4 text-sm text-muted">Crie quantos funis precisar — ex.: Vendas novas, Renovação, Pós-venda, Parcerias.</p>
         <div className="flex flex-wrap gap-2">
           {pipelines.map((x) => (
@@ -75,7 +76,7 @@ function StagesEditor({ pipeline }: { pipeline: P }) {
         <Button
           variant="ghost"
           size="sm"
-          className="ml-auto text-red-600"
+          className="ml-auto text-err"
           onClick={() => confirm(`Excluir o funil "${pipeline.name}" e TODOS os seus ${pipeline.deals} negócios?`) && run(() => deletePipeline(pipeline.id))}
         >
           <Trash2 className="size-3.5" /> Excluir funil
@@ -107,7 +108,7 @@ function StagesEditor({ pipeline }: { pipeline: P }) {
                   if (s.deals && !confirm(`Esta etapa tem ${s.deals} negócio(s). Eles serão movidos para a primeira etapa. Continuar?`)) return;
                   setStages((ss) => ss.filter((x) => x.key !== s.key));
                 }}
-                className="rounded p-1 text-muted hover:bg-surface-2 hover:text-red-600"
+                className="rounded p-1 text-muted hover:bg-surface-2 hover:text-err"
                 aria-label="Remover"
               >
                 <Trash2 className="size-3.5" />
@@ -133,7 +134,7 @@ function StagesEditor({ pipeline }: { pipeline: P }) {
           {closed.map((s) => (
             <div key={s.key} className="flex items-center gap-2 rounded-lg border border-line p-1.5 pr-3">
               <Input value={s.name} onChange={(e) => update(s.key, { name: e.target.value })} className="w-40" />
-              <Badge color={s.type === "WON" ? "#16a34a" : "#dc2626"}>{s.type === "WON" ? "Ganho" : "Perdido"}</Badge>
+              <Badge color={s.type === "WON" ? "var(--ok)" : "var(--err)"}>{s.type === "WON" ? "Ganho" : "Perdido"}</Badge>
             </div>
           ))}
         </div>

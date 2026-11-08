@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Building2, Download, Plus, Trash2 } from "lucide-react";
-import { Avatar, Button, Card, colorFor, EmptyState, PageHeader, Select } from "@/components/ui";
+import { Avatar, Button, Card, EmptyState, PageHeader, Select } from "@/components/ui";
 import { TagList } from "@/components/pickers";
 import { Pagination, SearchBox, useParamSetter } from "@/components/list-toolbar";
 import { useOrg } from "@/components/org-context";
@@ -20,8 +20,8 @@ export function CompaniesTable({ rows, total, page, pageSize, filters }: { rows:
   const { run, pending } = useAction();
   const ids = Array.from(sel);
   return (
-    <div className="mx-auto max-w-[1400px] p-4 lg:p-8">
-      <PageHeader
+    <div className="mx-auto max-w-[1400px] px-4 pb-16 pt-8 lg:px-8">
+      <PageHeader eyebrow="03 / Relacionamento"
         icon={<Building2 />}
         title={labels.company.plural}
         description={`${total} ${total === 1 ? "registro" : "registros"} · organizações clientes e prospects`}
@@ -51,7 +51,7 @@ export function CompaniesTable({ rows, total, page, pageSize, filters }: { rows:
         )}
       </div>
       {ids.length > 0 && can("MANAGER") && (
-        <div className="mb-3 flex items-center gap-3 rounded-xl border border-brand/30 bg-brand/5 px-3 py-2 text-sm">
+        <div className="card-drap mb-3 flex items-center gap-3 px-3 py-2 text-sm">
           <b>{ids.length} selecionada(s)</b>
           <Button size="sm" variant="danger" loading={pending} onClick={() => confirm("Excluir as empresas selecionadas?") && run(() => deleteCompanies(ids), { onSuccess: () => setSel(new Set()) })}>
             <Trash2 className="size-3.5" /> Excluir
@@ -84,7 +84,7 @@ export function CompaniesTable({ rows, total, page, pageSize, filters }: { rows:
                     </td>
                     <td className="px-3 py-3">
                       <Link href={`/companies/${r.id}`} className="flex items-center gap-2 font-medium hover:text-brand">
-                        <span className="flex size-9 items-center justify-center rounded-xl text-sm font-bold text-white" style={{ background: `linear-gradient(140deg, color-mix(in oklab, ${colorFor(r.name)} 80%, white), ${colorFor(r.name)})` }}>{r.name[0]}</span>
+                        <span className="flex size-9 items-center justify-center rounded-[var(--radius-sm)] border border-line bg-well font-serif text-lg italic text-accent-text">{r.name[0]}</span>
                         {r.name}
                       </Link>
                       <TagList tags={r.tags} />

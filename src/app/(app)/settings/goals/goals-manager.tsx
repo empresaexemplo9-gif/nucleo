@@ -15,7 +15,7 @@ export function GoalsManager({ goals }: { goals: { id: string; period: string; m
   return (
     <div className="space-y-4">
       <Card className="p-5">
-        <h2 className="text-base font-bold">Definir meta</h2>
+        <h2 className="text-base font-semibold">Definir meta</h2>
         <p className="mb-4 text-sm text-muted">Metas mensais da empresa ou por vendedor. A meta de receita da empresa aparece no painel.</p>
         <form
           onSubmit={(e) => {
@@ -39,7 +39,7 @@ export function GoalsManager({ goals }: { goals: { id: string; period: string; m
         </form>
       </Card>
       <Card className="p-5">
-        <h2 className="mb-3 text-base font-bold">Acompanhamento</h2>
+        <h2 className="mb-3 text-base font-semibold">Acompanhamento</h2>
         <div className="space-y-3">
           {goals.map((g) => {
             const pct = g.target ? Math.round((g.actual / g.target) * 100) : 0;
@@ -53,7 +53,7 @@ export function GoalsManager({ goals }: { goals: { id: string; period: string; m
                   <Button size="icon" variant="ghost" onClick={() => run(() => deleteGoal(g.id))} aria-label="Excluir"><Trash2 className="size-3.5" /></Button>
                 </div>
                 <div className="mt-2 h-2 overflow-hidden rounded-full bg-surface-2">
-                  <div className={`h-full rounded-full ${pct >= 100 ? "bg-emerald-500" : "bg-brand"}`} style={{ width: `${Math.min(100, pct)}%` }} />
+                  <div className={`h-full rounded-full ${pct >= 100 ? "bg-ok" : "bg-brand"}`} style={{ width: `${Math.min(100, pct)}%` }} />
                 </div>
                 <p className="mt-1 text-xs text-muted">{f(g.actual)} de {f(g.target)}</p>
               </div>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { DRAP_PRIMARY, DRAP_SECONDARY } from "@/lib/brand-colors";
 import { db } from "@/lib/db";
 import { AuthShell } from "../../auth-shell";
 import { InviteForm } from "../../forms";
@@ -10,8 +11,8 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
   const invite = await db.invite.findUnique({ where: { token }, include: { org: true } });
   if (!invite || invite.acceptedAt) {
     return (
-      <AuthShell brand={{ name: "Convite", logoUrl: null, primaryColor: "#4f46e5", accentColor: "#0ea5e9" }} title="Convite inválido" subtitle="Este convite expirou ou já foi utilizado.">
-        <Link href="/login" className="text-sm font-medium text-brand">Ir para o login</Link>
+      <AuthShell brand={{ name: "Convite", logoUrl: null, primaryColor: DRAP_PRIMARY, accentColor: DRAP_SECONDARY }} title="Convite inválido" subtitle="Este convite expirou ou já foi utilizado.">
+        <Link href="/login" className="text-sm font-medium text-accent-text">Ir para o login</Link>
       </AuthShell>
     );
   }
