@@ -46,7 +46,7 @@ export function ProductsView({ products }: { products: P[] }) {
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-2.5 text-muted">{p.sku ?? "—"}</td>
+                  <td className="whitespace-nowrap px-4 py-2.5 font-mono text-xs text-muted">{p.sku ?? "—"}</td>
                   <td className="px-4 py-2.5 text-right font-display font-bold">{fmt(p.price)}{p.unit && <span className="text-xs font-normal text-muted"> /{p.unit}</span>}</td>
                   <td className="px-4 py-2.5">{p.active ? <Badge color="#16a34a" dot>Ativo</Badge> : <Badge>Inativo</Badge>}</td>
                   <td className="px-4 py-2.5 text-muted">{p.uses}</td>
