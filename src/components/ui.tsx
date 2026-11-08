@@ -184,6 +184,7 @@ export function StatCard({
   icon,
   color,
   delta,
+  spark,
   className,
   style,
 }: {
@@ -193,38 +194,63 @@ export function StatCard({
   icon?: React.ReactNode;
   color?: string;
   delta?: number | null;
+  spark?: React.ReactNode;
   className?: string;
   style?: React.CSSProperties;
 }) {
+  const c = color ?? "var(--brand)";
   return (
-    <Card className={cn("group relative overflow-hidden p-4 transition hover:-translate-y-0.5 hover:shadow-lift", className)} style={style}>
+    <Card className={cn("group relative overflow-hidden p-4 transition duration-200 hover:-translate-y-1 hover:shadow-lift", className)} style={style}>
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[3px]" style={{ background: `linear-gradient(90deg, ${c}, color-mix(in oklab, ${c} 30%, transparent))` }} />
       <div
-        className="pointer-events-none absolute -right-8 -top-8 size-24 rounded-full opacity-60 blur-2xl transition group-hover:opacity-100"
-        style={{ background: `color-mix(in oklab, ${color ?? "var(--brand)"} 18%, transparent)` }}
+        className="pointer-events-none absolute -right-10 -top-10 size-32 rounded-full opacity-50 blur-2xl transition duration-300 group-hover:opacity-90"
+        style={{ background: `color-mix(in oklab, ${c} 22%, transparent)` }}
       />
-      <div className="relative flex items-start justify-between gap-2">
-        <p className="truncate pt-1 text-xs font-medium text-muted" title={label}>{label}</p>
+      <div className="relative flex items-center gap-2.5">
         {icon && (
-          <IconTile color={color} size={30} className="[&>svg]:size-4">
+          <span
+            className="flex size-9 shrink-0 items-center justify-center rounded-xl text-white shadow-sm transition duration-300 group-hover:rotate-[-6deg] group-hover:scale-110 [&>svg]:size-[18px]"
+            style={{ background: `linear-gradient(140deg, color-mix(in oklab, ${c} 70%, white), ${c})`, boxShadow: `0 6px 16px -6px ${c}` }}
+          >
             {icon}
-          </IconTile>
+          </span>
         )}
+        <p className="min-w-0 truncate text-xs font-semibold text-muted" title={label}>{label}</p>
       </div>
-      <p className="font-display relative mt-2 truncate text-[22px] font-bold tracking-tight text-fg">{value}</p>
-      <div className="relative mt-1 flex min-w-0 items-center gap-1.5 text-xs text-muted">
+      <div className="relative mt-3 flex items-end justify-between gap-2">
+        <p className="font-display min-w-0 truncate text-[24px] font-extrabold leading-none tracking-tight text-fg">{value}</p>
+        {spark && <div className="shrink-0 opacity-90">{spark}</div>}
+      </div>
+      <div className="relative mt-2 flex min-w-0 items-center gap-1.5 text-xs text-muted">
         {delta != null && Number.isFinite(delta) && (
           <span
             className={cn(
-              "inline-flex shrink-0 items-center whitespace-nowrap rounded-md px-1.5 py-0.5 text-[11px] font-semibold",
-              delta > 0 ? "bg-emerald-500/12 text-emerald-600 dark:text-emerald-400" : delta < 0 ? "bg-rose-500/12 text-rose-600 dark:text-rose-400" : "bg-surface-2 text-muted",
+              "inline-flex shrink-0 items-center whitespace-nowrap rounded-md px-1.5 py-0.5 text-[11px] font-bold",
+              delta > 0 ? "bg-emerald-500/14 text-emerald-600 dark:text-emerald-400" : delta < 0 ? "bg-rose-500/14 text-rose-600 dark:text-rose-400" : "bg-surface-2 text-muted",
             )}
           >
-            {delta > 0 ? "▲" : delta < 0 ? "▼" : "•"} {Math.abs(Math.round(delta))}%
+            {delta > 0 ? "↑" : delta < 0 ? "↓" : "•"} {Math.abs(Math.round(delta))}%
           </span>
         )}
         <span className="truncate">{sub}</span>
       </div>
     </Card>
+  );
+}
+
+/** Título de seção de página. */
+export function SectionTitle({ title, description, emoji, action }: { title: string; description?: string; emoji?: string; action?: React.ReactNode }) {
+  return (
+    <div className="mb-3 mt-8 flex flex-wrap items-end justify-between gap-3 first:mt-0">
+      <div className="flex items-center gap-2.5">
+        {emoji && <span className="flex size-8 items-center justify-center rounded-xl border border-line bg-surface text-base shadow-soft">{emoji}</span>}
+        <div>
+          <h2 className="text-base font-bold leading-tight">{title}</h2>
+          {description && <p className="text-xs text-muted">{description}</p>}
+        </div>
+      </div>
+      {action}
+    </div>
   );
 }
 

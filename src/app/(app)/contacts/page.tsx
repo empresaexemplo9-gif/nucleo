@@ -19,7 +19,7 @@ export default async function ContactsPage({ searchParams }: { searchParams: Pro
     ...(sp.tag ? { tags: { has: sp.tag } } : {}),
     ...(sp.q ? { OR: [{ name: ci(sp.q) }, { email: ci(sp.q) }, { phone: ci(sp.q) }, { company: { name: ci(sp.q) } }] } : {}),
   };
-  const [total, contacts] = await Promise.all([
+  const [total, contacts, lc] = await Promise.all([
     db.contact.count({ where }),
     db.contact.findMany({
       where,
@@ -28,6 +28,7 @@ export default async function ContactsPage({ searchParams }: { searchParams: Pro
       take: PAGE,
       include: { company: { select: { id: true, name: true } }, _count: { select: { deals: { where: { status: "OPEN" } } } } },
     }),
+    db.contact.groupBy({ by: ["lifecycle"], where: { orgId: ctx.org.id, ...ownerScope(ctx) }, _count: { _all: true } }),
   ]);
   return (
     <ContactsTable
@@ -45,6 +46,7 @@ export default async function ContactsPage({ searchParams }: { searchParams: Pro
         createdAt: c.createdAt.toISOString(),
       }))}
       total={total}
+      lifecycleCounts={Object.fromEntries(lc.map((x) => [x.lifecycle, x._count._all]))}
       page={page}
       pageSize={PAGE}
       filters={{ q: sp.q ?? "", owner: sp.owner ?? "", lifecycle: sp.lifecycle ?? "", tag: sp.tag ?? "" }}

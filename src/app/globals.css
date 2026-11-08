@@ -161,3 +161,88 @@ select {
 @media (prefers-reduced-motion: reduce) {
   .animate-in, .animate-rise { animation: none; }
 }
+
+/* ===================== Camada "viva" ===================== */
+
+/* Manchas de cor desfocadas atrás do conteúdo (seguem a marca) */
+.app-canvas {
+  position: relative;
+  isolation: isolate;
+}
+.app-canvas::before {
+  content: "";
+  position: fixed;
+  inset: -20vmax;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(38vmax 30vmax at 18% 8%, color-mix(in oklab, var(--brand) 16%, transparent), transparent 62%),
+    radial-gradient(34vmax 28vmax at 88% 4%, color-mix(in oklab, var(--accent) 14%, transparent), transparent 62%),
+    radial-gradient(30vmax 26vmax at 70% 92%, color-mix(in oklab, #f472b6 9%, transparent), transparent 62%),
+    radial-gradient(28vmax 24vmax at 6% 88%, color-mix(in oklab, #34d399 8%, transparent), transparent 62%);
+  animation: drift 28s ease-in-out infinite alternate;
+}
+.dark .app-canvas::before {
+  opacity: 0.75;
+}
+@keyframes drift {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(-2vmax, 1.5vmax, 0) scale(1.04); }
+  100% { transform: translate3d(1.5vmax, -1vmax, 0) scale(1.02); }
+}
+
+/* Menu lateral na cor da marca */
+.sidebar-vivid {
+  --sb-fg: rgba(255, 255, 255, 0.92);
+  --sb-muted: rgba(255, 255, 255, 0.62);
+  color: var(--sb-fg);
+  background:
+    radial-gradient(120% 50% at 0% 0%, color-mix(in oklab, var(--accent) 38%, transparent), transparent 60%),
+    radial-gradient(90% 40% at 100% 100%, color-mix(in oklab, #f472b6 22%, transparent), transparent 60%),
+    linear-gradient(180deg, color-mix(in oklab, var(--brand) 86%, #070a14), color-mix(in oklab, var(--brand) 42%, #070a14));
+}
+.dark .sidebar-vivid {
+  background:
+    radial-gradient(120% 50% at 0% 0%, color-mix(in oklab, var(--accent) 22%, transparent), transparent 60%),
+    radial-gradient(90% 40% at 100% 100%, color-mix(in oklab, #f472b6 12%, transparent), transparent 60%),
+    linear-gradient(180deg, color-mix(in oklab, var(--brand) 45%, #070a14), #080b14);
+}
+.sidebar-vivid .scroll-thin::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Vidro */
+.glass {
+  background: color-mix(in oklab, var(--surface) 72%, transparent);
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+}
+
+/* Borda em gradiente animável */
+.ring-gradient {
+  position: relative;
+}
+.ring-gradient::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, color-mix(in oklab, var(--brand) 55%, transparent), transparent 40%, transparent 60%, color-mix(in oklab, var(--accent) 55%, transparent));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+@keyframes float-y {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+.animate-float {
+  animation: float-y 6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-canvas::before, .animate-float { animation: none; }
+}

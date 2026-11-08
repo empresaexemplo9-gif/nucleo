@@ -63,3 +63,27 @@ export function delta(cur: number, prev: number) {
   if (!prev) return cur ? 100 : null;
   return ((cur - prev) / prev) * 100;
 }
+
+/** Séries mensais (últimos N meses) para mini-gráficos. */
+export async function monthlySeries(where: Prisma.DealWhereInput, months = 6) {
+  const now = new Date();
+  const from = new Date(now.getFullYear(), now.getMonth() - months + 1, 1);
+  const [closed, created] = await Promise.all([
+    db.deal.findMany({ where: { ...where, status: { in: ["WON", "LOST"] }, closedAt: { gte: from } }, select: { value: true, status: true, closedAt: true } }),
+    db.deal.findMany({ where: { ...where, createdAt: { gte: from } }, select: { createdAt: true } }),
+  ]);
+  const same = (d: Date, m: Date) => d.getFullYear() === m.getFullYear() && d.getMonth() === m.getMonth();
+  return Array.from({ length: months }, (_, i) => {
+    const m = new Date(from.getFullYear(), from.getMonth() + i, 1);
+    const won = closed.filter((d) => d.status === "WON" && same(d.closedAt!, m));
+    const lost = closed.filter((d) => d.status === "LOST" && same(d.closedAt!, m)).length;
+    const wonValue = won.reduce((s, d) => s + Number(d.value), 0);
+    return {
+      won: wonValue,
+      wonCount: won.length,
+      ticket: won.length ? wonValue / won.length : 0,
+      rate: won.length + lost ? (won.length / (won.length + lost)) * 100 : 0,
+      created: created.filter((d) => same(d.createdAt, m)).length,
+    };
+  });
+}

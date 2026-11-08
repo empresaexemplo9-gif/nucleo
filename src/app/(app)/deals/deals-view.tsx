@@ -298,19 +298,31 @@ function Column({ stage, deals, highlight, pipelineId }: { stage: StageDef; deal
   const total = deals.reduce((s, d) => s + d.value, 0);
   const weighted = total * (stage.probability / 100);
   return (
-    <div className="flex w-[300px] shrink-0 flex-col rounded-2xl border border-line/70 bg-surface-2/55 backdrop-blur-sm">
-      <div className="relative overflow-hidden rounded-t-2xl px-3.5 pb-3 pt-3.5">
-        <div className="absolute inset-x-0 top-0 h-1" style={{ background: stage.color }} />
+    <div
+      className="flex w-[300px] shrink-0 flex-col rounded-2xl border backdrop-blur-sm"
+      style={{
+        background: `linear-gradient(180deg, color-mix(in oklab, ${stage.color} 12%, var(--surface)) 0%, color-mix(in oklab, ${stage.color} 5%, transparent) 140px, color-mix(in oklab, var(--surface-2) 55%, transparent))`,
+        borderColor: `color-mix(in oklab, ${stage.color} 22%, var(--border))`,
+      }}
+    >
+      <div className="relative px-3.5 pb-3 pt-3.5">
         <div className="flex items-center gap-2">
-          <span className="size-2 rounded-full ring-4" style={{ background: stage.color, ["--tw-ring-color" as string]: `color-mix(in oklab, ${stage.color} 20%, transparent)` }} />
-          <h3 className="flex-1 truncate text-[13px] font-bold">{stage.name}</h3>
-          <span className="rounded-full bg-surface px-2 py-0.5 text-[11px] font-semibold text-fg-2 shadow-soft">{deals.length}</span>
+          <span
+            className="flex h-6 items-center gap-1.5 rounded-lg px-2 text-[12px] font-bold text-white shadow-sm"
+            style={{ background: `linear-gradient(135deg, color-mix(in oklab, ${stage.color} 75%, white), ${stage.color})`, boxShadow: `0 4px 12px -4px ${stage.color}` }}
+          >
+            {stage.name}
+          </span>
+          <span className="ml-auto flex size-6 items-center justify-center rounded-full bg-surface text-[11px] font-bold text-fg-2 shadow-soft">{deals.length}</span>
         </div>
-        <div className="mt-2 flex items-baseline justify-between">
-          <span className="font-display text-base font-bold">{fmt(total, total >= 1e6)}</span>
-          <span className="text-[11px] text-muted" title="Valor ponderado pela probabilidade da etapa">
+        <div className="mt-2.5 flex items-baseline justify-between">
+          <span className="font-display text-lg font-extrabold">{fmt(total, total >= 1e6)}</span>
+          <span className="text-[11px] font-medium text-muted" title="Valor ponderado pela probabilidade da etapa">
             {stage.probability}% · {fmt(weighted, true)}
           </span>
+        </div>
+        <div className="mt-2 h-1 overflow-hidden rounded-full bg-surface/70">
+          <div className="h-full rounded-full" style={{ width: `${stage.probability}%`, background: stage.color }} />
         </div>
       </div>
       <div
@@ -330,7 +342,7 @@ function Column({ stage, deals, highlight, pipelineId }: { stage: StageDef; deal
         )}
         <button
           onClick={() => quick("deal", { pipelineId, stageId: stage.id })}
-          className="flex w-full items-center justify-center gap-1 rounded-xl py-2 text-xs font-medium text-muted transition hover:bg-surface hover:text-brand hover:shadow-soft"
+          className="flex w-full items-center justify-center gap-1 rounded-xl border border-dashed border-transparent py-2 text-xs font-semibold text-muted transition hover:border-line-strong hover:bg-surface hover:text-brand"
         >
           <Plus className="size-3.5" /> Adicionar {labels.deal.singular.toLowerCase()}
         </button>
@@ -355,16 +367,15 @@ function DealCard({ deal, stage, dragging }: { deal: BoardDeal; stage?: StageDef
   const rotting = stage?.rottingDays != null && days > stage.rottingDays;
   const due = deal.nextActivity?.dueAt ? new Date(deal.nextActivity.dueAt) : null;
   const overdue = due && due < new Date();
-  const prob = deal.probability ?? stage?.probability ?? 0;
   return (
     <Link href={`/deals/${deal.id}`} draggable={false} onClick={(e) => dragging && e.preventDefault()} className="block">
       <div
         className={cn(
-          "group relative cursor-grab overflow-hidden rounded-xl border border-line bg-surface p-3.5 shadow-card transition duration-150 hover:-translate-y-0.5 hover:border-line-strong hover:shadow-lift active:cursor-grabbing",
+          "group relative cursor-grab overflow-hidden rounded-xl border border-line bg-surface p-3.5 pl-4 shadow-card transition duration-150 hover:-translate-y-0.5 hover:border-line-strong hover:shadow-lift active:cursor-grabbing",
           dragging && "rotate-[2.5deg] scale-[1.02] shadow-pop ring-2 ring-brand/40",
         )}
       >
-        {rotting && <div className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-amber-400 to-rose-500" />}
+        <div className="absolute inset-y-0 left-0 w-1" style={{ background: rotting ? "linear-gradient(180deg,#fbbf24,#f43f5e)" : stage?.color ?? "var(--brand)", opacity: rotting ? 1 : 0.85 }} />
         <div className="flex items-start justify-between gap-2">
           <p className="line-clamp-2 text-[13px] font-semibold leading-snug text-fg">{deal.title}</p>
           {owner && <Avatar name={owner.name} color={owner.avatarColor} size={24} ring />}
@@ -406,10 +417,7 @@ function DealCard({ deal, stage, dragging }: { deal: BoardDeal; stage?: StageDef
             )}
           </span>
         </div>
-        <div className="mt-2.5 h-1 overflow-hidden rounded-full bg-surface-3" title={`Probabilidade ${prob}%`}>
-          <div className="h-full rounded-full" style={{ width: `${prob}%`, background: stage?.color ?? "var(--brand)" }} />
-        </div>
-      </div>
+              </div>
     </Link>
   );
 }

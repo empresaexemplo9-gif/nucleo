@@ -1,7 +1,9 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
-import { ArrowRight, KanbanSquare, Palette, Rocket, Sparkles, Users, X } from "lucide-react";
+import { ArrowRight, CalendarPlus, KanbanSquare, Palette, Plus, Rocket, Sparkles, Users, X } from "lucide-react";
+import { useQuickCreate } from "@/components/quick-create";
+import { useOrg } from "@/components/org-context";
 import { Select } from "@/components/ui";
 import { useParamSetter } from "@/components/list-toolbar";
 
@@ -54,6 +56,34 @@ export function Welcome() {
           </Link>
         ))}
       </div>
+    </div>
+  );
+}
+
+export function HeroActions() {
+  const quick = useQuickCreate();
+  const { labels, can } = useOrg();
+  if (!can("SALES")) return null;
+  return (
+    <div className="mt-5 flex flex-wrap gap-2">
+      <button
+        onClick={() => quick("deal")}
+        className="inline-flex items-center gap-1.5 rounded-xl bg-white px-4 py-2 text-sm font-bold text-brand shadow-lg transition hover:-translate-y-0.5"
+      >
+        <Plus className="size-4" /> Novo {labels.deal.singular.toLowerCase()}
+      </button>
+      <button
+        onClick={() => quick("activity")}
+        className="inline-flex items-center gap-1.5 rounded-xl bg-white/15 px-4 py-2 text-sm font-semibold text-white ring-1 ring-white/30 backdrop-blur transition hover:bg-white/25"
+      >
+        <CalendarPlus className="size-4" /> Agendar {labels.activity.singular.toLowerCase()}
+      </button>
+      <Link
+        href="/deals"
+        className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold text-white/90 transition hover:text-white"
+      >
+        <KanbanSquare className="size-4" /> Ver funil <ArrowRight className="size-3.5" />
+      </Link>
     </div>
   );
 }

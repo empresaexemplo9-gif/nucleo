@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { Download, Plus, Trash2, Upload, Users } from "lucide-react";
-import { Avatar, Badge, Button, Card, EmptyState, Modal, PageHeader, Select } from "@/components/ui";
+import { Avatar, Badge, Button, Card, cn, EmptyState, Modal, PageHeader, Select } from "@/components/ui";
 import { TagList } from "@/components/pickers";
 import { Pagination, SearchBox, useParamSetter } from "@/components/list-toolbar";
 import { useOrg } from "@/components/org-context";
@@ -29,7 +29,7 @@ type Row = {
 
 const LC_COLORS: Record<string, string> = { lead: "#64748b", mql: "#3b82f6", sql: "#8b5cf6", customer: "#16a34a", evangelist: "#f59e0b", churned: "#dc2626" };
 
-export function ContactsTable({ rows, total, page, pageSize, filters }: { rows: Row[]; total: number; page: number; pageSize: number; filters: Record<string, string> }) {
+export function ContactsTable({ rows, total, page, pageSize, filters, lifecycleCounts }: { rows: Row[]; total: number; page: number; pageSize: number; filters: Record<string, string>; lifecycleCounts: Record<string, number> }) {
   const { labels, members, tags, member, can } = useOrg();
   const set = useParamSetter();
   const quick = useQuickCreate();
@@ -58,14 +58,30 @@ export function ContactsTable({ rows, total, page, pageSize, filters }: { rows: 
           </>
         }
       />
+      <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
+        {[{ value: "", label: "Todos" }, ...LIFECYCLES].map((l) => {
+          const active = filters.lifecycle === l.value;
+          const color = l.value ? LC_COLORS[l.value]! : "var(--brand)";
+          const count = l.value ? lifecycleCounts[l.value] ?? 0 : Object.values(lifecycleCounts).reduce((a, b) => a + b, 0);
+          return (
+            <button
+              key={l.value || "all"}
+              onClick={() => set("lifecycle", l.value)}
+              className={cn(
+                "flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2 text-left transition hover:-translate-y-0.5",
+                active ? "text-white shadow-lift" : "border-line bg-surface shadow-soft hover:shadow-card",
+              )}
+              style={active ? { background: `linear-gradient(135deg, color-mix(in oklab, ${color} 75%, white), ${color})`, borderColor: "transparent" } : undefined}
+            >
+              {!active && <span className="size-2 rounded-full" style={{ background: color }} />}
+              <span className="text-xs font-semibold">{l.label}</span>
+              <span className={cn("rounded-md px-1.5 text-[11px] font-bold", active ? "bg-white/25" : "bg-surface-2 text-muted")}>{count}</span>
+            </button>
+          );
+        })}
+      </div>
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <SearchBox initial={filters.q!} placeholder="Nome, e-mail, telefone…" />
-        <Select value={filters.lifecycle} onChange={(e) => set("lifecycle", e.target.value)} className="w-auto">
-          <option value="">Ciclo de vida</option>
-          {LIFECYCLES.map((l) => (
-            <option key={l.value} value={l.value}>{l.label}</option>
-          ))}
-        </Select>
         <Select value={filters.owner} onChange={(e) => set("owner", e.target.value)} className="w-auto">
           <option value="">Responsável</option>
           <option value="me">Meus</option>

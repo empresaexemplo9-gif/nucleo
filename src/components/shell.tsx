@@ -43,7 +43,7 @@ export function AppShell({ children, orgs, overdue, dark }: { children: React.Re
       <div className="app-canvas flex min-h-screen">
         <aside
           className={cn(
-            "fixed inset-y-0 left-0 z-40 w-64 shrink-0 border-r border-line bg-sidebar transition-transform duration-200 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0",
+            "sidebar-vivid fixed inset-y-0 left-0 z-40 w-64 shrink-0 transition-transform duration-200 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0",
             mobile ? "translate-x-0 shadow-pop" : "-translate-x-full",
           )}
         >
@@ -94,27 +94,27 @@ function Sidebar({ orgs, overdue, onClose }: { orgs: { id: string; name: string 
       <div className="relative px-3 pb-2 pt-3">
         <button
           onClick={() => setSwitcher((s) => !s)}
-          className="flex w-full items-center gap-2.5 rounded-xl p-2 text-left transition hover:bg-surface-2"
+          className="flex w-full items-center gap-2.5 rounded-xl p-2 text-left transition hover:bg-white/10"
         >
           {org.logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={org.logoUrl} alt="" className="size-9 rounded-xl border border-line bg-white object-contain p-0.5" />
+            <img src={org.logoUrl} alt="" className="size-9 rounded-xl bg-white object-contain p-0.5 shadow-lg" />
           ) : (
-            <span className="bg-brand-gradient flex size-9 items-center justify-center rounded-xl text-sm font-bold text-white shadow-[0_6px_16px_-6px_color-mix(in_oklab,var(--brand)_70%,transparent)]">
+            <span className="flex size-9 items-center justify-center rounded-xl bg-white text-sm font-extrabold text-brand shadow-lg">
               {org.name[0]}
             </span>
           )}
           <span className="min-w-0 flex-1">
             <span className="block truncate text-sm font-semibold">{org.name}</span>
-            <span className="block truncate text-[11px] text-muted">{orgs.length > 1 ? `${orgs.length} empresas` : "Espaço de trabalho"}</span>
+            <span className="block truncate text-[11px] text-[var(--sb-muted)]">{orgs.length > 1 ? `${orgs.length} empresas` : "Espaço de trabalho"}</span>
           </span>
-          <ChevronsUpDown className="size-4 text-muted" />
+          <ChevronsUpDown className="size-4 text-[var(--sb-muted)]" />
         </button>
-        <button onClick={onClose} className="absolute right-2 top-2 rounded-lg p-1 text-muted lg:hidden" aria-label="Fechar menu">
+        <button onClick={onClose} className="absolute right-2 top-2 rounded-lg p-1 text-white/70 lg:hidden" aria-label="Fechar menu">
           <X className="size-4" />
         </button>
         {switcher && (
-          <div className="animate-in absolute left-3 right-3 top-full z-50 mt-1 rounded-xl border border-line bg-surface p-1.5 shadow-pop">
+          <div className="animate-in absolute left-3 right-3 top-full z-50 mt-1 rounded-xl border border-line bg-surface p-1.5 text-fg shadow-pop">
             <p className="px-2 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wider text-muted">Suas empresas</p>
             {orgs.map((o) => (
               <button
@@ -138,9 +138,9 @@ function Sidebar({ orgs, overdue, onClose }: { orgs: { id: string; name: string 
         <div className="px-3 pb-2">
           <button
             onClick={() => quick("deal")}
-            className="group flex w-full items-center gap-2 rounded-xl border border-dashed border-line-strong px-3 py-2 text-sm text-muted transition hover:border-brand hover:bg-brand/5 hover:text-brand"
+            className="group flex w-full items-center gap-2 rounded-xl bg-white px-3 py-2.5 text-sm font-semibold text-brand shadow-[0_8px_24px_-8px_rgba(0,0,0,0.45)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_28px_-8px_rgba(0,0,0,0.5)]"
           >
-            <span className="flex size-5 items-center justify-center rounded-md bg-surface-2 transition group-hover:bg-brand group-hover:text-white">
+            <span className="flex size-5 items-center justify-center rounded-md bg-brand text-white transition group-hover:rotate-90">
               <Plus className="size-3.5" />
             </span>
             Novo {labels.deal.singular.toLowerCase()}
@@ -154,7 +154,7 @@ function Sidebar({ orgs, overdue, onClose }: { orgs: { id: string; name: string 
           if (!items.length) return null;
           return (
             <div key={g.title}>
-              <p className="mb-1 px-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted/80">{g.title}</p>
+              <p className="mb-1.5 px-2.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--sb-muted)]">{g.title}</p>
               <div className="space-y-0.5">
                 {items.map((n) => {
                   const active = isActive(n.href);
@@ -164,21 +164,21 @@ function Sidebar({ orgs, overdue, onClose }: { orgs: { id: string; name: string 
                       href={n.href}
                       className={cn(
                         "group relative flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm font-medium transition",
-                        active ? "bg-brand/10 text-brand" : "text-fg-2 hover:bg-surface-2 hover:text-fg",
+                        active ? "bg-white/16 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.15)]" : "text-[var(--sb-fg)] hover:bg-white/8",
                       )}
                     >
-                      {active && <span className="absolute -left-3 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-brand" />}
+                      {active && <span className="absolute -left-3 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-white shadow-[0_0_12px_rgba(255,255,255,0.8)]" />}
                       <span
                         className={cn(
                           "flex size-7 items-center justify-center rounded-lg transition",
-                          active ? "bg-brand text-white shadow-[0_4px_12px_-4px_color-mix(in_oklab,var(--brand)_80%,transparent)]" : "bg-surface-2 text-muted group-hover:text-fg",
+                          active ? "bg-white text-brand shadow-md" : "bg-white/10 text-white/80 group-hover:bg-white/15 group-hover:text-white",
                         )}
                       >
                         <n.icon className="size-[15px]" />
                       </span>
                       <span className="flex-1 truncate">{n.label}</span>
                       {!!n.badge && (
-                        <span className="min-w-5 rounded-full bg-rose-500 px-1.5 py-px text-center text-[10px] font-bold text-white shadow-sm">{n.badge}</span>
+                        <span className="min-w-5 animate-pulse rounded-full bg-rose-500 px-1.5 py-px text-center text-[10px] font-bold text-white shadow-[0_0_0_2px_rgba(255,255,255,0.25)]">{n.badge}</span>
                       )}
                     </Link>
                   );
@@ -189,26 +189,26 @@ function Sidebar({ orgs, overdue, onClose }: { orgs: { id: string; name: string 
         })}
       </nav>
 
-      <div className="space-y-1 border-t border-line p-3">
+      <div className="space-y-1 border-t border-white/10 p-3">
         {can("MANAGER") && (
           <Link
             href="/settings"
             className={cn(
               "flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm font-medium transition",
-              pathname.startsWith("/settings") && !pathname.startsWith("/settings/profile") ? "bg-brand/10 text-brand" : "text-fg-2 hover:bg-surface-2 hover:text-fg",
+              pathname.startsWith("/settings") && !pathname.startsWith("/settings/profile") ? "bg-white/16 text-white" : "text-[var(--sb-fg)] hover:bg-white/8",
             )}
           >
-            <span className="flex size-7 items-center justify-center rounded-lg bg-surface-2 text-muted">
+            <span className="flex size-7 items-center justify-center rounded-lg bg-white/10 text-white/80">
               <Settings className="size-[15px]" />
             </span>
             Configurações
           </Link>
         )}
-        <Link href="/settings/profile" className="flex items-center gap-2.5 rounded-xl p-2 transition hover:bg-surface-2">
-          <Avatar name={user.name} color={user.avatarColor} size={32} />
+        <Link href="/settings/profile" className="flex items-center gap-2.5 rounded-xl bg-white/8 p-2 ring-1 ring-white/10 transition hover:bg-white/12">
+          <span className="rounded-full ring-2 ring-white/40"><Avatar name={user.name} color={user.avatarColor} size={32} /></span>
           <span className="min-w-0 flex-1">
             <span className="block truncate text-sm font-medium">{user.name}</span>
-            <span className="block truncate text-[11px] text-muted">{roleLabel}</span>
+            <span className="block truncate text-[11px] text-[var(--sb-muted)]">{roleLabel}</span>
           </span>
         </Link>
       </div>
@@ -261,7 +261,7 @@ function Topbar({ onMenu, initialDark }: { onMenu: () => void; initialDark: bool
   const greeting = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
 
   return (
-    <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-line/80 bg-surface/75 px-4 backdrop-blur-xl lg:px-6" ref={ref}>
+    <header className="glass sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-line/70 px-4 lg:px-8" ref={ref}>
       <button onClick={onMenu} className="rounded-lg p-1.5 text-muted hover:bg-surface-2 lg:hidden" aria-label="Menu">
         <Menu className="size-5" />
       </button>
