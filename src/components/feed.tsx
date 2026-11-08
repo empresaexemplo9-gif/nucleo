@@ -47,7 +47,7 @@ export function Feed({
     <div className="space-y-4">
       {can("SALES") && (
         <Card>
-          <div className="flex gap-1 border-b border-line px-3 pt-2">
+          <div className="flex gap-1 border-b border-line bg-surface-2/40 px-3 pt-2">
             {(
               [
                 ["note", "Nota", StickyNote],
@@ -57,7 +57,7 @@ export function Feed({
               <button
                 key={k}
                 onClick={() => setTab(k)}
-                className={cn("flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium", tab === k ? "border-brand text-brand" : "border-transparent text-muted hover:text-fg")}
+                className={cn("-mb-px flex items-center gap-1.5 rounded-t-lg border border-b-0 px-3.5 py-2 text-sm font-medium transition", tab === k ? "border-line bg-surface text-brand" : "border-transparent text-muted hover:text-fg")}
               >
                 <I className="size-4" /> {l}
               </button>
@@ -90,7 +90,7 @@ export function Feed({
 
       {pending_.length > 0 && (
         <div>
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Planejado</h3>
+          <h3 className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-muted"><span className="size-1.5 rounded-full bg-brand" /> Próximos passos</h3>
           <div className="space-y-2">
             {pending_.map((a) => (
               <ActivityRow key={a.id} a={a} onEdit={() => setEdit(a)} />
@@ -109,7 +109,7 @@ export function Feed({
 
       <div>
         <div className="mb-2 flex items-center justify-between">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">Histórico</h3>
+          <h3 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-muted"><span className="size-1.5 rounded-full bg-muted" /> Histórico</h3>
           <Tabs
             value={filter}
             onChange={setFilter}
@@ -121,15 +121,15 @@ export function Feed({
             ]}
           />
         </div>
-        <div className="relative space-y-2 before:absolute before:bottom-2 before:left-[15px] before:top-2 before:w-px before:bg-line">
+        <div className="relative space-y-2 before:absolute before:bottom-3 before:left-[17px] before:top-3 before:w-0.5 before:rounded-full before:bg-line">
           {items.map((it) =>
             it.kind === "activity" ? (
               <ActivityRow key={"a" + it.a.id} a={it.a} onEdit={() => setEdit(it.a)} />
             ) : it.kind === "note" ? (
               it.n.pinned ? null : <NoteRow key={"n" + it.n.id} n={it.n} />
             ) : (
-              <div key={"e" + it.e.id} className="relative flex items-center gap-3 pl-0 text-xs text-muted">
-                <span className="z-10 flex size-8 items-center justify-center rounded-full border border-line bg-surface">
+              <div key={"e" + it.e.id} className="relative flex items-center gap-3 py-0.5 pl-0 text-xs text-muted">
+                <span className="z-10 flex size-9 shrink-0 items-center justify-center rounded-full border-4 border-bg bg-surface-3 text-muted">
                   <History className="size-3.5" />
                 </span>
                 <span>
@@ -165,12 +165,12 @@ export function ActivityRow({ a, onEdit, showLinks }: { a: FeedActivity; onEdit?
   const t = ACTIVITY_TYPES[a.type as keyof typeof ACTIVITY_TYPES];
   const who = member(a.assigneeId);
   return (
-    <Card className={cn("group relative flex items-start gap-3 p-3", a.done && "opacity-75")}>
+    <Card className={cn("group relative flex items-start gap-3 p-3.5 transition hover:shadow-lift", a.done && "opacity-70", overdue && "border-rose-500/30")}>
       <button
         onClick={() => run(() => toggleActivity(a.id, !a.done))}
         className={cn(
-          "z-10 mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border-2 transition",
-          a.done ? "border-emerald-500 bg-emerald-500 text-white" : "border-line hover:border-emerald-500",
+          "z-10 mt-1.5 flex size-5 shrink-0 items-center justify-center rounded-full border-2 transition",
+          a.done ? "border-emerald-500 bg-emerald-500 text-white" : "border-line-strong bg-surface hover:border-emerald-500 hover:bg-emerald-500/10",
         )}
         aria-label={a.done ? "Reabrir" : "Concluir"}
       >
@@ -178,12 +178,12 @@ export function ActivityRow({ a, onEdit, showLinks }: { a: FeedActivity; onEdit?
       </button>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span style={{ color: t?.color }}>
+          <span className="flex size-6 items-center justify-center rounded-md" style={{ color: t?.color, background: `color-mix(in oklab, ${t?.color ?? "#64748b"} 13%, transparent)` }}>
             <ActivityIcon type={a.type} className="size-3.5" />
           </span>
           <p className={cn("truncate text-sm font-medium", a.done && "line-through")}>{a.title}</p>
         </div>
-        <p className={cn("mt-0.5 text-xs", overdue ? "font-medium text-red-600" : "text-muted")}>
+        <p className={cn("mt-1 text-xs", overdue ? "font-medium text-rose-600" : "text-muted")}>
           {a.dueAt ? dateTime(a.dueAt) : "Sem data"}
           {overdue && " · atrasada"}
           {who && ` · ${who.name}`}
@@ -192,7 +192,7 @@ export function ActivityRow({ a, onEdit, showLinks }: { a: FeedActivity; onEdit?
         {showLinks && (a.deal || a.contact || a.company) && (
           <p className="mt-0.5 truncate text-xs text-muted">{[a.deal?.label, a.contact?.label, a.company?.label].filter(Boolean).join(" · ")}</p>
         )}
-        {a.description && <p className="mt-1.5 whitespace-pre-wrap text-sm text-muted">{a.description}</p>}
+        {a.description && <p className="mt-2 whitespace-pre-wrap rounded-lg bg-surface-2 px-3 py-2 text-sm text-fg-2">{a.description}</p>}
       </div>
       <div className="flex gap-1 opacity-0 transition group-hover:opacity-100">
         {onEdit && (
@@ -213,13 +213,13 @@ function NoteRow({ n }: { n: FeedNote }) {
   const { run } = useAction();
   const author = member(n.authorId);
   return (
-    <Card className={cn("group relative flex gap-3 p-3", n.pinned ? "border-amber-300 bg-amber-50 dark:border-amber-700/50 dark:bg-amber-950/20" : "")}>
-      <span className="z-10">{author ? <Avatar name={author.name} color={author.avatarColor} size={24} /> : <MessageSquare className="size-5 text-muted" />}</span>
+    <Card className={cn("group relative flex gap-3 p-3.5", n.pinned ? "border-amber-300/70 bg-amber-50/80 dark:border-amber-700/50 dark:bg-amber-950/20" : "bg-surface")}>
+      <span className="z-10">{author ? <Avatar name={author.name} color={author.avatarColor} size={34} ring /> : <MessageSquare className="size-5 text-muted" />}</span>
       <div className="min-w-0 flex-1">
         <p className="text-xs text-muted">
-          <b className="text-fg">{author?.name ?? "Sistema"}</b> · {relative(n.createdAt)}
+          <b className="text-fg">{author?.name ?? "Sistema"}</b> · {relative(n.createdAt)}{n.pinned && <span className="ml-1.5 font-medium text-amber-600">· fixada</span>}
         </p>
-        <p className="mt-1 whitespace-pre-wrap text-sm">{n.content}</p>
+        <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-fg-2">{n.content}</p>
       </div>
       <div className="flex gap-1 opacity-0 transition group-hover:opacity-100">
         <button onClick={() => run(() => togglePinNote(n.id))} className="rounded p-1 text-muted hover:bg-surface-2" aria-label="Fixar">

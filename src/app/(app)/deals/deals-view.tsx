@@ -87,60 +87,95 @@ export function DealsView({
   const weighted = deals.reduce((s, d) => s + d.value * ((d.probability ?? stages.find((x) => x.id === d.stageId)?.probability ?? 0) / 100), 0);
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem)] flex-col">
-      <div className="flex flex-wrap items-center gap-2 border-b border-line bg-surface px-4 py-3">
-        <Select value={pipelineId} onChange={(e) => setParam("pipeline", e.target.value)} className="w-auto min-w-40 font-medium">
-          {pipelines.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </Select>
-        <Tabs
-          value={view}
-          onChange={(v) => setParam("view", v === "board" ? "" : v)}
-          items={[
-            { value: "board", label: <span className="flex items-center gap-1"><KanbanSquare className="size-3.5" /> Funil</span> },
-            { value: "list", label: <span className="flex items-center gap-1"><List className="size-3.5" /> Lista</span> },
-          ]}
-        />
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Filtrar…" className="w-44 pl-8" />
+    <div className="flex h-[calc(100vh-4rem)] flex-col">
+      <div className="border-b border-line bg-surface/60 px-4 pb-3 pt-5 backdrop-blur lg:px-8">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="bg-brand-gradient flex size-11 shrink-0 items-center justify-center rounded-2xl text-white shadow-[0_8px_20px_-6px_color-mix(in_oklab,var(--brand)_60%,transparent)]">
+              <KanbanSquare className="size-5" />
+            </span>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <h1 className="truncate text-[22px] font-bold leading-tight">{labels.deal.plural}</h1>
+                <Select value={pipelineId} onChange={(e) => setParam("pipeline", e.target.value)} className="h-8 w-auto min-w-32 rounded-lg text-xs font-semibold">
+                  {pipelines.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+              <p className="mt-0.5 text-sm text-muted">Arraste os cartões entre as etapas para avançar a negociação.</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="hidden items-stretch divide-x divide-line rounded-xl border border-line bg-surface shadow-soft sm:flex">
+              <div className="px-4 py-1.5">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted">Total</p>
+                <p className="font-display text-sm font-bold">{fmt(total, total >= 1e6)}</p>
+              </div>
+              <div className="px-4 py-1.5">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted">Ponderado</p>
+                <p className="font-display text-sm font-bold text-brand">{fmt(weighted, weighted >= 1e6)}</p>
+              </div>
+              <div className="px-4 py-1.5">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted">Qtd.</p>
+                <p className="font-display text-sm font-bold">{deals.length}</p>
+              </div>
+            </div>
+            <Button onClick={() => quick("deal", { pipelineId })}>
+              <Plus className="size-4" /> {labels.deal.singular}
+            </Button>
+          </div>
         </div>
-        <Select value={filters.owner} onChange={(e) => setParam("owner", e.target.value)} className="w-auto">
-          <option value="">Todos os responsáveis</option>
-          <option value="me">Meus {labels.deal.plural.toLowerCase()}</option>
-          {members.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.name}
-            </option>
-          ))}
-        </Select>
-        <Select value={status} onChange={(e) => setParam("status", e.target.value === "OPEN" ? "" : e.target.value)} className="w-auto">
-          <option value="OPEN">Em aberto</option>
-          <option value="WON">Ganhos</option>
-          <option value="LOST">Perdidos</option>
-          <option value="ALL">Todos</option>
-        </Select>
-        {tags.length > 0 && (
-          <Select value={filters.tag} onChange={(e) => setParam("tag", e.target.value)} className="w-auto">
-            <option value="">Etiqueta</option>
-            {tags.map((t) => (
-              <option key={t.name}>{t.name}</option>
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <Tabs
+            value={view}
+            onChange={(v) => setParam("view", v === "board" ? "" : v)}
+            items={[
+              { value: "board", label: <span className="flex items-center gap-1.5"><KanbanSquare className="size-3.5" /> Funil</span> },
+              { value: "list", label: <span className="flex items-center gap-1.5"><List className="size-3.5" /> Lista</span> },
+            ]}
+          />
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted" />
+            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Filtrar por título, contato…" className="w-60 pl-8" />
+          </div>
+          <Select value={filters.owner} onChange={(e) => setParam("owner", e.target.value)} className="w-auto">
+            <option value="">Todos os responsáveis</option>
+            <option value="me">Meus {labels.deal.plural.toLowerCase()}</option>
+            {members.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name}
+              </option>
             ))}
           </Select>
-        )}
-        <div className="ml-auto flex items-center gap-3">
-          <div className="hidden text-right text-xs text-muted md:block">
-            <div>
-              <b className="text-fg">{fmt(total)}</b> · {deals.length} {deals.length === 1 ? labels.deal.singular.toLowerCase() : labels.deal.plural.toLowerCase()}
-            </div>
-            <div>Ponderado: {fmt(weighted)}</div>
-          </div>
-          <Button onClick={() => quick("deal", { pipelineId })}>
-            <Plus className="size-4" /> {labels.deal.singular}
-          </Button>
+          <Select value={status} onChange={(e) => setParam("status", e.target.value === "OPEN" ? "" : e.target.value)} className="w-auto">
+            <option value="OPEN">Em aberto</option>
+            <option value="WON">Ganhos</option>
+            <option value="LOST">Perdidos</option>
+            <option value="ALL">Todos</option>
+          </Select>
+          {tags.length > 0 && (
+            <Select value={filters.tag} onChange={(e) => setParam("tag", e.target.value)} className="w-auto">
+              <option value="">Todas as etiquetas</option>
+              {tags.map((t) => (
+                <option key={t.name}>{t.name}</option>
+              ))}
+            </Select>
+          )}
+          {(filters.owner || filters.tag || filters.q || status !== "OPEN") && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setQ("");
+                router.push(`${pathname}?pipeline=${pipelineId}${view === "list" ? "&view=list" : ""}`);
+              }}
+            >
+              Limpar filtros
+            </Button>
+          )}
         </div>
       </div>
       {view === "board" && status === "OPEN" ? (
@@ -215,7 +250,7 @@ function Board({ stages, allStages, deals: initial, pipelineId }: { stages: Stag
 
   return (
     <DndContext id="deals-board" sensors={sensors} collisionDetection={closestCorners} onDragStart={onStart} onDragOver={onOver} onDragEnd={onEnd} onDragCancel={() => setActiveId(null)}>
-      <div className="scroll-thin flex flex-1 gap-3 overflow-x-auto p-4">
+      <div className="scroll-thin flex flex-1 gap-4 overflow-x-auto px-4 py-5 lg:px-8">
         {stages.map((s) => (
           <Column key={s.id} stage={s} deals={byStage.get(s.id) ?? []} highlight={overCol === s.id && !!activeId} pipelineId={pipelineId} />
         ))}
@@ -223,8 +258,8 @@ function Board({ stages, allStages, deals: initial, pipelineId }: { stages: Stag
       </div>
       {activeId && (
         <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center gap-4 p-4">
-          <DropZone id="WON" label="Ganho" className="bg-emerald-600" icon={<ThumbsUp className="size-5" />} />
-          <DropZone id="LOST" label="Perdido" className="bg-red-600" icon={<ThumbsDown className="size-5" />} />
+          <DropZone id="WON" label="Ganho" className="bg-emerald-600/90" icon={<ThumbsUp className="size-5" />} />
+          <DropZone id="LOST" label="Perdido" className="bg-rose-600/90" icon={<ThumbsDown className="size-5" />} />
         </div>
       )}
       <DragOverlay>{active && <DealCard deal={active} stage={allStages.find((s) => s.id === active.stageId)} dragging />}</DragOverlay>
@@ -246,9 +281,9 @@ function DropZone({ id, label, className, icon }: { id: string; label: string; c
     <div
       ref={setNodeRef}
       className={cn(
-        "pointer-events-auto flex h-20 w-64 items-center justify-center gap-2 rounded-2xl text-lg font-semibold text-white shadow-2xl transition",
+        "animate-in pointer-events-auto flex h-20 w-64 items-center justify-center gap-2.5 rounded-2xl border-2 border-dashed border-white/40 text-lg font-semibold text-white shadow-pop backdrop-blur transition",
         className,
-        isOver ? "scale-105 opacity-100" : "opacity-80",
+        isOver ? "scale-105 border-white opacity-100" : "opacity-85",
       )}
     >
       {icon} {label}
@@ -261,33 +296,43 @@ function Column({ stage, deals, highlight, pipelineId }: { stage: StageDef; deal
   const { fmt, labels } = useOrg();
   const quick = useQuickCreate();
   const total = deals.reduce((s, d) => s + d.value, 0);
+  const weighted = total * (stage.probability / 100);
   return (
-    <div className="flex w-72 shrink-0 flex-col">
-      <div className="mb-2 rounded-xl border border-line bg-surface px-3 py-2.5">
+    <div className="flex w-[300px] shrink-0 flex-col rounded-2xl border border-line/70 bg-surface-2/55 backdrop-blur-sm">
+      <div className="relative overflow-hidden rounded-t-2xl px-3.5 pb-3 pt-3.5">
+        <div className="absolute inset-x-0 top-0 h-1" style={{ background: stage.color }} />
         <div className="flex items-center gap-2">
-          <span className="size-2.5 rounded-full" style={{ background: stage.color }} />
-          <h3 className="flex-1 truncate text-sm font-semibold">{stage.name}</h3>
-          <span className="text-xs text-muted">{stage.probability}%</span>
+          <span className="size-2 rounded-full ring-4" style={{ background: stage.color, ["--tw-ring-color" as string]: `color-mix(in oklab, ${stage.color} 20%, transparent)` }} />
+          <h3 className="flex-1 truncate text-[13px] font-bold">{stage.name}</h3>
+          <span className="rounded-full bg-surface px-2 py-0.5 text-[11px] font-semibold text-fg-2 shadow-soft">{deals.length}</span>
         </div>
-        <p className="mt-0.5 text-xs text-muted">
-          {fmt(total)} · {deals.length}
-        </p>
-        <div className="mt-2 h-1 rounded-full" style={{ background: stage.color, opacity: 0.6 }} />
+        <div className="mt-2 flex items-baseline justify-between">
+          <span className="font-display text-base font-bold">{fmt(total, total >= 1e6)}</span>
+          <span className="text-[11px] text-muted" title="Valor ponderado pela probabilidade da etapa">
+            {stage.probability}% · {fmt(weighted, true)}
+          </span>
+        </div>
       </div>
       <div
         ref={setNodeRef}
-        className={cn("scroll-thin flex-1 space-y-2 overflow-y-auto rounded-xl p-1 transition", highlight && "bg-brand/5 ring-2 ring-brand/30")}
+        className={cn("scroll-thin flex-1 space-y-2.5 overflow-y-auto px-2.5 pb-2.5 transition", highlight && "rounded-b-2xl bg-brand/6 ring-2 ring-inset ring-brand/30")}
       >
         <SortableContext items={deals.map((d) => d.id)} strategy={verticalListSortingStrategy}>
           {deals.map((d) => (
             <SortableCard key={d.id} deal={d} stage={stage} />
           ))}
         </SortableContext>
+        {!deals.length && (
+          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-line-strong/70 px-3 py-6 text-center text-xs text-muted">
+            <KanbanSquare className="mb-1.5 size-5 opacity-50" />
+            Arraste um cartão para cá
+          </div>
+        )}
         <button
           onClick={() => quick("deal", { pipelineId, stageId: stage.id })}
-          className="flex w-full items-center justify-center gap-1 rounded-lg border border-dashed border-line py-2 text-xs text-muted hover:border-brand hover:text-brand"
+          className="flex w-full items-center justify-center gap-1 rounded-xl py-2 text-xs font-medium text-muted transition hover:bg-surface hover:text-brand hover:shadow-soft"
         >
-          <Plus className="size-3.5" /> {labels.deal.singular}
+          <Plus className="size-3.5" /> Adicionar {labels.deal.singular.toLowerCase()}
         </button>
       </div>
     </div>
@@ -310,52 +355,61 @@ function DealCard({ deal, stage, dragging }: { deal: BoardDeal; stage?: StageDef
   const rotting = stage?.rottingDays != null && days > stage.rottingDays;
   const due = deal.nextActivity?.dueAt ? new Date(deal.nextActivity.dueAt) : null;
   const overdue = due && due < new Date();
+  const prob = deal.probability ?? stage?.probability ?? 0;
   return (
-    <Link href={`/deals/${deal.id}`} draggable={false} onClick={(e) => dragging && e.preventDefault()}>
-      <Card
+    <Link href={`/deals/${deal.id}`} draggable={false} onClick={(e) => dragging && e.preventDefault()} className="block">
+      <div
         className={cn(
-          "group cursor-grab p-3 transition hover:border-brand/40 hover:shadow-md active:cursor-grabbing",
-          dragging && "rotate-2 shadow-2xl",
-          rotting && "border-l-4 border-l-red-400",
+          "group relative cursor-grab overflow-hidden rounded-xl border border-line bg-surface p-3.5 shadow-card transition duration-150 hover:-translate-y-0.5 hover:border-line-strong hover:shadow-lift active:cursor-grabbing",
+          dragging && "rotate-[2.5deg] scale-[1.02] shadow-pop ring-2 ring-brand/40",
         )}
       >
+        {rotting && <div className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-amber-400 to-rose-500" />}
         <div className="flex items-start justify-between gap-2">
-          <p className="line-clamp-2 text-sm font-medium leading-snug">{deal.title}</p>
-          {owner && <Avatar name={owner.name} color={owner.avatarColor} size={22} />}
+          <p className="line-clamp-2 text-[13px] font-semibold leading-snug text-fg">{deal.title}</p>
+          {owner && <Avatar name={owner.name} color={owner.avatarColor} size={24} ring />}
         </div>
         {(deal.company || deal.contact) && (
-          <p className="mt-1 flex items-center gap-1 truncate text-xs text-muted">
-            {deal.company ? <Building2 className="size-3" /> : <User className="size-3" />}
-            {deal.company?.name ?? deal.contact?.name}
+          <p className="mt-1.5 flex items-center gap-1.5 truncate text-xs text-muted">
+            {deal.company ? <Building2 className="size-3.5 shrink-0" /> : <User className="size-3.5 shrink-0" />}
+            <span className="truncate">{deal.company?.name ?? deal.contact?.name}</span>
           </p>
         )}
-        <div className="mt-2">
-          <TagList tags={deal.tags} />
-        </div>
-        <div className="mt-2 flex items-center justify-between gap-2">
-          <span className="text-sm font-semibold">{fmt(deal.value)}</span>
-          <span className="flex items-center gap-1.5">
+        {deal.tags.length > 0 && (
+          <div className="mt-2">
+            <TagList tags={deal.tags} />
+          </div>
+        )}
+        <div className="mt-3 flex items-center justify-between gap-2 border-t border-dashed border-line pt-2.5">
+          <span className="font-display text-sm font-bold">{fmt(deal.value)}</span>
+          <span className="flex items-center gap-1">
             {rotting && (
-              <span title={`Parado há ${days} dias`} className="text-red-500">
-                <AlertTriangle className="size-3.5" />
+              <span title={`Parado há ${days} dias nesta etapa`} className="flex items-center gap-0.5 rounded-md bg-amber-500/12 px-1.5 py-0.5 text-[10px] font-semibold text-amber-600">
+                <AlertTriangle className="size-3" /> {days}d
               </span>
             )}
             {deal.nextActivity ? (
               <span
                 title={`${deal.nextActivity.title}${due ? " — " + date(due) : ""}`}
-                className={cn("flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-medium", overdue ? "bg-red-500/10 text-red-600" : "bg-emerald-500/10 text-emerald-600")}
+                className={cn(
+                  "flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold",
+                  overdue ? "bg-rose-500/12 text-rose-600" : "bg-emerald-500/12 text-emerald-600",
+                )}
               >
                 <ActivityIcon type={deal.nextActivity.type} className="size-3" />
                 {due ? date(due, "pt-BR", { day: "2-digit", month: "2-digit" }) : ""}
               </span>
             ) : (
-              <span title="Nenhuma atividade agendada" className="flex items-center rounded bg-amber-500/10 px-1 py-0.5 text-amber-600">
-                <CalendarClock className="size-3" />
+              <span title="Nenhuma atividade agendada" className="flex items-center gap-1 rounded-md bg-surface-2 px-1.5 py-0.5 text-[10px] font-semibold text-muted">
+                <CalendarClock className="size-3" /> agendar
               </span>
             )}
           </span>
         </div>
-      </Card>
+        <div className="mt-2.5 h-1 overflow-hidden rounded-full bg-surface-3" title={`Probabilidade ${prob}%`}>
+          <div className="h-full rounded-full" style={{ width: `${prob}%`, background: stage?.color ?? "var(--brand)" }} />
+        </div>
+      </div>
     </Link>
   );
 }
@@ -392,7 +446,7 @@ function DealList({ deals, stages }: { deals: BoardDeal[]; stages: StageDef[] })
   const ids = Array.from(sel);
   if (!deals.length) return <EmptyState icon={<KanbanSquare className="size-6" />} title={`Nenhum ${labels.deal.singular.toLowerCase()} encontrado`} description="Ajuste os filtros ou crie um novo." />;
   return (
-    <div className="flex-1 overflow-auto p-4">
+    <div className="flex-1 overflow-auto px-4 py-5 lg:px-8">
       {ids.length > 0 && (
         <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-brand/30 bg-brand/5 px-3 py-2 text-sm">
           <b>{ids.length} selecionado(s)</b>
@@ -417,7 +471,7 @@ function DealList({ deals, stages }: { deals: BoardDeal[]; stages: StageDef[] })
       )}
       <Card className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="border-b border-line text-left text-xs text-muted">
+          <thead className="sticky top-0 z-10 border-b border-line bg-surface-2/80 text-left text-[11px] uppercase tracking-wider text-muted backdrop-blur">
             <tr>
               <th className="w-10 px-3">
                 <input type="checkbox" className="accent-brand" checked={sel.size === deals.length} onChange={(e) => setSel(e.target.checked ? new Set(deals.map((d) => d.id)) : new Set())} />
@@ -436,7 +490,7 @@ function DealList({ deals, stages }: { deals: BoardDeal[]; stages: StageDef[] })
               const st = stageOf(d.stageId);
               const owner = member(d.ownerId);
               return (
-                <tr key={d.id} className="hover:bg-surface-2/60">
+                <tr key={d.id} className="transition hover:bg-brand/[0.03]">
                   <td className="px-3">
                     <input
                       type="checkbox"
@@ -454,17 +508,17 @@ function DealList({ deals, stages }: { deals: BoardDeal[]; stages: StageDef[] })
                     <Link href={`/deals/${d.id}`} className="font-medium hover:text-brand">{d.title}</Link>
                     <TagList tags={d.tags} />
                   </td>
-                  <td className="px-3 py-2.5 text-right font-medium">{fmt(d.value)}</td>
+                  <td className="px-3 py-3 text-right font-display font-bold">{fmt(d.value)}</td>
                   <td className="px-3 py-2.5">
-                    {st && <Badge color={st.color}>{st.name}</Badge>}
+                    {st && <Badge color={st.color} dot>{st.name}</Badge>}
                     {d.status !== "OPEN" && <Badge color={d.status === "WON" ? "#16a34a" : "#dc2626"} className="ml-1">{d.status === "WON" ? "Ganho" : "Perdido"}</Badge>}
                   </td>
                   <td className="px-3 py-2.5 text-muted">{d.company?.name ?? d.contact?.name ?? "—"}</td>
                   <td className="px-3 py-2.5">
                     {owner ? <span className="flex items-center gap-1.5"><Avatar name={owner.name} color={owner.avatarColor} size={20} /> {owner.name}</span> : "—"}
                   </td>
-                  <td className="px-3 py-2.5 text-muted">{date(d.expectedClose)}</td>
-                  <td className="px-3 py-2.5 text-muted">{date(d.createdAt)}</td>
+                  <td className="whitespace-nowrap px-3 py-2.5 text-muted">{date(d.expectedClose)}</td>
+                  <td className="whitespace-nowrap px-3 py-2.5 text-muted">{date(d.createdAt)}</td>
                 </tr>
               );
             })}

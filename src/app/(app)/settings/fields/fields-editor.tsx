@@ -33,7 +33,7 @@ export function FieldsEditor() {
     <Card className="p-5">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="font-semibold">Campos personalizados</h2>
+          <h2 className="text-base font-bold">Campos personalizados</h2>
           <p className="text-sm text-muted">Capture as informações específicas do seu negócio em cada cadastro.</p>
         </div>
         <Button onClick={() => { setType("TEXT"); setEdit("new"); }}><Plus className="size-4" /> Novo campo</Button>

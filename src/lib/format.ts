@@ -10,6 +10,7 @@ export function money(value: number | string | { toString(): string } | null | u
     style: "currency",
     currency,
     notation: compact ? "compact" : "standard",
+    minimumFractionDigits: compact ? 0 : 2,
     maximumFractionDigits: compact ? 1 : 2,
   }).format(Number.isFinite(n) ? n : 0);
 }
@@ -77,4 +78,9 @@ export function slugify(s: string) {
 /** Chave do dia (AAAA-MM-DD) no fuso da organização. */
 export function dayKey(d: Date | string) {
   return new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(d));
+}
+
+/** Hora atual (0-23) no fuso da organização. */
+export function currentHour() {
+  return Number(new Intl.DateTimeFormat("en-US", { hour: "numeric", hourCycle: "h23", timeZone: TZ }).format(new Date())) % 24;
 }

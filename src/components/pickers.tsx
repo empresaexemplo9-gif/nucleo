@@ -82,7 +82,7 @@ export function EntityPicker({
         )}
       </button>
       {open && (
-        <div className="animate-in absolute z-30 mt-1 w-full overflow-hidden rounded-lg border border-line bg-surface shadow-xl">
+        <div className="animate-in absolute z-30 mt-1 w-full overflow-hidden rounded-xl border border-line bg-surface shadow-pop">
           <div className="relative border-b border-line p-1.5">
             <Search className="absolute left-3.5 top-1/2 size-3.5 -translate-y-1/2 text-muted" />
             <Input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Digite para buscar…" className="h-8 pl-7" />

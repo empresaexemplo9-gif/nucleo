@@ -28,7 +28,7 @@ export function BrandingForm({
   return (
     <div className="space-y-6">
       <Card className="p-5">
-        <h2 className="font-semibold">Marca (whitelabel)</h2>
+        <h2 className="text-base font-bold">Marca (whitelabel)</h2>
         <p className="mb-4 text-sm text-muted">Deixe o CRM com a cara da sua empresa. Tudo é aplicado instantaneamente para toda a equipe.</p>
         <form
           onSubmit={(e) => {
@@ -109,7 +109,7 @@ export function BrandingForm({
       </Card>
 
       <Card className="p-5">
-        <h2 className="font-semibold">Nomenclatura</h2>
+        <h2 className="text-base font-bold">Nomenclatura</h2>
         <p className="mb-4 text-sm text-muted">Adapte os termos ao seu negócio — ex.: “Negócios” → “Oportunidades”, “Imóveis”, “Matrículas”, “Projetos”.</p>
         <form
           onSubmit={(e) => {
@@ -134,7 +134,7 @@ export function BrandingForm({
       </Card>
 
       <Card className="p-5">
-        <h2 className="font-semibold">Preferências e módulos</h2>
+        <h2 className="text-base font-bold">Preferências e módulos</h2>
         <p className="mb-4 text-sm text-muted">Ative apenas o que sua operação usa para manter o CRM simples.</p>
         <form
           onSubmit={(e) => {

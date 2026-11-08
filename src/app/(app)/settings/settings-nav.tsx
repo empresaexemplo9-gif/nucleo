@@ -19,14 +19,14 @@ export function SettingsNav() {
     { href: "/settings/profile", label: "Meu perfil", icon: User },
   ].filter(Boolean) as { href: string; label: string; icon: typeof User }[];
   return (
-    <nav className="flex gap-1 overflow-x-auto md:flex-col">
+    <nav className="flex h-fit gap-1 overflow-x-auto rounded-2xl border border-line bg-surface p-1.5 shadow-card md:sticky md:top-20 md:flex-col">
       {items.map((i) => (
         <Link
           key={i.href}
           href={i.href}
           className={cn(
-            "flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium",
-            pathname === i.href ? "bg-brand/10 text-brand" : "text-muted hover:bg-surface-2 hover:text-fg",
+            "flex shrink-0 items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium transition",
+            pathname === i.href ? "bg-brand/10 text-brand" : "text-fg-2 hover:bg-surface-2 hover:text-fg",
           )}
         >
           <i.icon className="size-4" /> {i.label}

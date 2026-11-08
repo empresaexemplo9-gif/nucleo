@@ -5,21 +5,34 @@
 :root {
   --brand: #4f46e5;
   --accent: #0ea5e9;
-  --bg: #f6f7fb;
+  --bg: #f5f6fa;
   --surface: #ffffff;
-  --surface-2: #f1f3f8;
-  --border: #e4e7ef;
-  --fg: #0f172a;
-  --muted: #64748b;
+  --surface-2: #f2f4f8;
+  --surface-3: #e9ecf3;
+  --border: #e3e6ee;
+  --border-strong: #d3d8e3;
+  --fg: #0d1526;
+  --fg-2: #334155;
+  --muted: #687389;
+  --sidebar: #ffffff;
+  --shadow-color: 220 40% 20%;
+  --success: #16a34a;
+  --danger: #e11d48;
+  --warning: #d97706;
 }
 
 .dark {
-  --bg: #0b0e14;
-  --surface: #131722;
-  --surface-2: #1a1f2d;
-  --border: #262c3b;
-  --fg: #e6e9f2;
-  --muted: #8b93a7;
+  --bg: #090c13;
+  --surface: #11151f;
+  --surface-2: #171c28;
+  --surface-3: #1f2533;
+  --border: #232a39;
+  --border-strong: #2f3748;
+  --fg: #e9ecf4;
+  --fg-2: #c3c9d6;
+  --muted: #8a93a8;
+  --sidebar: #0d1119;
+  --shadow-color: 0 0% 0%;
 }
 
 @theme inline {
@@ -28,10 +41,19 @@
   --color-bg: var(--bg);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
   --color-line: var(--border);
+  --color-line-strong: var(--border-strong);
   --color-fg: var(--fg);
+  --color-fg-2: var(--fg-2);
   --color-muted: var(--muted);
+  --color-sidebar: var(--sidebar);
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-display), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --shadow-soft: 0 1px 2px hsl(var(--shadow-color) / 0.04), 0 1px 1px hsl(var(--shadow-color) / 0.03);
+  --shadow-card: 0 1px 2px hsl(var(--shadow-color) / 0.05), 0 4px 12px -2px hsl(var(--shadow-color) / 0.06);
+  --shadow-lift: 0 2px 4px hsl(var(--shadow-color) / 0.06), 0 12px 28px -6px hsl(var(--shadow-color) / 0.16);
+  --shadow-pop: 0 4px 8px hsl(var(--shadow-color) / 0.08), 0 24px 48px -12px hsl(var(--shadow-color) / 0.28);
 }
 
 html,
@@ -43,6 +65,20 @@ body {
 body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  font-feature-settings: "cv11", "ss01";
+}
+
+/* Fundo da área logada: leve brilho da cor da marca no topo */
+.app-canvas {
+  background:
+    radial-gradient(1200px 380px at 20% -120px, color-mix(in oklab, var(--brand) 9%, transparent), transparent 70%),
+    radial-gradient(900px 300px at 100% -80px, color-mix(in oklab, var(--accent) 7%, transparent), transparent 70%),
+    var(--bg);
+}
+
+h1, h2, h3, .font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.015em;
 }
 
 * {
@@ -58,8 +94,11 @@ body {
   width: 8px;
 }
 .scroll-thin::-webkit-scrollbar-thumb {
-  background: color-mix(in oklab, var(--muted) 35%, transparent);
+  background: color-mix(in oklab, var(--muted) 30%, transparent);
   border-radius: 999px;
+}
+.scroll-thin::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklab, var(--muted) 50%, transparent);
 }
 .scroll-thin::-webkit-scrollbar-track {
   background: transparent;
@@ -69,6 +108,7 @@ input[type="color"] {
   -webkit-appearance: none;
   border: none;
   padding: 0;
+  background: transparent;
 }
 input[type="color"]::-webkit-color-swatch-wrapper {
   padding: 0;
@@ -78,10 +118,46 @@ input[type="color"]::-webkit-color-swatch {
   border-radius: 8px;
 }
 
+select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23687389' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.6rem center;
+  background-size: 14px;
+}
+
+/* Gradiente da marca reutilizável */
+.bg-brand-gradient {
+  background: linear-gradient(135deg, var(--brand), color-mix(in oklab, var(--brand) 55%, var(--accent)));
+}
+.text-brand-gradient {
+  background: linear-gradient(135deg, var(--brand), var(--accent));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Textura sutil de pontos */
+.bg-dots {
+  background-image: radial-gradient(color-mix(in oklab, var(--muted) 22%, transparent) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+
 @keyframes fade-in {
-  from { opacity: 0; transform: translateY(4px) scale(0.98); }
+  from { opacity: 0; transform: translateY(6px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes rise {
+  from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: none; }
 }
 .animate-in {
-  animation: fade-in 0.15s ease-out;
+  animation: fade-in 0.16s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.animate-rise {
+  animation: rise 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-in, .animate-rise { animation: none; }
 }

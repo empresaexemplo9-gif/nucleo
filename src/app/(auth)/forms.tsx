@@ -6,7 +6,7 @@ import { Button, Field, Input, Select } from "@/components/ui";
 
 function ErrorBox({ error }: { error?: string }) {
   if (!error) return null;
-  return <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">{error}</div>;
+  return <div className="animate-in rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-300">{error}</div>;
 }
 
 export function LoginForm({ next, org, allowSignup }: { next?: string; org?: string | null; allowSignup: boolean }) {
@@ -16,13 +16,13 @@ export function LoginForm({ next, org, allowSignup }: { next?: string; org?: str
       <input type="hidden" name="next" value={next ?? ""} />
       <input type="hidden" name="org" value={org ?? ""} />
       <Field label="E-mail">
-        <Input name="email" type="email" autoComplete="email" required autoFocus placeholder="voce@empresa.com" />
+        <Input name="email" type="email" autoComplete="email" required autoFocus placeholder="voce@empresa.com" className="h-11" />
       </Field>
       <Field label="Senha">
-        <Input name="password" type="password" autoComplete="current-password" required placeholder="••••••••" />
+        <Input name="password" type="password" autoComplete="current-password" required placeholder="••••••••" className="h-11" />
       </Field>
       <ErrorBox error={state?.error} />
-      <Button className="w-full" loading={pending}>Entrar</Button>
+      <Button size="lg" className="w-full" loading={pending}>Entrar</Button>
       {allowSignup && (
         <p className="text-center text-sm text-muted">
           Ainda não tem conta?{" "}
@@ -67,7 +67,7 @@ export function RegisterForm() {
         <Input name="password" type="password" required minLength={8} autoComplete="new-password" />
       </Field>
       <ErrorBox error={state?.error} />
-      <Button className="w-full" loading={pending}>Criar minha conta</Button>
+      <Button size="lg" className="w-full" loading={pending}>Criar minha conta</Button>
       <p className="text-center text-sm text-muted">
         Já tem conta?{" "}
         <Link href="/login" className="font-medium text-brand hover:underline">
@@ -95,7 +95,7 @@ export function InviteForm({ token, email, existing }: { token: string; email: s
         <Input name="password" type="password" required minLength={8} />
       </Field>
       <ErrorBox error={state?.error} />
-      <Button className="w-full" loading={pending}>Aceitar convite</Button>
+      <Button size="lg" className="w-full" loading={pending}>Aceitar convite</Button>
     </form>
   );
 }

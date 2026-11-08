@@ -2,8 +2,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ArrowLeft, Building2, Mail, MessageCircle, Pencil, Phone, Trash2 } from "lucide-react";
-import { Avatar, Badge, Button, Card, Modal } from "@/components/ui";
+import { Info, ArrowLeft, Building2, Mail, MessageCircle, Pencil, Phone, Trash2 } from "lucide-react";
+import { Avatar, Badge, Button, Card, CardHeader, Modal } from "@/components/ui";
 import { CustomFieldValues, InfoRow } from "@/components/custom-fields";
 import { TagList } from "@/components/pickers";
 import { Feed, type FeedActivity, type FeedEvent, type FeedNote } from "@/components/feed";
@@ -33,23 +33,24 @@ export function ContactDetail({
   const self = { id: contact.id, label: contact.name };
 
   return (
-    <div className="mx-auto max-w-7xl p-4 lg:p-6">
-      <Link href="/contacts" className="mb-3 inline-flex items-center gap-1 text-sm text-muted hover:text-fg">
+    <div className="mx-auto max-w-[1400px] p-4 lg:p-8">
+      <Link href="/contacts" className="mb-4 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm text-muted transition hover:bg-surface hover:text-fg">
         <ArrowLeft className="size-4" /> {labels.contact.plural}
       </Link>
-      <Card className="flex flex-wrap items-center gap-4 p-5">
-        <Avatar name={contact.name} size={56} />
-        <div className="min-w-0 flex-1">
-          <h1 className="text-xl font-semibold">{contact.name}</h1>
+      <Card className="relative flex flex-wrap items-center gap-5 overflow-hidden p-6">
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(160deg,color-mix(in_oklab,var(--brand)_12%,transparent),color-mix(in_oklab,var(--accent)_5%,transparent)_40%,transparent_65%)]" />
+        <span className="relative rounded-full p-1 ring-1 ring-line"><Avatar name={contact.name} size={64} /></span>
+        <div className="relative min-w-0 flex-1">
+          <h1 className="text-2xl font-bold">{contact.name}</h1>
           <p className="text-sm text-muted">
             {[contact.position, contact.company?.label].filter(Boolean).join(" · ") || "—"}
           </p>
           <div className="mt-1.5 flex flex-wrap items-center gap-2">
-            <Badge>{LIFECYCLES.find((l) => l.value === contact.lifecycle)?.label}</Badge>
+            <Badge color="#6366f1" dot>{LIFECYCLES.find((l) => l.value === contact.lifecycle)?.label}</Badge>
             <TagList tags={contact.tags} />
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="relative flex flex-wrap gap-2">
           {contact.email && (
             <a href={`mailto:${contact.email}`}><Button variant="secondary"><Mail className="size-4" /> E-mail</Button></a>
           )}
@@ -70,8 +71,8 @@ export function ContactDetail({
 
       <div className="mt-4 grid gap-4 lg:grid-cols-[360px_1fr]">
         <div className="space-y-4">
-          <Card className="p-4">
-            <h3 className="mb-2 text-sm font-semibold">Informações</h3>
+          <Card className="p-5">
+            <CardHeader icon={<Info />} title="Informações" />
             <InfoRow label="E-mail" value={contact.email} />
             <InfoRow label="Telefone" value={contact.phone} />
             <InfoRow label="WhatsApp" value={contact.whatsapp} />

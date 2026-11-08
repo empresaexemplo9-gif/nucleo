@@ -49,7 +49,7 @@ export function AutomationsManager({ automations }: { automations: A[] }) {
     <Card className="p-5">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="font-semibold">Automações</h2>
+          <h2 className="text-base font-bold">Automações</h2>
           <p className="text-sm text-muted">Regras “quando… então…” que trabalham por você e garantem que nenhum lead fique sem follow-up.</p>
         </div>
         <Button onClick={() => open({})}><Plus className="size-4" /> Nova automação</Button>

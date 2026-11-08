@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Package, Pencil, Plus, Trash2 } from "lucide-react";
-import { Badge, Button, Card, EmptyState, Field, Input, Modal, Select, Textarea } from "@/components/ui";
+import { Badge, Button, Card, EmptyState, Field, IconTile, Input, Modal, PageHeader, Select, Textarea } from "@/components/ui";
 import { useOrg } from "@/components/org-context";
 import { useAction } from "@/components/use-action";
 import { deleteProduct, saveProduct } from "@/actions/crm";
@@ -14,18 +14,17 @@ export function ProductsView({ products }: { products: P[] }) {
   const { run, pending } = useAction();
   const cur = edit === "new" ? null : edit;
   return (
-    <div className="mx-auto max-w-5xl p-4 lg:p-6">
-      <div className="mb-4 flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold">{labels.product.plural}</h1>
-          <p className="text-sm text-muted">Catálogo de produtos e serviços para compor o valor dos {labels.deal.plural.toLowerCase()}.</p>
-        </div>
-        {can("MANAGER") && <Button onClick={() => setEdit("new")}><Plus className="size-4" /> {labels.product.singular}</Button>}
-      </div>
+    <div className="mx-auto max-w-6xl p-4 lg:p-8">
+      <PageHeader
+        icon={<Package />}
+        title={labels.product.plural}
+        description={`Catálogo de produtos e serviços para compor o valor dos ${labels.deal.plural.toLowerCase()}.`}
+        actions={can("MANAGER") && <Button onClick={() => setEdit("new")}><Plus className="size-4" /> {labels.product.singular}</Button>}
+      />
       <Card className="overflow-x-auto">
         {products.length ? (
           <table className="w-full text-sm">
-            <thead className="border-b border-line text-left text-xs text-muted">
+            <thead className="border-b border-line bg-surface-2/60 text-left text-[11px] uppercase tracking-wider text-muted">
               <tr>
                 <th className="px-4 py-2.5 font-medium">Nome</th>
                 <th className="px-4 py-2.5 font-medium">Código</th>
@@ -39,12 +38,17 @@ export function ProductsView({ products }: { products: P[] }) {
               {products.map((p) => (
                 <tr key={p.id} className="hover:bg-surface-2/60">
                   <td className="px-4 py-2.5">
-                    <p className="font-medium">{p.name}</p>
-                    {p.description && <p className="line-clamp-1 text-xs text-muted">{p.description}</p>}
+                    <div className="flex items-center gap-3">
+                      <IconTile size={34} className="[&>svg]:size-4"><Package /></IconTile>
+                      <div className="min-w-0">
+                        <p className="font-medium">{p.name}</p>
+                        {p.description && <p className="line-clamp-1 text-xs text-muted">{p.description}</p>}
+                      </div>
+                    </div>
                   </td>
                   <td className="px-4 py-2.5 text-muted">{p.sku ?? "—"}</td>
-                  <td className="px-4 py-2.5 text-right font-medium">{fmt(p.price)}{p.unit && <span className="text-xs font-normal text-muted"> /{p.unit}</span>}</td>
-                  <td className="px-4 py-2.5">{p.active ? <Badge color="#16a34a">Ativo</Badge> : <Badge>Inativo</Badge>}</td>
+                  <td className="px-4 py-2.5 text-right font-display font-bold">{fmt(p.price)}{p.unit && <span className="text-xs font-normal text-muted"> /{p.unit}</span>}</td>
+                  <td className="px-4 py-2.5">{p.active ? <Badge color="#16a34a" dot>Ativo</Badge> : <Badge>Inativo</Badge>}</td>
                   <td className="px-4 py-2.5 text-muted">{p.uses}</td>
                   <td className="px-4 py-2.5 text-right">
                     {can("MANAGER") && (

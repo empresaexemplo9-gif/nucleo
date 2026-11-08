@@ -1,11 +1,11 @@
-import { Download } from "lucide-react";
+import { BarChart3, Download, Percent, Sparkles, ThumbsDown, Trophy } from "lucide-react";
 import { requireContext, ownerScope } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { money } from "@/lib/format";
 import { PERIODS, periodRange, wonByMonth, type Period } from "@/lib/metrics";
 import { ACTIVITY_TYPES } from "@/lib/defaults";
 import { ColumnChart, HBarChart } from "@/components/charts";
-import { Button, Card } from "@/components/ui";
+import { Button, Card, PageHeader, StatCard } from "@/components/ui";
 import { ReportFilters } from "./report-filters";
 
 export const metadata = { title: "Relatórios" };
@@ -104,31 +104,30 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const L = ctx.labels;
 
   return (
-    <div className="mx-auto max-w-7xl space-y-4 p-4 lg:p-6">
-      <div className="flex flex-wrap items-center gap-2">
-        <h1 className="mr-2 text-xl font-semibold">Relatórios</h1>
-        <ReportFilters period={period} periods={PERIODS} pipeline={pipeline.id} pipelines={pipelines.map((p) => ({ id: p.id, name: p.name }))} />
-        <a href="/api/export/deals" download className="ml-auto">
-          <Button variant="secondary"><Download className="size-4" /> Exportar {L.deal.plural.toLowerCase()} (CSV)</Button>
-        </a>
-      </div>
+    <div className="mx-auto max-w-[1400px] space-y-4 p-4 lg:p-8">
+      <PageHeader
+        icon={<BarChart3 />}
+        title="Relatórios"
+        description="Conversão, desempenho da equipe, perdas e previsão de receita."
+        actions={
+          <>
+            <ReportFilters period={period} periods={PERIODS} pipeline={pipeline.id} pipelines={pipelines.map((p) => ({ id: p.id, name: p.name }))} />
+            <a href="/api/export/deals" download>
+              <Button variant="secondary"><Download className="size-4" /> Exportar CSV</Button>
+            </a>
+          </>
+        }
+      />
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        {[
-          ["Novos no período", String(created.length)],
-          ["Ganhos", `${won.length} · ${fmt(wonValue, true)}`],
-          ["Perdidos", String(lost.length)],
-          ["Conversão", `${won.length + lost.length ? Math.round((won.length / (won.length + lost.length)) * 100) : 0}%`],
-        ].map(([l, v]) => (
-          <Card key={l} className="p-4">
-            <p className="text-xs text-muted">{l}</p>
-            <p className="mt-1 text-xl font-semibold">{v}</p>
-          </Card>
-        ))}
+        <StatCard label="Novos no período" value={String(created.length)} icon={<Sparkles />} color="#6366f1" />
+        <StatCard label="Ganhos" value={fmt(wonValue, true)} sub={`${won.length} negócio(s)`} icon={<Trophy />} color="#10b981" />
+        <StatCard label="Perdidos" value={String(lost.length)} sub={`${fmt(lost.reduce((s, d) => s + Number(d.value), 0), true)} em valor`} icon={<ThumbsDown />} color="#e11d48" />
+        <StatCard label="Conversão" value={`${won.length + lost.length ? Math.round((won.length / (won.length + lost.length)) * 100) : 0}%`} sub="ganhos ÷ fechados" icon={<Percent />} color="#8b5cf6" />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="p-4">
+        <Card className="p-5">
           <h2 className="mb-1 text-sm font-semibold">Funil de conversão</h2>
           <p className="mb-3 text-xs text-muted">{L.deal.plural} criados no período que alcançaram cada etapa.</p>
           <HBarChart data={funnel} money={false} />
@@ -143,16 +142,16 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
             })}
           </div>
         </Card>
-        <Card className="p-4">
+        <Card className="p-5">
           <h2 className="mb-3 text-sm font-semibold">Receita ganha — 12 meses</h2>
           <ColumnChart data={monthly} height={260} />
         </Card>
       </div>
 
-      <Card className="overflow-x-auto p-4">
+      <Card className="overflow-x-auto p-5">
         <h2 className="mb-3 text-sm font-semibold">Desempenho por vendedor</h2>
         <table className="w-full text-sm">
-          <thead className="border-b border-line text-left text-xs text-muted">
+          <thead className="border-b border-line text-left text-[11px] uppercase tracking-wider text-muted">
             <tr>
               <th className="py-2 font-medium">Vendedor</th>
               <th className="py-2 text-right font-medium">Ganhos</th>
@@ -185,7 +184,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
       </Card>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="p-4">
+        <Card className="p-5">
           <h2 className="mb-3 text-sm font-semibold">Motivos de perda</h2>
           {reasons.size ? (
             <HBarChart data={[...reasons.entries()].sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value, color: "#94a3b8" }))} money={false} />
@@ -193,7 +192,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
             <p className="text-sm text-muted">Nenhuma perda no período.</p>
           )}
         </Card>
-        <Card className="p-4">
+        <Card className="p-5">
           <h2 className="mb-3 text-sm font-semibold">Origem dos {L.deal.plural.toLowerCase()}</h2>
           <table className="w-full text-sm">
             <thead className="text-left text-xs text-muted">
@@ -207,17 +206,17 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
             </tbody>
           </table>
         </Card>
-        <Card className="p-4">
+        <Card className="p-5">
           <h2 className="mb-3 text-sm font-semibold">Atividades concluídas</h2>
           {actsByType.length ? <HBarChart data={actsByType} money={false} /> : <p className="text-sm text-muted">Nenhuma atividade concluída.</p>}
         </Card>
       </div>
 
-      <Card className="overflow-x-auto p-4">
+      <Card className="overflow-x-auto p-5">
         <h2 className="mb-1 text-sm font-semibold">Previsão de fechamento</h2>
         <p className="mb-3 text-xs text-muted">{L.deal.plural} em aberto agrupados pelo mês previsto de fechamento.</p>
         <table className="w-full text-sm">
-          <thead className="border-b border-line text-left text-xs text-muted">
+          <thead className="border-b border-line text-left text-[11px] uppercase tracking-wider text-muted">
             <tr><th className="py-2 font-medium">Mês</th><th className="py-2 text-right font-medium">Valor total</th><th className="py-2 text-right font-medium">Ponderado</th></tr>
           </thead>
           <tbody className="divide-y divide-line">

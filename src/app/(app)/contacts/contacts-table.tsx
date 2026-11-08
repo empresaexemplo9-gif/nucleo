@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { Download, Plus, Trash2, Upload, Users } from "lucide-react";
-import { Avatar, Badge, Button, Card, EmptyState, Modal, Select } from "@/components/ui";
+import { Avatar, Badge, Button, Card, EmptyState, Modal, PageHeader, Select } from "@/components/ui";
 import { TagList } from "@/components/pickers";
 import { Pagination, SearchBox, useParamSetter } from "@/components/list-toolbar";
 import { useOrg } from "@/components/org-context";
@@ -39,9 +39,26 @@ export function ContactsTable({ rows, total, page, pageSize, filters }: { rows: 
   const ids = Array.from(sel);
 
   return (
-    <div className="p-4 lg:p-6">
+    <div className="mx-auto max-w-[1400px] p-4 lg:p-8">
+      <PageHeader
+        icon={<Users />}
+        title={labels.contact.plural}
+        description={`${total} ${total === 1 ? "registro" : "registros"} · pessoas com quem sua equipe se relaciona`}
+        actions={
+          <>
+            <a href="/api/export/contacts" download>
+              <Button variant="secondary"><Download className="size-4" /> Exportar</Button>
+            </a>
+            {can("SALES") && (
+              <>
+                <Button variant="secondary" onClick={() => setImporting(true)}><Upload className="size-4" /> Importar</Button>
+                <Button onClick={() => quick("contact")}><Plus className="size-4" /> {labels.contact.singular}</Button>
+              </>
+            )}
+          </>
+        }
+      />
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <h1 className="mr-2 text-xl font-semibold">{labels.contact.plural}</h1>
         <SearchBox initial={filters.q!} placeholder="Nome, e-mail, telefone…" />
         <Select value={filters.lifecycle} onChange={(e) => set("lifecycle", e.target.value)} className="w-auto">
           <option value="">Ciclo de vida</option>
@@ -64,17 +81,6 @@ export function ContactsTable({ rows, total, page, pageSize, filters }: { rows: 
             ))}
           </Select>
         )}
-        <div className="ml-auto flex gap-2">
-          <a href="/api/export/contacts" download>
-            <Button variant="secondary"><Download className="size-4" /> Exportar</Button>
-          </a>
-          {can("SALES") && (
-            <>
-              <Button variant="secondary" onClick={() => setImporting(true)}><Upload className="size-4" /> Importar</Button>
-              <Button onClick={() => quick("contact")}><Plus className="size-4" /> {labels.contact.singular}</Button>
-            </>
-          )}
-        </div>
       </div>
 
       {ids.length > 0 && can("MANAGER") && (
@@ -89,18 +95,18 @@ export function ContactsTable({ rows, total, page, pageSize, filters }: { rows: 
       <Card className="overflow-x-auto">
         {rows.length ? (
           <table className="w-full text-sm">
-            <thead className="border-b border-line text-left text-xs text-muted">
+            <thead className="border-b border-line bg-surface-2/60 text-left text-[11px] uppercase tracking-wider text-muted">
               <tr>
                 <th className="w-10 px-3 py-2.5">
                   <input type="checkbox" className="accent-brand" checked={sel.size === rows.length} onChange={(e) => setSel(e.target.checked ? new Set(rows.map((r) => r.id)) : new Set())} />
                 </th>
-                <th className="px-3 py-2.5 font-medium">Nome</th>
-                <th className="px-3 py-2.5 font-medium">{labels.company.singular}</th>
-                <th className="px-3 py-2.5 font-medium">Contato</th>
-                <th className="px-3 py-2.5 font-medium">Ciclo</th>
-                <th className="px-3 py-2.5 font-medium">{labels.deal.plural} abertos</th>
-                <th className="px-3 py-2.5 font-medium">Responsável</th>
-                <th className="px-3 py-2.5 font-medium">Criado</th>
+                <th className="px-3 py-3 font-medium">Nome</th>
+                <th className="px-3 py-3 font-medium">{labels.company.singular}</th>
+                <th className="px-3 py-3 font-medium">Contato</th>
+                <th className="px-3 py-3 font-medium">Ciclo</th>
+                <th className="px-3 py-3 font-medium">{labels.deal.plural} abertos</th>
+                <th className="px-3 py-3 font-medium">Responsável</th>
+                <th className="px-3 py-3 font-medium">Criado</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
@@ -108,7 +114,7 @@ export function ContactsTable({ rows, total, page, pageSize, filters }: { rows: 
                 const owner = member(r.ownerId);
                 const lc = LIFECYCLES.find((l) => l.value === r.lifecycle);
                 return (
-                  <tr key={r.id} className="hover:bg-surface-2/60">
+                  <tr key={r.id} className="transition hover:bg-brand/[0.03]">
                     <td className="px-3">
                       <input
                         type="checkbox"
@@ -122,21 +128,21 @@ export function ContactsTable({ rows, total, page, pageSize, filters }: { rows: 
                         }}
                       />
                     </td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-3">
                       <Link href={`/contacts/${r.id}`} className="flex items-center gap-2 font-medium hover:text-brand">
-                        <Avatar name={r.name} size={26} color="#94a3b8" /> <span>{r.name}{r.position && <span className="block text-xs font-normal text-muted">{r.position}</span>}</span>
+                        <Avatar name={r.name} size={34} /> <span>{r.name}{r.position && <span className="block text-xs font-normal text-muted">{r.position}</span>}</span>
                       </Link>
                       <TagList tags={r.tags} />
                     </td>
-                    <td className="px-3 py-2.5">{r.company ? <Link href={`/companies/${r.company.id}`} className="hover:text-brand">{r.company.name}</Link> : <span className="text-muted">—</span>}</td>
-                    <td className="px-3 py-2.5 text-muted">
+                    <td className="px-3 py-3">{r.company ? <Link href={`/companies/${r.company.id}`} className="hover:text-brand">{r.company.name}</Link> : <span className="text-muted">—</span>}</td>
+                    <td className="px-3 py-3 text-muted">
                       <div>{r.email ?? "—"}</div>
                       <div className="text-xs">{r.phone}</div>
                     </td>
-                    <td className="px-3 py-2.5">{lc && <Badge color={LC_COLORS[r.lifecycle]}>{lc.label}</Badge>}</td>
-                    <td className="px-3 py-2.5 text-center">{r.openDeals || "—"}</td>
-                    <td className="px-3 py-2.5">{owner ? <span className="flex items-center gap-1.5"><Avatar name={owner.name} color={owner.avatarColor} size={20} /> {owner.name}</span> : "—"}</td>
-                    <td className="px-3 py-2.5 text-muted">{date(r.createdAt)}</td>
+                    <td className="px-3 py-3">{lc && <Badge color={LC_COLORS[r.lifecycle]} dot>{lc.label}</Badge>}</td>
+                    <td className="px-3 py-3 text-center">{r.openDeals ? <span className="inline-flex min-w-6 justify-center rounded-full bg-brand/10 px-2 py-0.5 text-xs font-semibold text-brand">{r.openDeals}</span> : <span className="text-muted">—</span>}</td>
+                    <td className="px-3 py-3">{owner ? <span className="flex items-center gap-1.5"><Avatar name={owner.name} color={owner.avatarColor} size={20} /> {owner.name}</span> : "—"}</td>
+                    <td className="whitespace-nowrap px-3 py-3 text-muted">{date(r.createdAt)}</td>
                   </tr>
                 );
               })}

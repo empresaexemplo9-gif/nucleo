@@ -13,7 +13,7 @@ export function TagsManager({ tags, reasons }: { tags: { id: string; name: strin
   return (
     <div className="space-y-4">
       <Card className="p-5">
-        <h2 className="font-semibold">Etiquetas</h2>
+        <h2 className="text-base font-bold">Etiquetas</h2>
         <p className="mb-4 text-sm text-muted">Use para segmentar e filtrar negócios, contatos e empresas.</p>
         <div className="mb-4 flex flex-wrap gap-2">
           {tags.map((t) => (
@@ -31,7 +31,7 @@ export function TagsManager({ tags, reasons }: { tags: { id: string; name: strin
         </form>
       </Card>
       <Card className="p-5">
-        <h2 className="font-semibold">Motivos de perda</h2>
+        <h2 className="text-base font-bold">Motivos de perda</h2>
         <p className="mb-4 text-sm text-muted">Padronize os motivos para descobrir por que os negócios são perdidos.</p>
         <div className="mb-4 divide-y divide-line rounded-lg border border-line">
           {reasons.map((r) => (

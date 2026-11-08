@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Building2, Download, Plus, Trash2 } from "lucide-react";
-import { Avatar, Button, Card, EmptyState, Select } from "@/components/ui";
+import { Avatar, Button, Card, colorFor, EmptyState, PageHeader, Select } from "@/components/ui";
 import { TagList } from "@/components/pickers";
 import { Pagination, SearchBox, useParamSetter } from "@/components/list-toolbar";
 import { useOrg } from "@/components/org-context";
@@ -20,9 +20,19 @@ export function CompaniesTable({ rows, total, page, pageSize, filters }: { rows:
   const { run, pending } = useAction();
   const ids = Array.from(sel);
   return (
-    <div className="p-4 lg:p-6">
+    <div className="mx-auto max-w-[1400px] p-4 lg:p-8">
+      <PageHeader
+        icon={<Building2 />}
+        title={labels.company.plural}
+        description={`${total} ${total === 1 ? "registro" : "registros"} · organizações clientes e prospects`}
+        actions={
+          <>
+            <a href="/api/export/companies" download><Button variant="secondary"><Download className="size-4" /> Exportar</Button></a>
+            {can("SALES") && <Button onClick={() => quick("company")}><Plus className="size-4" /> {labels.company.singular}</Button>}
+          </>
+        }
+      />
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <h1 className="mr-2 text-xl font-semibold">{labels.company.plural}</h1>
         <SearchBox initial={filters.q!} placeholder="Nome, CNPJ, cidade…" />
         <Select value={filters.owner} onChange={(e) => set("owner", e.target.value)} className="w-auto">
           <option value="">Responsável</option>
@@ -39,10 +49,6 @@ export function CompaniesTable({ rows, total, page, pageSize, filters }: { rows:
             ))}
           </Select>
         )}
-        <div className="ml-auto flex gap-2">
-          <a href="/api/export/companies" download><Button variant="secondary"><Download className="size-4" /> Exportar</Button></a>
-          {can("SALES") && <Button onClick={() => quick("company")}><Plus className="size-4" /> {labels.company.singular}</Button>}
-        </div>
       </div>
       {ids.length > 0 && can("MANAGER") && (
         <div className="mb-3 flex items-center gap-3 rounded-xl border border-brand/30 bg-brand/5 px-3 py-2 text-sm">
@@ -55,39 +61,39 @@ export function CompaniesTable({ rows, total, page, pageSize, filters }: { rows:
       <Card className="overflow-x-auto">
         {rows.length ? (
           <table className="w-full text-sm">
-            <thead className="border-b border-line text-left text-xs text-muted">
+            <thead className="border-b border-line bg-surface-2/60 text-left text-[11px] uppercase tracking-wider text-muted">
               <tr>
                 <th className="w-10 px-3 py-2.5">
                   <input type="checkbox" className="accent-brand" checked={sel.size === rows.length} onChange={(e) => setSel(e.target.checked ? new Set(rows.map((r) => r.id)) : new Set())} />
                 </th>
-                <th className="px-3 py-2.5 font-medium">Nome</th>
-                <th className="px-3 py-2.5 font-medium">Segmento</th>
-                <th className="px-3 py-2.5 font-medium">Cidade</th>
-                <th className="px-3 py-2.5 font-medium">{labels.contact.plural}</th>
-                <th className="px-3 py-2.5 font-medium">{labels.deal.plural} abertos</th>
-                <th className="px-3 py-2.5 font-medium">Responsável</th>
+                <th className="px-3 py-3 font-medium">Nome</th>
+                <th className="px-3 py-3 font-medium">Segmento</th>
+                <th className="px-3 py-3 font-medium">Cidade</th>
+                <th className="px-3 py-3 font-medium">{labels.contact.plural}</th>
+                <th className="px-3 py-3 font-medium">{labels.deal.plural} abertos</th>
+                <th className="px-3 py-3 font-medium">Responsável</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
               {rows.map((r) => {
                 const owner = member(r.ownerId);
                 return (
-                  <tr key={r.id} className="hover:bg-surface-2/60">
+                  <tr key={r.id} className="transition hover:bg-brand/[0.03]">
                     <td className="px-3">
                       <input type="checkbox" className="accent-brand" checked={sel.has(r.id)} onChange={(e) => { const n = new Set(sel); if (e.target.checked) n.add(r.id); else n.delete(r.id); setSel(n); }} />
                     </td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-3">
                       <Link href={`/companies/${r.id}`} className="flex items-center gap-2 font-medium hover:text-brand">
-                        <span className="flex size-7 items-center justify-center rounded-lg bg-surface-2"><Building2 className="size-4 text-muted" /></span>
+                        <span className="flex size-9 items-center justify-center rounded-xl text-sm font-bold text-white" style={{ background: `linear-gradient(140deg, color-mix(in oklab, ${colorFor(r.name)} 80%, white), ${colorFor(r.name)})` }}>{r.name[0]}</span>
                         {r.name}
                       </Link>
                       <TagList tags={r.tags} />
                     </td>
-                    <td className="px-3 py-2.5 text-muted">{r.industry ?? "—"}</td>
-                    <td className="px-3 py-2.5 text-muted">{r.city ?? "—"}</td>
-                    <td className="px-3 py-2.5 text-center">{r.contacts || "—"}</td>
-                    <td className="px-3 py-2.5 text-center">{r.openDeals || "—"}</td>
-                    <td className="px-3 py-2.5">{owner ? <span className="flex items-center gap-1.5"><Avatar name={owner.name} color={owner.avatarColor} size={20} /> {owner.name}</span> : "—"}</td>
+                    <td className="px-3 py-3 text-muted">{r.industry ?? "—"}</td>
+                    <td className="px-3 py-3 text-muted">{r.city ?? "—"}</td>
+                    <td className="px-3 py-3 text-center">{r.contacts || "—"}</td>
+                    <td className="px-3 py-3 text-center">{r.openDeals || "—"}</td>
+                    <td className="px-3 py-3">{owner ? <span className="flex items-center gap-1.5"><Avatar name={owner.name} color={owner.avatarColor} size={20} /> {owner.name}</span> : "—"}</td>
                   </tr>
                 );
               })}

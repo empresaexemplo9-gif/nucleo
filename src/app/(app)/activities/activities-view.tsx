@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { CalendarCheck, CalendarDays, ChevronLeft, ChevronRight, List, Plus } from "lucide-react";
-import { Button, Card, cn, EmptyState, Modal, Select, Tabs } from "@/components/ui";
+import { Button, Card, cn, EmptyState, Modal, PageHeader, Select, Tabs } from "@/components/ui";
 import { ActivityRow, type FeedActivity } from "@/components/feed";
 import { ActivityForm } from "@/components/forms/activity-form";
 import { ActivityIcon } from "@/components/activity-icon";
@@ -46,9 +46,18 @@ export function ActivitiesView({
   const groupLabel = (k: string) => (k === "sem-data" ? "Sem data" : k === today ? "Hoje" : k === tomorrow ? "Amanhã" : date(new Date(k + "T12:00:00Z"), "pt-BR", { weekday: "long", day: "2-digit", month: "long" }));
 
   return (
-    <div className="mx-auto max-w-6xl p-4 lg:p-6">
+    <div className="mx-auto max-w-6xl p-4 lg:p-8">
+      <PageHeader
+        icon={<CalendarCheck />}
+        title={labels.activity.plural}
+        description="Ligações, reuniões e tarefas da equipe — nada de follow-up esquecido."
+        actions={
+          <Button onClick={() => quick("activity")}>
+            <Plus className="size-4" /> {labels.activity.singular}
+          </Button>
+        }
+      />
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <h1 className="mr-2 text-xl font-semibold">{labels.activity.plural}</h1>
         <Tabs
           value={view}
           onChange={(v) => set("view", v === "list" ? "" : v)}
@@ -70,9 +79,6 @@ export function ActivitiesView({
             <option key={k} value={k}>{v.label}</option>
           ))}
         </Select>
-        <Button className="ml-auto" onClick={() => quick("activity")}>
-          <Plus className="size-4" /> {labels.activity.singular}
-        </Button>
       </div>
 
       {view === "list" ? (
@@ -90,9 +96,9 @@ export function ActivitiesView({
                 key={k}
                 onClick={() => set("when", k === "pending" ? "" : k!)}
                 className={cn(
-                  "rounded-full border px-3 py-1 text-xs font-medium transition",
-                  when === k ? "border-brand bg-brand text-white" : "border-line bg-surface text-muted hover:text-fg",
-                  k === "overdue" && counts.overdue > 0 && when !== k && "border-red-300 text-red-600",
+                  "rounded-full border px-3.5 py-1.5 text-xs font-semibold shadow-soft transition",
+                  when === k ? "border-brand bg-brand text-white shadow-[0_4px_12px_-4px_color-mix(in_oklab,var(--brand)_70%,transparent)]" : "border-line bg-surface text-fg-2 hover:border-line-strong",
+                  k === "overdue" && counts.overdue > 0 && when !== k && "border-rose-300 text-rose-600",
                 )}
               >
                 {l}
@@ -167,7 +173,7 @@ function MonthCalendar({ activities, month, onEdit }: { activities: FeedActivity
           const list = activities.filter((a) => a.dueAt && dayKey(a.dueAt) === dayKey(d));
           const out = d.getMonth() !== m.getMonth();
           return (
-            <div key={d.toISOString()} className={cn("min-h-24 border-b border-r border-line p-1.5", out && "bg-surface-2/50")}>
+            <div key={d.toISOString()} className={cn("min-h-28 border-b border-r border-line p-1.5 transition hover:bg-surface-2/40", out && "bg-surface-2/50")}>
               <span className={cn("inline-flex size-6 items-center justify-center rounded-full text-xs", dayKey(d) === today ? "bg-brand font-semibold text-white" : out ? "text-muted/60" : "text-muted")}>
                 {d.getDate()}
               </span>
@@ -176,7 +182,7 @@ function MonthCalendar({ activities, month, onEdit }: { activities: FeedActivity
                   <button
                     key={a.id}
                     onClick={() => onEdit(a)}
-                    className={cn("flex w-full items-center gap-1 truncate rounded px-1 py-0.5 text-left text-[11px]", a.done ? "text-muted line-through" : "bg-brand/10 text-brand")}
+                    className={cn("flex w-full items-center gap-1 truncate rounded-md px-1.5 py-0.5 text-left text-[11px] font-medium transition hover:brightness-95", a.done ? "text-muted line-through" : "bg-brand/10 text-brand")}
                   >
                     <ActivityIcon type={a.type} className="size-3 shrink-0" />
                     <span className="truncate">{date(a.dueAt, "pt-BR", { hour: "2-digit", minute: "2-digit" })} {a.title}</span>

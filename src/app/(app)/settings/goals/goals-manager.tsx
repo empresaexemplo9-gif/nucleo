@@ -15,7 +15,7 @@ export function GoalsManager({ goals }: { goals: { id: string; period: string; m
   return (
     <div className="space-y-4">
       <Card className="p-5">
-        <h2 className="font-semibold">Definir meta</h2>
+        <h2 className="text-base font-bold">Definir meta</h2>
         <p className="mb-4 text-sm text-muted">Metas mensais da empresa ou por vendedor. A meta de receita da empresa aparece no painel.</p>
         <form
           onSubmit={(e) => {
@@ -39,7 +39,7 @@ export function GoalsManager({ goals }: { goals: { id: string; period: string; m
         </form>
       </Card>
       <Card className="p-5">
-        <h2 className="mb-3 font-semibold">Acompanhamento</h2>
+        <h2 className="mb-3 text-base font-bold">Acompanhamento</h2>
         <div className="space-y-3">
           {goals.map((g) => {
             const pct = g.target ? Math.round((g.actual / g.target) * 100) : 0;

@@ -2,8 +2,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ArrowLeft, Building2, Globe, Pencil, Phone, Plus, Trash2 } from "lucide-react";
-import { Avatar, Button, Card, Modal } from "@/components/ui";
+import { Users, ArrowLeft, Building2, Globe, Pencil, Phone, Plus, Trash2 } from "lucide-react";
+import { Avatar, Button, Card, CardHeader, colorFor, Modal } from "@/components/ui";
 import { CustomFieldValues, InfoRow } from "@/components/custom-fields";
 import { TagList } from "@/components/pickers";
 import { Feed, type FeedActivity, type FeedEvent, type FeedNote } from "@/components/feed";
@@ -34,20 +34,21 @@ export function CompanyDetail({
   const self = { id: company.id, label: company.name };
   const site = company.website && (company.website.startsWith("http") ? company.website : `https://${company.website}`);
   return (
-    <div className="mx-auto max-w-7xl p-4 lg:p-6">
-      <Link href="/companies" className="mb-3 inline-flex items-center gap-1 text-sm text-muted hover:text-fg">
+    <div className="mx-auto max-w-[1400px] p-4 lg:p-8">
+      <Link href="/companies" className="mb-4 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm text-muted transition hover:bg-surface hover:text-fg">
         <ArrowLeft className="size-4" /> {labels.company.plural}
       </Link>
-      <Card className="flex flex-wrap items-center gap-4 p-5">
-        <span className="flex size-14 items-center justify-center rounded-2xl bg-brand/10 text-brand">
-          <Building2 className="size-7" />
+      <Card className="relative flex flex-wrap items-center gap-5 overflow-hidden p-6">
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(160deg,color-mix(in_oklab,var(--brand)_12%,transparent),color-mix(in_oklab,var(--accent)_5%,transparent)_40%,transparent_65%)]" />
+        <span className="relative flex size-16 items-center justify-center rounded-2xl text-2xl font-bold text-white shadow-lift" style={{ background: `linear-gradient(140deg, color-mix(in oklab, ${colorFor(company.name)} 80%, white), ${colorFor(company.name)})` }}>
+          {company.name[0]}
         </span>
-        <div className="min-w-0 flex-1">
-          <h1 className="text-xl font-semibold">{company.name}</h1>
+        <div className="relative min-w-0 flex-1">
+          <h1 className="text-2xl font-bold">{company.name}</h1>
           <p className="text-sm text-muted">{[company.industry, company.city, company.state].filter(Boolean).join(" · ") || "—"}</p>
           <div className="mt-1.5"><TagList tags={company.tags} /></div>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="relative flex flex-wrap gap-2">
           {site && <a href={site} target="_blank" rel="noreferrer"><Button variant="secondary"><Globe className="size-4" /> Site</Button></a>}
           {company.phone && <a href={`tel:${company.phone}`}><Button variant="secondary"><Phone className="size-4" /> Ligar</Button></a>}
           {can("SALES") && <Button variant="secondary" onClick={() => setEditing(true)}><Pencil className="size-4" /> Editar</Button>}
@@ -60,8 +61,8 @@ export function CompanyDetail({
       </Card>
       <div className="mt-4 grid gap-4 lg:grid-cols-[360px_1fr]">
         <div className="space-y-4">
-          <Card className="p-4">
-            <h3 className="mb-2 text-sm font-semibold">Informações</h3>
+          <Card className="p-5">
+            <CardHeader icon={<Building2 />} title="Informações" />
             <InfoRow label="Documento" value={company.document} />
             <InfoRow label="Porte" value={company.size} />
             <InfoRow label="Telefone" value={company.phone} />
@@ -71,15 +72,16 @@ export function CompanyDetail({
             <InfoRow label="Criada em" value={date(company.createdAt)} />
             <CustomFieldValues entity="COMPANY" values={company.customFields} />
           </Card>
-          <Card className="p-4">
-            <div className="mb-2 flex items-center justify-between">
-              <h3 className="text-sm font-semibold">{labels.contact.plural} <span className="font-normal text-muted">({contacts.length})</span></h3>
-              {can("SALES") && <Button size="sm" variant="ghost" onClick={() => quick("contact", { company: self })}><Plus className="size-3.5" /> Novo</Button>}
-            </div>
+          <Card className="p-5">
+            <CardHeader
+              icon={<Users />}
+              title={<>{labels.contact.plural} <span className="font-normal text-muted">({contacts.length})</span></>}
+              action={can("SALES") && <Button size="sm" variant="soft" onClick={() => quick("contact", { company: self })}><Plus className="size-3.5" /> Novo</Button>}
+            />
             <div className="divide-y divide-line">
               {contacts.map((c) => (
                 <Link key={c.id} href={`/contacts/${c.id}`} className="flex items-center gap-2 py-2 text-sm hover:text-brand">
-                  <Avatar name={c.name} size={26} color="#94a3b8" />
+                  <Avatar name={c.name} size={32} />
                   <span className="min-w-0">
                     <span className="block truncate font-medium">{c.name}</span>
                     <span className="block truncate text-xs text-muted">{c.position ?? c.email ?? c.phone}</span>

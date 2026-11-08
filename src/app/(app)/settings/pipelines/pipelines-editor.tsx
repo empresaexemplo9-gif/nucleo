@@ -19,7 +19,7 @@ export function PipelinesEditor({ pipelines }: { pipelines: P[] }) {
   return (
     <div className="space-y-4">
       <Card className="p-5">
-        <h2 className="font-semibold">Funis de vendas</h2>
+        <h2 className="text-base font-bold">Funis de vendas</h2>
         <p className="mb-4 text-sm text-muted">Crie quantos funis precisar — ex.: Vendas novas, Renovação, Pós-venda, Parcerias.</p>
         <div className="flex flex-wrap gap-2">
           {pipelines.map((x) => (

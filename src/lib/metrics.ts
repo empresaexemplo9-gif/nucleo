@@ -48,3 +48,18 @@ export async function wonByMonth(where: Prisma.DealWhereInput, months = 6) {
     };
   });
 }
+
+/** Período imediatamente anterior, com a mesma duração (para comparação). */
+export function previousRange(p: Period): { from: Date; to: Date } {
+  const { from, to } = periodRange(p);
+  if (p === "month" || p === "last_month") return { from: new Date(from.getFullYear(), from.getMonth() - 1, 1), to: from };
+  if (p === "quarter") return { from: new Date(from.getFullYear(), from.getMonth() - 3, 1), to: from };
+  if (p === "year") return { from: new Date(from.getFullYear() - 1, 0, 1), to: from };
+  const len = to.getTime() - from.getTime();
+  return { from: new Date(from.getTime() - len), to: from };
+}
+
+export function delta(cur: number, prev: number) {
+  if (!prev) return cur ? 100 : null;
+  return ((cur - prev) / prev) * 100;
+}
