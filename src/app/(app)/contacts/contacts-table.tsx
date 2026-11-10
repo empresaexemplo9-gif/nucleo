@@ -39,7 +39,7 @@ export function ContactsTable({ rows, total, page, pageSize, filters, lifecycleC
   const ids = Array.from(sel);
 
   return (
-    <div className="mx-auto max-w-[1400px] px-4 pb-16 pt-8 lg:px-8">
+    <div className="w-full px-4 pb-16 pt-8 lg:px-8">
       <PageHeader eyebrow="02 / Relacionamento"
         icon={<Users />}
         title={labels.contact.plural}

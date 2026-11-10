@@ -20,7 +20,7 @@ export function CompaniesTable({ rows, total, page, pageSize, filters }: { rows:
   const { run, pending } = useAction();
   const ids = Array.from(sel);
   return (
-    <div className="mx-auto max-w-[1400px] px-4 pb-16 pt-8 lg:px-8">
+    <div className="w-full px-4 pb-16 pt-8 lg:px-8">
       <PageHeader eyebrow="03 / Relacionamento"
         icon={<Building2 />}
         title={labels.company.plural}

@@ -33,7 +33,7 @@ export function ContactDetail({
   const self = { id: contact.id, label: contact.name };
 
   return (
-    <div className="mx-auto max-w-[1400px] px-4 pb-16 pt-8 lg:px-8">
+    <div className="w-full px-4 pb-16 pt-8 lg:px-8">
       <Link href="/contacts" className="mb-4 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm text-muted transition hover:bg-surface hover:text-fg">
         <ArrowLeft className="size-4" /> {labels.contact.plural}
       </Link>
@@ -68,7 +68,7 @@ export function ContactDetail({
         </div>
       </Card>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-[360px_1fr]">
+      <div className="mt-4 grid gap-4 lg:grid-cols-[360px_1fr] 2xl:grid-cols-[440px_1fr]">
         <div className="space-y-4">
           <Card className="p-5">
             <CardHeader icon={<Info />} title="Informações" />

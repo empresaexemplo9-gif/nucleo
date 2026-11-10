@@ -46,7 +46,7 @@ export function ActivitiesView({
   const groupLabel = (k: string) => (k === "sem-data" ? "Sem data" : k === today ? "Hoje" : k === tomorrow ? "Amanhã" : date(new Date(k + "T12:00:00Z"), "pt-BR", { weekday: "long", day: "2-digit", month: "long" }));
 
   return (
-    <div className="mx-auto max-w-6xl px-4 pb-16 pt-8 lg:px-8">
+    <div className="w-full px-4 pb-16 pt-8 lg:px-8">
       <PageHeader eyebrow="04 / Agenda"
         icon={<CalendarCheck />}
         title={labels.activity.plural}
@@ -112,7 +112,7 @@ export function ActivitiesView({
                   <h3 className={cn("mb-2 text-xs font-semibold uppercase tracking-wide", k !== "sem-data" && k < today && when !== "done" ? "text-err" : "text-muted")}>
                     {groupLabel(k)} <span className="font-normal">· {list.length}</span>
                   </h3>
-                  <div className="space-y-2">
+                  <div className="grid gap-2 xl:grid-cols-2 min-[1800px]:grid-cols-3">
                     {list.map((a) => (
                       <ActivityRow key={a.id} a={a} onEdit={() => setEdit(a)} showLinks />
                     ))}

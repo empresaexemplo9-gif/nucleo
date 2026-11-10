@@ -104,7 +104,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const L = ctx.labels;
 
   return (
-    <div className="mx-auto max-w-[1400px] space-y-4 px-4 pb-16 pt-8 lg:px-8">
+    <div className="w-full space-y-4 px-4 pb-16 pt-8 lg:px-8">
       <PageHeader eyebrow="06 / Análise"
         icon={<BarChart3 />}
         title="Relatórios de vendas" highlight="vendas"

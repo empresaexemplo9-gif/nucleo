@@ -1,7 +1,7 @@
 export default function Loading() {
   const block = "animate-pulse rounded-[var(--radius)] bg-surface-3/70";
   return (
-    <div className="mx-auto max-w-[1400px] space-y-4 p-4 lg:p-8" aria-busy="true" aria-label="Carregando">
+    <div className="w-full space-y-4 p-4 lg:p-8" aria-busy="true" aria-label="Carregando">
       <div className="flex items-center gap-3.5">
         <div className={`${block} size-11`} />
         <div className="space-y-2">

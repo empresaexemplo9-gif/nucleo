@@ -14,7 +14,7 @@ export function ProductsView({ products }: { products: P[] }) {
   const { run, pending } = useAction();
   const cur = edit === "new" ? null : edit;
   return (
-    <div className="mx-auto max-w-6xl px-4 pb-16 pt-8 lg:px-8">
+    <div className="w-full px-4 pb-16 pt-8 lg:px-8">
       <PageHeader eyebrow="05 / Catálogo"
         icon={<Package />}
         title={labels.product.plural}

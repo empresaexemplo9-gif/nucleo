@@ -120,7 +120,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const ticker = winsTicker.length ? winsTicker : (pipeline?.stages ?? []).map((st) => st.name);
 
   return (
-    <div className="mx-auto max-w-[1320px] px-4 pb-16 pt-8 lg:px-8">
+    <div className="w-full px-4 pb-16 pt-8 lg:px-8">
       {sp.welcome && <Welcome />}
 
       {/* ======== Hero editorial ======== */}

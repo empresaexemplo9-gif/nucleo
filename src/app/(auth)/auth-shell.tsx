@@ -29,7 +29,7 @@ export function AuthShell({
       <div aria-hidden className="bg-noise" />
 
       <header className="glass-nav sticky top-0 z-10 border-b border-line">
-        <div className="mx-auto flex h-16 max-w-[1280px] items-center gap-3 px-4 lg:px-6">
+        <div className="flex h-16 w-full items-center gap-3 px-4 lg:px-8">
           <BrandMark logoUrl={brand.logoUrl} />
           <div className="leading-tight">
             <p className="text-[15px] font-semibold tracking-[-0.02em]">{brand.name}</p>
@@ -41,7 +41,7 @@ export function AuthShell({
         </div>
       </header>
 
-      <main className="mx-auto grid max-w-[1280px] items-center gap-12 px-4 py-12 lg:grid-cols-[1.15fr_1fr] lg:px-6 lg:py-20">
+      <main className="grid w-full items-center gap-12 px-4 py-12 lg:grid-cols-[1.15fr_1fr] lg:px-8 lg:py-20 2xl:gap-24 2xl:px-16">
         <section className="animate-rise hidden lg:block">
           <span className="glass-pill mono-label inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[10.5px] text-fg-2">
             <span className="size-1.5 rounded-full bg-[var(--accent)]" /> crm://acesso · v2026.11

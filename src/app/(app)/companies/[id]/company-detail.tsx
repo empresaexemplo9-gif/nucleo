@@ -34,7 +34,7 @@ export function CompanyDetail({
   const self = { id: company.id, label: company.name };
   const site = company.website && (company.website.startsWith("http") ? company.website : `https://${company.website}`);
   return (
-    <div className="mx-auto max-w-[1400px] px-4 pb-16 pt-8 lg:px-8">
+    <div className="w-full px-4 pb-16 pt-8 lg:px-8">
       <Link href="/companies" className="mb-4 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm text-muted transition hover:bg-surface hover:text-fg">
         <ArrowLeft className="size-4" /> {labels.company.plural}
       </Link>
@@ -58,7 +58,7 @@ export function CompanyDetail({
           )}
         </div>
       </Card>
-      <div className="mt-4 grid gap-4 lg:grid-cols-[360px_1fr]">
+      <div className="mt-4 grid gap-4 lg:grid-cols-[360px_1fr] 2xl:grid-cols-[440px_1fr]">
         <div className="space-y-4">
           <Card className="p-5">
             <CardHeader icon={<Building2 />} title="Informações" />
