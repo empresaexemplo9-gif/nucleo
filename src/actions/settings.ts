@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { checkPassword, hashPassword, requireContext, requireRole } from "@/lib/auth";
 import { slugify } from "@/lib/format";
 import { DEFAULT_LABELS, type Labels, type OrgSettings } from "@/lib/labels";
+import { RADII, SANS_FONTS, SERIF_FONTS, SURFACES } from "@/lib/theme-options";
 import { fail, moneyOf, numOr, str } from "./helpers";
 import type { ActionResult } from "@/components/use-action";
 
@@ -16,6 +17,13 @@ const done = (message = "Configurações salvas"): ActionResult => {
 
 /* ------------------------- Marca / whitelabel ------------------------- */
 
+/** Logo: link https ou imagem embutida (data URL) de tipos seguros e tamanho limitado. */
+function isValidLogo(v: string) {
+  if (/^https:\/\/[^\s"'<>]+$/i.test(v)) return v.length <= 2000;
+  const m = /^data:image\/(png|jpeg|webp|svg\+xml);base64,([A-Za-z0-9+/=]+)$/.exec(v);
+  return !!m && m[2]!.length <= 800_000;
+}
+
 export async function updateBranding(fd: FormData): Promise<ActionResult> {
   try {
     const ctx = await requireRole("ADMIN");
@@ -24,13 +32,31 @@ export async function updateBranding(fd: FormData): Promise<ActionResult> {
       const taken = await db.organization.findFirst({ where: { customDomain, NOT: { id: ctx.org.id } } });
       if (taken) return { ok: false, error: "Este domínio já está em uso" };
     }
+    const logoUrl = str(fd, "logoUrl");
+    if (logoUrl && !isValidLogo(logoUrl)) return { ok: false, error: "Logotipo inválido: use um link https ou uma imagem PNG, JPG, WebP ou SVG de até 600 KB" };
+    const hex = (k: string) => {
+      const v = str(fd, k);
+      return v && /^#[0-9a-fA-F]{6}$/.test(v) ? v.toLowerCase() : null;
+    };
+    const pick = (k: string, allowed: string[]) => {
+      const v = str(fd, k);
+      return v && allowed.includes(v) ? v : undefined;
+    };
+    const brand = {
+      ...ctx.settings.brand,
+      font: pick("font", SANS_FONTS.map((f) => f.key)) ?? ctx.settings.brand.font,
+      serifFont: pick("serifFont", SERIF_FONTS.map((f) => f.key)) ?? ctx.settings.brand.serifFont,
+      surface: pick("surface", SURFACES.map((f) => f.key)) ?? ctx.settings.brand.surface,
+      radius: pick("radius", RADII.map((f) => f.key)) ?? ctx.settings.brand.radius,
+    };
     await db.organization.update({
       where: { id: ctx.org.id },
       data: {
         name: str(fd, "name") ?? ctx.org.name,
-        logoUrl: str(fd, "logoUrl"),
-        primaryColor: str(fd, "primaryColor") ?? ctx.org.primaryColor,
-        accentColor: str(fd, "accentColor") ?? ctx.org.accentColor,
+        logoUrl,
+        settings: { ...(ctx.org.settings as object), brand },
+        primaryColor: hex("primaryColor") ?? ctx.org.primaryColor,
+        accentColor: hex("accentColor") ?? ctx.org.accentColor,
         currency: str(fd, "currency") ?? ctx.org.currency,
         locale: str(fd, "locale") ?? ctx.org.locale,
         timezone: str(fd, "timezone") ?? ctx.org.timezone,

@@ -34,6 +34,8 @@ export type OrgSettings = {
   modules: { products: boolean; goals: boolean; automations: boolean; companies: boolean };
   requireLostReason: boolean;
   weekStartsOn: 0 | 1;
+  /** Personalização visual (whitelabel) */
+  brand: { font?: string; serifFont?: string; surface?: string; radius?: string };
 };
 
 export const DEFAULT_SETTINGS: OrgSettings = {
@@ -41,6 +43,7 @@ export const DEFAULT_SETTINGS: OrgSettings = {
   modules: { products: true, goals: true, automations: true, companies: true },
   requireLostReason: true,
   weekStartsOn: 1,
+  brand: {},
 };
 
 export function resolveSettings(raw: unknown): OrgSettings {
@@ -49,5 +52,6 @@ export function resolveSettings(raw: unknown): OrgSettings {
     ...DEFAULT_SETTINGS,
     ...r,
     modules: { ...DEFAULT_SETTINGS.modules, ...(r.modules ?? {}) },
+    brand: { ...(r.brand ?? {}) },
   };
 }

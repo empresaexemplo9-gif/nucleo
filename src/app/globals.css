@@ -30,6 +30,10 @@
   --radius:14px; --radius-sm:8px;
   --ease:cubic-bezier(.2,.7,.1,1);
 
+  /* Fontes ativas (sobrescritas pela personalização da empresa) */
+  --app-font: var(--font-inter-tight), "Inter Tight", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --app-serif: var(--font-instrument), "Instrument Serif", Georgia, serif;
+
   /* Extensões do CRM (derivadas dos tokens acima) */
   --brand: var(--accent-text);      /* destaque interativo: texto e preenchimentos */
   --on-brand: var(--on-accent);
@@ -98,10 +102,10 @@
   --color-warn: var(--warn);
   --color-well: var(--well);
   --color-tint: var(--tint-2);
-  --font-sans: var(--font-inter-tight), "Inter Tight", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-serif: var(--font-instrument), "Instrument Serif", Georgia, serif;
+  --font-sans: var(--app-font);
+  --font-serif: var(--app-serif);
   --font-mono: var(--font-jetbrains), "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-  --font-display: var(--font-inter-tight), "Inter Tight", system-ui, sans-serif;
+  --font-display: var(--app-font);
   --radius-card: var(--radius);
   --shadow-soft: 0 1px 2px var(--tint-2);
   --shadow-card: 0 20px 50px -30px var(--shadow);
@@ -118,14 +122,14 @@ body {
 }
 
 body {
-  font-family: var(--font-sans);
+  font-family: var(--app-font);
   font-size: 15px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
 
 h1, h2, h3, .font-display {
-  font-family: var(--font-display);
+  font-family: var(--app-font);
   letter-spacing: -0.03em;
 }
 
@@ -134,7 +138,7 @@ h1, h2, h3, .font-display {
 ::selection { background: color-mix(in oklab, var(--accent) 30%, transparent); }
 
 /* ---------- Tipografia editorial ---------- */
-.serif-i { font-family: var(--font-serif); font-style: italic; font-weight: 400; letter-spacing: -0.01em; }
+.serif-i { font-family: var(--app-serif); font-style: italic; font-weight: 400; letter-spacing: -0.01em; }
 .text-grad { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .eyebrow {
   font-family: var(--font-mono);

@@ -2,6 +2,7 @@ import "server-only";
 import { headers } from "next/headers";
 import { db } from "./db";
 import { DRAP_PRIMARY, DRAP_SECONDARY } from "./brand-colors";
+import { resolveSettings } from "./labels";
 
 export const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || "Núcleo CRM";
 
@@ -17,5 +18,6 @@ export async function getPublicBrand(slug?: string | null) {
     logoUrl: org?.logoUrl ?? null,
     primaryColor: org?.primaryColor ?? DRAP_PRIMARY,
     accentColor: org?.accentColor ?? DRAP_SECONDARY,
+    theme: resolveSettings(org?.settings).brand,
   };
 }

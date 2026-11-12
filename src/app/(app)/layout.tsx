@@ -3,6 +3,7 @@ import { requireContext } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { setTimeZone } from "@/lib/format";
 import { brandOverrideCss } from "@/lib/brand-colors";
+import { googleFontsHref, themeCss } from "@/lib/theme-options";
 import { OrgProvider } from "@/components/org-context";
 import { AppShell } from "@/components/shell";
 
@@ -10,7 +11,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const ctx = await requireContext();
   const orgId = ctx.org.id;
   setTimeZone(ctx.org.timezone);
-  const brandCss = brandOverrideCss(ctx.org.primaryColor, ctx.org.accentColor);
+  const brandCss = brandOverrideCss(ctx.org.primaryColor, ctx.org.accentColor) + themeCss(ctx.settings.brand);
+  const fontsHref = googleFontsHref(ctx.settings.brand);
   const [members, tags, fields, pipelines, lostReasons, myOrgs, overdue] = await Promise.all([
     db.membership.findMany({ where: { orgId, active: true }, include: { user: true }, orderBy: { user: { name: "asc" } } }),
     db.tag.findMany({ where: { orgId }, orderBy: { name: "asc" } }),
@@ -41,6 +43,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         lostReasons: lostReasons.map((l) => l.label),
       }}
     >
+      {fontsHref && <link rel="stylesheet" href={fontsHref} precedence="default" />}
       {brandCss && <style>{brandCss}</style>}
       <AppShell dark={(await cookies()).get("theme")?.value === "dark"} orgs={myOrgs.map((m) => ({ id: m.org.id, name: m.org.name }))} overdue={overdue}>
         {children}

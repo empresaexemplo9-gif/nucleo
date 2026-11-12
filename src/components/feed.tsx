@@ -142,7 +142,7 @@ export function Feed({
                   {it.e.data?.reason && <> — {it.e.data.reason}</>}
                   {it.e.data?.name && <> — {it.e.data.name}</>}
                   {it.e.data?.title && <> — {it.e.data.title}</>}
-                  <span className="ml-1.5" title={dateTime(it.e.createdAt)}>· {relative(it.e.createdAt)}</span>
+                  <span className="ml-1.5" title={dateTime(it.e.createdAt)} suppressHydrationWarning>· {relative(it.e.createdAt)}</span>
                 </span>
               </div>
             ),
@@ -216,7 +216,7 @@ function NoteRow({ n }: { n: FeedNote }) {
     <Card className={cn("group relative flex gap-3 p-3.5", n.pinned ? "border-warn/40 bg-warn/5" : "")}>
       <span className="z-10">{author ? <Avatar name={author.name} color={author.avatarColor} size={34} ring /> : <MessageSquare className="size-5 text-muted" />}</span>
       <div className="min-w-0 flex-1">
-        <p className="text-xs text-muted">
+        <p className="text-xs text-muted" suppressHydrationWarning>
           <b className="text-fg">{author?.name ?? "Sistema"}</b> · {relative(n.createdAt)}{n.pinned && <span className="ml-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-warn">· fixada</span>}
         </p>
         <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-fg-2">{n.content}</p>

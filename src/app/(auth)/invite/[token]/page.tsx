@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { resolveSettings } from "@/lib/labels";
 import { DRAP_PRIMARY, DRAP_SECONDARY } from "@/lib/brand-colors";
 import { db } from "@/lib/db";
 import { AuthShell } from "../../auth-shell";
@@ -18,7 +19,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
   }
   const existing = !!(await db.user.findUnique({ where: { email: invite.email } }));
   return (
-    <AuthShell brand={invite.org} title={`Entrar em ${invite.org.name}`} subtitle="Você foi convidado para fazer parte da equipe.">
+    <AuthShell brand={{ ...invite.org, theme: resolveSettings(invite.org.settings).brand }} title={`Entrar em ${invite.org.name}`} subtitle="Você foi convidado para fazer parte da equipe.">
       <InviteForm token={token} email={invite.email} existing={existing} />
     </AuthShell>
   );

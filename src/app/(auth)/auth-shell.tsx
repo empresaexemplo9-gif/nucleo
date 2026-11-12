@@ -1,4 +1,5 @@
 import { brandOverrideCss } from "@/lib/brand-colors";
+import { googleFontsHref, themeCss, type BrandTheme } from "@/lib/theme-options";
 import { BrandMark } from "@/components/brand-mark";
 import { Terminal } from "@/components/terminal";
 
@@ -10,14 +11,16 @@ export function AuthShell({
   subtitle,
   children,
 }: {
-  brand: { name: string; logoUrl: string | null; primaryColor: string; accentColor: string };
+  brand: { name: string; logoUrl: string | null; primaryColor: string; accentColor: string; theme?: BrandTheme };
   title: string;
   subtitle: string;
   children: React.ReactNode;
 }) {
-  const css = brandOverrideCss(brand.primaryColor, brand.accentColor);
+  const css = brandOverrideCss(brand.primaryColor, brand.accentColor) + themeCss(brand.theme ?? {});
+  const fontsHref = googleFontsHref(brand.theme ?? {});
   return (
     <div className="relative min-h-screen">
+      {fontsHref && <link rel="stylesheet" href={fontsHref} precedence="default" />}
       {css && <style>{css}</style>}
       <div aria-hidden className="bg-grid" />
       <div aria-hidden className="bg-orbs">
