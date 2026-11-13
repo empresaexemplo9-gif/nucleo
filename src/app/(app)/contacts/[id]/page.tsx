@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { requireContext, ownerScope } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { loadFeed } from "@/lib/feed-data";
+import { loadLinkedRecords } from "@/lib/linked-records";
 import { ContactDetail } from "./contact-detail";
 
 export default async function ContactPage({ params }: { params: Promise<{ id: string }> }) {
@@ -12,7 +13,7 @@ export default async function ContactPage({ params }: { params: Promise<{ id: st
     include: { company: true, deals: { include: { stage: true }, orderBy: { createdAt: "desc" } } },
   });
   if (!c) notFound();
-  const feed = await loadFeed({ contactId: id });
+  const [feed, linked] = await Promise.all([loadFeed({ contactId: id }), loadLinkedRecords(ctx, { contactId: id })]);
   return (
     <ContactDetail
       contact={{
@@ -33,6 +34,7 @@ export default async function ContactPage({ params }: { params: Promise<{ id: st
       }}
       deals={c.deals.map((d) => ({ id: d.id, title: d.title, value: Number(d.value), status: d.status, stage: d.stage.name, color: d.stage.color }))}
       feed={feed}
+      linked={linked}
     />
   );
 }

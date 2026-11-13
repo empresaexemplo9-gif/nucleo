@@ -8,6 +8,7 @@ export async function logEvent(input: {
   dealId?: string | null;
   contactId?: string | null;
   companyId?: string | null;
+  recordId?: string | null;
   data?: Prisma.InputJsonValue;
 }) {
   await db.timelineEvent.create({ data: { ...input, data: input.data ?? {} } });

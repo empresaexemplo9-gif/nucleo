@@ -8,6 +8,7 @@ import { CustomFieldValues, InfoRow } from "@/components/custom-fields";
 import { TagList } from "@/components/pickers";
 import { Feed, type FeedActivity, type FeedEvent, type FeedNote } from "@/components/feed";
 import { ContactForm, type ContactFormValues } from "@/components/forms/contact-form";
+import { LinkedRecords, type LinkedRecord } from "@/components/linked-records";
 import { RelatedDeals, type RelatedDeal } from "@/components/related-deals";
 import { useOrg } from "@/components/org-context";
 import { useAction } from "@/components/use-action";
@@ -19,10 +20,12 @@ export function ContactDetail({
   contact,
   deals,
   feed,
+  linked,
 }: {
   contact: ContactFormValues & { createdAt: string };
   deals: RelatedDeal[];
   feed: { activities: FeedActivity[]; notes: FeedNote[]; events: FeedEvent[] };
+  linked: LinkedRecord[];
 }) {
   const { labels, member, can } = useOrg();
   const [editing, setEditing] = useState(false);
@@ -86,6 +89,7 @@ export function ContactDetail({
             <CustomFieldValues entity="CONTACT" values={contact.customFields} />
           </Card>
           <RelatedDeals deals={deals} defaults={{ contact: self, company: contact.company }} />
+          <LinkedRecords records={linked} />
         </div>
         <Feed {...feed} link={{ contact: self, company: contact.company }} />
       </div>

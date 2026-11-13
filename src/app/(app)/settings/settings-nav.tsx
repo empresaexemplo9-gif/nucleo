@@ -27,6 +27,10 @@ export function SettingsNav() {
         can("MANAGER") && { href: "/settings/tags", label: "Etiquetas e motivos", desc: "Segmentação e perdas" },
       ],
     },
+    {
+      title: "Controle interno",
+      items: [can("ADMIN") && { href: "/settings/modules", label: "Módulos", desc: "Ordens, estoque, frota…" }],
+    },
     { title: "Pessoal", items: [{ href: "/settings/profile", label: "Meu perfil", desc: "Nome, senha, avatar" }] },
   ];
   let n = 0;
@@ -41,7 +45,7 @@ export function SettingsNav() {
             <div className="flex gap-1 overflow-x-auto md:flex-col">
               {items.map((i) => {
                 n += 1;
-                const active = pathname === i.href;
+                const active = pathname === i.href || (i.href === "/settings/modules" && pathname.startsWith("/settings/modules"));
                 return (
                   <Link
                     key={i.href}

@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { setTimeZone } from "@/lib/format";
 import { brandOverrideCss } from "@/lib/brand-colors";
 import { googleFontsHref, themeCss } from "@/lib/theme-options";
+import { canEditModule, visibleModules } from "@/lib/modules";
 import { OrgProvider } from "@/components/org-context";
 import { AppShell } from "@/components/shell";
 
@@ -23,7 +24,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   setTimeZone(ctx.org.timezone);
   const brandCss = brandOverrideCss(ctx.org.primaryColor, ctx.org.accentColor) + themeCss(ctx.settings.brand);
   const fontsHref = googleFontsHref(ctx.settings.brand);
-  const [members, tags, fields, pipelines, lostReasons, myOrgs, overdue] = await Promise.all([
+  const [members, tags, fields, pipelines, lostReasons, myOrgs, overdue, modules] = await Promise.all([
     db.membership.findMany({ where: { orgId, active: true }, include: { user: true }, orderBy: { user: { name: "asc" } } }),
     db.tag.findMany({ where: { orgId }, orderBy: { name: "asc" } }),
     db.customField.findMany({ where: { orgId }, orderBy: { position: "asc" } }),
@@ -31,6 +32,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     db.lostReason.findMany({ where: { orgId }, orderBy: { label: "asc" } }),
     db.membership.findMany({ where: { userId: ctx.user.id, active: true }, include: { org: true } }),
     db.activity.count({ where: { orgId, done: false, assigneeId: ctx.user.id, dueAt: { lt: new Date() } } }),
+    visibleModules(ctx),
   ]);
 
   return (
@@ -51,6 +53,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           stages: p.stages.map((s) => ({ id: s.id, name: s.name, color: s.color, type: s.type, probability: s.probability })),
         })),
         lostReasons: lostReasons.map((l) => l.label),
+        modules: modules.map((m) => ({ key: m.key, name: m.name, singular: m.singular, icon: m.icon, color: m.color, group: m.group, canEdit: canEditModule(ctx, m) })),
       }}
     >
       {fontsHref && <link rel="stylesheet" href={fontsHref} precedence="default" />}

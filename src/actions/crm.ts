@@ -7,6 +7,13 @@ import { customFieldsOf, dateOf, fail, moneyOf, numOr, str, tagsOf } from "./hel
 import type { ActionResult } from "@/components/use-action";
 import type { ActivityType } from "@prisma/client";
 
+/** Garante que o registro de módulo pertence à empresa. */
+async function orgRecordId(orgId: string, id: string | null) {
+  if (!id) return null;
+  const r = await db.moduleRecord.findFirst({ where: { id, orgId }, select: { id: true } });
+  return r?.id ?? null;
+}
+
 /* ---------------------------- CONTATOS ---------------------------- */
 
 function contactData(fd: FormData) {
@@ -182,6 +189,7 @@ export async function saveActivity(id: string | null, fd: FormData): Promise<Act
       dealId: str(fd, "dealId"),
       contactId: str(fd, "contactId"),
       companyId: str(fd, "companyId"),
+      ...(fd.has("recordId") ? { recordId: await orgRecordId(ctx.org.id, str(fd, "recordId")) } : {}),
     };
     // herda contato/empresa do negócio
     if (data.dealId && (!data.contactId || !data.companyId)) {
@@ -244,6 +252,7 @@ export async function addNote(fd: FormData): Promise<ActionResult> {
         dealId: str(fd, "dealId"),
         contactId: str(fd, "contactId"),
         companyId: str(fd, "companyId"),
+        recordId: await orgRecordId(ctx.org.id, str(fd, "recordId")),
       },
     });
     revalidatePath("/", "layout");

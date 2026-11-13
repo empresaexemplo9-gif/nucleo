@@ -34,7 +34,7 @@ export function ActivityForm({
   onDone,
 }: {
   activity?: ActivityFormValues;
-  defaults?: { deal?: Option | null; contact?: Option | null; company?: Option | null; type?: string };
+  defaults?: { deal?: Option | null; contact?: Option | null; company?: Option | null; record?: Option | null; type?: string };
   onDone: () => void;
 }) {
   const { labels, user } = useOrg();
@@ -54,6 +54,7 @@ export function ActivityForm({
       className="space-y-4"
     >
       <input type="hidden" name="type" value={type} />
+      {!activity && defaults?.record && <input type="hidden" name="recordId" value={defaults.record.id} />}
       <div className="flex flex-wrap gap-1.5">
         {Object.entries(ACTIVITY_TYPES).map(([k, v]) => (
           <button

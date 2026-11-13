@@ -8,6 +8,7 @@ import { CustomFieldValues, InfoRow } from "@/components/custom-fields";
 import { TagList } from "@/components/pickers";
 import { Feed, type FeedActivity, type FeedEvent, type FeedNote } from "@/components/feed";
 import { CompanyForm, type CompanyFormValues } from "@/components/forms/company-form";
+import { LinkedRecords, type LinkedRecord } from "@/components/linked-records";
 import { RelatedDeals, type RelatedDeal } from "@/components/related-deals";
 import { useOrg } from "@/components/org-context";
 import { useQuickCreate } from "@/components/quick-create";
@@ -20,11 +21,13 @@ export function CompanyDetail({
   contacts,
   deals,
   feed,
+  linked,
 }: {
   company: CompanyFormValues & { createdAt: string };
   contacts: { id: string; name: string; position: string | null; email: string | null; phone: string | null }[];
   deals: RelatedDeal[];
   feed: { activities: FeedActivity[]; notes: FeedNote[]; events: FeedEvent[] };
+  linked: LinkedRecord[];
 }) {
   const { labels, member, can } = useOrg();
   const quick = useQuickCreate();
@@ -91,6 +94,7 @@ export function CompanyDetail({
             </div>
           </Card>
           <RelatedDeals deals={deals} defaults={{ company: self }} />
+          <LinkedRecords records={linked} />
         </div>
         <Feed {...feed} link={{ company: self }} />
       </div>

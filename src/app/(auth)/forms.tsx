@@ -35,7 +35,7 @@ export function LoginForm({ next, org, allowSignup }: { next?: string; org?: str
   );
 }
 
-const SEGMENTS = ["Serviços", "Software / SaaS", "Imobiliária", "Educação", "Saúde", "Indústria", "Varejo", "Agência / Marketing", "Consultoria", "Financeiro / Seguros", "Outro"];
+const SEGMENTS = ["Serviços", "Software / SaaS", "Construção / Arquitetura", "Imobiliária", "Agronegócio", "Indústria", "Varejo / Comércio", "Saúde / Clínicas", "Educação", "Jurídico / Advocacia", "Agência / Marketing", "Consultoria", "Financeiro / Seguros", "Outro"];
 
 export function RegisterForm() {
   const [state, action, pending] = useActionState(register, undefined);

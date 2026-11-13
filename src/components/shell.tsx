@@ -7,6 +7,7 @@ import { Avatar, Badge, Button, cn } from "./ui";
 import { BrandMark } from "./brand-mark";
 import { DrapSignature } from "./drap-signature";
 import { useOrg } from "./org-context";
+import { ModuleIcon } from "./module-icon";
 import { QuickCreateProvider, useQuickCreate } from "./quick-create";
 import { logout, setTheme, switchOrg } from "@/actions/auth";
 
@@ -61,13 +62,15 @@ function AppFooter() {
   );
 }
 
-type NavItem = { href: string; label: string; badge?: number };
+type NavItem = { href: string; label: string; badge?: number; dot?: string };
 
 function Sidebar({ orgs, overdue, onClose }: { orgs: { id: string; name: string }[]; overdue: number; onClose: () => void }) {
-  const { org, labels, settings, can, user, role } = useOrg();
+  const { org, labels, settings, can, user, role, modules } = useOrg();
   const pathname = usePathname();
   const quick = useQuickCreate();
   const [switcher, setSwitcher] = useState(false);
+  const moduleGroups = new Map<string, NavItem[]>();
+  for (const m of modules) moduleGroups.set(m.group, [...(moduleGroups.get(m.group) ?? []), { href: `/m/${m.key}`, label: m.name, dot: m.color }]);
   const groups: { title: string; items: (NavItem | false)[] }[] = [
     { title: "Visão geral", items: [{ href: "/", label: "Painel" }] },
     {
@@ -85,13 +88,15 @@ function Sidebar({ orgs, overdue, onClose }: { orgs: { id: string; name: string 
         settings.modules.companies && { href: "/companies", label: labels.company.plural },
       ],
     },
+    ...[...moduleGroups.entries()].map(([title, items]) => ({ title, items })),
+    ...(can("ADMIN") && !modules.length ? [{ title: "Controle interno", items: [{ href: "/settings/modules", label: "Ativar módulos" }] }] : []),
     {
       title: "Análise",
       items: [{ href: "/reports", label: "Relatórios" }, can("MANAGER") && { href: "/settings", label: "Configurações" }],
     },
   ];
   const isActive = (href: string) =>
-    href === "/" ? pathname === "/" : href === "/settings" ? pathname.startsWith("/settings") && !pathname.startsWith("/settings/profile") : pathname.startsWith(href);
+    href === "/" ? pathname === "/" : href === "/settings" ? pathname.startsWith("/settings") && !pathname.startsWith("/settings/profile") && !pathname.startsWith("/settings/modules") : pathname === href || pathname.startsWith(href + "/");
   const roleLabel = { OWNER: "Proprietário", ADMIN: "Administrador", MANAGER: "Gestor", SALES: "Vendedor", VIEWER: "Leitura" }[role];
   let n = 0;
 
@@ -160,6 +165,7 @@ function Sidebar({ orgs, overdue, onClose }: { orgs: { id: string; name: string 
                     >
                       <span className={cn("w-5 font-mono text-[10.5px] tabular-nums", active ? "text-accent-text" : "text-muted")}>{String(n).padStart(2, "0")}</span>
                       <span className="flex-1 truncate">{it.label}</span>
+                      {it.dot && !active && <span className="size-1.5 rounded-full opacity-70" style={{ background: it.dot }} />}
                       {active && <span className="size-1.5 rounded-full bg-[var(--accent)]" />}
                       {!!it.badge && (
                         <span className="rounded-[6px] border border-[color-mix(in_oklab,var(--err)_40%,transparent)] bg-[color-mix(in_oklab,var(--err)_10%,transparent)] px-1.5 font-mono text-[10px] text-err">
@@ -189,7 +195,7 @@ function Sidebar({ orgs, overdue, onClose }: { orgs: { id: string; name: string 
 }
 
 function Topbar({ onMenu, initialDark }: { onMenu: () => void; initialDark: boolean }) {
-  const { user, labels, can } = useOrg();
+  const { user, labels, can, modules } = useOrg();
   const quick = useQuickCreate();
   const [menu, setMenu] = useState<"new" | "user" | null>(null);
   const [dark, setDark] = useState(initialDark);
@@ -277,6 +283,27 @@ function Topbar({ onMenu, initialDark }: { onMenu: () => void; initialDark: bool
                     </span>
                   </button>
                 ))}
+                {modules.some((m) => m.canEdit) && (
+                  <>
+                    <p className="eyebrow mt-1 border-t border-line px-2.5 pb-1.5 pt-2.5 text-[10px]">Controle interno</p>
+                    <div className="scroll-thin max-h-56 overflow-y-auto">
+                      {modules
+                        .filter((m) => m.canEdit)
+                        .map((m) => (
+                          <Link
+                            key={m.key}
+                            href={`/m/${m.key}?new=1`}
+                            onClick={() => setMenu(null)}
+                            className="flex w-full items-center gap-3 rounded-[var(--radius-sm)] px-2.5 py-2 text-left transition hover:bg-tint"
+                          >
+                            <span className="w-5" />
+                            <span style={{ color: m.color }}><ModuleIcon name={m.icon} className="size-4" /></span>
+                            <span className="text-sm font-medium">{m.singular}</span>
+                          </Link>
+                        ))}
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -308,7 +335,7 @@ function Topbar({ onMenu, initialDark }: { onMenu: () => void; initialDark: bool
   );
 }
 
-type Hit = { type: string; id: string; label: string; sub?: string | null };
+type Hit = { type: string; id: string; label: string; sub?: string | null; href?: string; kind?: string };
 
 function CommandPalette() {
   const [open, setOpen] = useState(false);
@@ -316,7 +343,7 @@ function CommandPalette() {
   const [hits, setHits] = useState<Hit[]>([]);
   const [idx, setIdx] = useState(0);
   const router = useRouter();
-  const { labels } = useOrg();
+  const { labels, modules } = useOrg();
   const quick = useQuickCreate();
 
   useEffect(() => {
@@ -353,11 +380,12 @@ function CommandPalette() {
     { label: `Criar ${labels.deal.singular.toLowerCase()}`, run: () => quick("deal") },
     { label: `Criar ${labels.contact.singular.toLowerCase()}`, run: () => quick("contact") },
     { label: `Agendar ${labels.activity.singular.toLowerCase()}`, run: () => quick("activity") },
+    ...modules.filter((m) => m.canEdit).slice(0, 4).map((m) => ({ label: `Novo(a) ${m.singular.toLowerCase()}`, run: () => router.push(`/m/${m.key}?new=1`) })),
   ];
   const go = (h: Hit) => {
     setOpen(false);
     setQ("");
-    router.push(`/${h.type === "company" ? "companies" : h.type + "s"}/${h.id}`);
+    router.push(h.href ?? `/${h.type === "company" ? "companies" : h.type + "s"}/${h.id}`);
   };
   return (
     <div className="fixed inset-0 z-[60] flex items-start justify-center bg-[color-mix(in_oklab,var(--bg)_55%,transparent)] p-4 pt-[12vh] backdrop-blur-md" onMouseDown={() => setOpen(false)}>
@@ -374,7 +402,7 @@ function CommandPalette() {
               if (e.key === "ArrowUp") setIdx((i) => Math.max(i - 1, 0));
               if (e.key === "Enter" && hits[idx]) go(hits[idx]!);
             }}
-            placeholder="Buscar em todo o CRM…"
+            placeholder="Buscar em todo o sistema…"
             className="h-12 flex-1 bg-transparent text-sm outline-none"
           />
         </div>
@@ -386,7 +414,7 @@ function CommandPalette() {
               onClick={() => go(h)}
               className={cn("flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition", i === idx && "bg-tint ring-1 ring-line-strong")}
             >
-              <span className="w-20 shrink-0"><Badge>{typeLabel[h.type]}</Badge></span>
+              <span className="w-24 shrink-0"><Badge>{h.kind ?? typeLabel[h.type]}</Badge></span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm">{h.label}</span>
                 {h.sub && <span className="block truncate text-xs text-muted">{h.sub}</span>}

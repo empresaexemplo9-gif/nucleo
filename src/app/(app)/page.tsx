@@ -23,6 +23,7 @@ import { Sparkline } from "@/components/sparkline";
 import { ActivityIcon } from "@/components/activity-icon";
 import { Marquee, Terminal } from "@/components/terminal";
 import { Avatar, Badge, Card, CardHeader, EmptyState, IconTile, SectionTitle, StatCard } from "@/components/ui";
+import { ModulesOverview } from "@/components/modules-overview";
 import { HeroActions, PeriodSelect, Welcome } from "./dashboard-client";
 
 export const metadata = { title: "Painel" };
@@ -365,6 +366,9 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           )}
         </Card>
       </div>
+
+      {/* ======== Controle interno ======== */}
+      <ModulesOverview ctx={ctx} index={4} fmt={fmt} />
     </div>
   );
 }

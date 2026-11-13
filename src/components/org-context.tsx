@@ -6,6 +6,7 @@ import { money, setTimeZone } from "@/lib/format";
 export type Member = { id: string; name: string; avatarColor: string };
 export type TagDef = { name: string; color: string };
 export type FieldDef = { id: string; entity: "DEAL" | "CONTACT" | "COMPANY"; key: string; label: string; type: string; options: string[]; required: boolean };
+export type ModuleDef = { key: string; name: string; singular: string; icon: string; color: string; group: string; canEdit: boolean };
 export type PipelineDef = { id: string; name: string; isDefault: boolean; stages: { id: string; name: string; color: string; type: string; probability: number }[] };
 
 export type OrgCtx = {
@@ -19,6 +20,7 @@ export type OrgCtx = {
   fields: FieldDef[];
   pipelines: PipelineDef[];
   lostReasons: string[];
+  modules: ModuleDef[];
 };
 
 const C = createContext<OrgCtx | null>(null);

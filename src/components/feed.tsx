@@ -25,7 +25,7 @@ export function Feed({
   activities: FeedActivity[];
   notes: FeedNote[];
   events: FeedEvent[];
-  link: { deal?: Option | null; contact?: Option | null; company?: Option | null };
+  link: { deal?: Option | null; contact?: Option | null; company?: Option | null; record?: Option | null };
 }) {
   const { member, can } = useOrg();
   const [tab, setTab] = useState<"note" | "activity">("note");
@@ -73,6 +73,7 @@ export function Feed({
                   if (link.deal) fd.set("dealId", link.deal.id);
                   if (link.contact) fd.set("contactId", link.contact.id);
                   if (link.company) fd.set("companyId", link.company.id);
+                  if (link.record) fd.set("recordId", link.record.id);
                   run(() => addNote(fd), { onSuccess: () => setText("") });
                 }}
               >

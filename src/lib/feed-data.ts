@@ -3,7 +3,7 @@ import { db } from "./db";
 import type { FeedActivity, FeedEvent, FeedNote } from "@/components/feed";
 
 /** Carrega atividades, notas e eventos de um registro, já serializados. */
-export async function loadFeed(where: { dealId?: string; contactId?: string; companyId?: string }) {
+export async function loadFeed(where: { dealId?: string; contactId?: string; companyId?: string; recordId?: string }) {
   const [activities, notes, events] = await Promise.all([
     db.activity.findMany({
       where,
