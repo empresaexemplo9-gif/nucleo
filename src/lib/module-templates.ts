@@ -112,7 +112,7 @@ export const MODULE_TEMPLATES: ModuleTemplate[] = [
     statuses: [{ name: "Em uso", color: C.ok }, { name: "Em manutenção", color: C.warn }, { name: "Em estoque", color: C.blue }, { name: "Baixado", color: C.mute, final: true }],
   },
   {
-    key: "contratos", name: "Contratos", singular: "Contrato", prefix: "CT", icon: "file-signature", color: C.gold,
+    key: "contratos", name: "Vigência de contratos", singular: "Contrato", prefix: "CT", icon: "file-signature", color: C.gold,
     description: "Contratos com clientes e fornecedores, vigência e renovação.",
     fields: [
       { key: "cliente", label: "Contato", type: "CONTACT" },

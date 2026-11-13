@@ -3,15 +3,13 @@
  */
 export const DRAP_URL = "https://drap-softwerehouse.vercel.app/";
 
+/** Marca oficial DRAP (vetor do site oficial). Cor fixa da marca, independente do tema do cliente. */
 export function DrapMark({ size = 18 }: { size?: number }) {
   return (
-    <span
-      aria-hidden
-      className="relative inline-flex shrink-0 items-center justify-center overflow-hidden"
-      style={{ width: size, height: size, borderRadius: Math.max(3, size * 0.24), background: "var(--drap-ink)", boxShadow: "0 0 0 1px rgba(0,0,0,.25)" }}
-    >
-      <span className="absolute h-[140%] rounded-full" style={{ width: Math.max(1.5, size * 0.09), transform: "rotate(32deg)", background: "var(--drap-gold)" }} />
-    </span>
+    <svg aria-hidden viewBox="0 0 778 781" width={size} height={size} className="shrink-0 text-[#024C5E] dark:text-[#FBF7F2]" fill="currentColor">
+      <path d="M0 0H533L212 781H0Z" />
+      <path d="M581 2C601 2 777 60 777 290V480C777 675 652 781 512 781H219Z" />
+    </svg>
   );
 }
 
