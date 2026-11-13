@@ -1,6 +1,8 @@
-# Núcleo CRM — CRM whitelabel completo
+# Plataforma whitelabel de gestão interna com CRM integrado
 
-CRM de vendas completo, multiempresa e **100% personalizável**, pronto para rodar na **Vercel**. Cada empresa cadastrada tem sua própria marca, funis, etapas, campos, nomenclatura, equipe e automações — serve para imobiliárias, escolas, clínicas, agências, SaaS, indústrias, consultorias ou qualquer operação comercial.
+Sistema de **controle interno com CRM integrado** para empresas de diversos segmentos, multiempresa e **100% whitelabel**, pronto para rodar na **Vercel**. A plataforma não exibe marca própria: cada cliente usa **seu nome, logotipo, paleta de cores e fontes**, além de funis, etapas, campos, nomenclatura, equipe e automações próprios.
+
+A única referência à desenvolvedora é a assinatura **"Desenvolvido por DRAP"** no rodapé (`src/components/drap-signature.tsx`).
 
 ## Funcionalidades
 
@@ -25,8 +27,11 @@ CRM de vendas completo, multiempresa e **100% personalizável**, pronto para rod
 - Painel com pipeline, previsão ponderada, conversão, ticket médio, ciclo de venda, meta, ranking e negócios parados
 - Relatórios: funil de conversão, receita 12 meses, desempenho por vendedor, motivos de perda, origens, atividades e previsão de fechamento
 
-**Whitelabel e personalização**
-- Nome, logotipo, cor principal e de destaque, moeda, idioma e fuso — por empresa
+**Whitelabel e personalização (Configurações → Marca e geral)**
+- Estúdio de marca: envio do logotipo/identidade oficial com extração automática da paleta
+- Personalização livre: cores (com aviso de contraste), tom de fundo, cantos, fonte principal e de destaque
+- Gerador de logotipo genérico (monograma) para quem ainda não tem marca; sem logo, exibe as iniciais na cor da empresa
+- Nome, moeda, idioma e fuso — por empresa; título da aba e favicon com o nome e o logo do cliente
 - **Nomenclatura livre**: renomeie “Negócios” para “Imóveis”, “Matrículas”, “Projetos”…
 - **Campos personalizados** (texto, número, moeda, data, lista, múltipla escolha, sim/não, link, e-mail, telefone) para negócios, contatos e empresas
 - Domínio próprio por empresa (a tela de login exibe a marca do cliente) ou `/login?org=slug`
@@ -45,7 +50,7 @@ Next.js 16 (App Router, Server Actions) · React 19 · Tailwind CSS 4 · Prisma 
 2. No projeto, abra **Storage → Create Database → Neon (Postgres)** e conecte ao projeto. A Vercel cria `DATABASE_URL` e `DATABASE_URL_UNPOOLED` automaticamente.
 3. Em **Settings → Environment Variables**, adicione:
    - `AUTH_SECRET` — uma chave longa e aleatória (`openssl rand -base64 32`)
-   - `NEXT_PUBLIC_APP_NAME` — nome da sua plataforma (opcional)
+   - `NEXT_PUBLIC_APP_NAME` — nome neutro exibido no login quando nenhuma empresa é identificada (opcional, padrão "Gestão & CRM")
    - `ALLOW_SIGNUP` — `false` para impedir que qualquer pessoa crie empresas (opcional)
 4. Faça o deploy. O build executa `prisma db push`, criando as tabelas automaticamente.
 5. Acesse `/register` e crie a primeira empresa — funil, etapas e motivos de perda já vêm configurados.

@@ -1,11 +1,21 @@
 import { cookies } from "next/headers";
-import { requireContext } from "@/lib/auth";
+import type { Metadata } from "next";
+import { getContext, requireContext } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { setTimeZone } from "@/lib/format";
 import { brandOverrideCss } from "@/lib/brand-colors";
 import { googleFontsHref, themeCss } from "@/lib/theme-options";
 import { OrgProvider } from "@/components/org-context";
 import { AppShell } from "@/components/shell";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const ctx = await getContext();
+  if (!ctx) return {};
+  return {
+    title: { default: ctx.org.name, template: `%s · ${ctx.org.name}` },
+    ...(ctx.org.logoUrl ? { icons: { icon: ctx.org.logoUrl } } : {}),
+  };
+}
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const ctx = await requireContext();

@@ -4,7 +4,7 @@ import { db } from "./db";
 import { DRAP_PRIMARY, DRAP_SECONDARY } from "./brand-colors";
 import { resolveSettings } from "./labels";
 
-export const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || "Núcleo CRM";
+export const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || "Gestão & CRM";
 
 /** Identifica a marca exibida antes do login: domínio personalizado ou ?org=slug. */
 export async function getPublicBrand(slug?: string | null) {

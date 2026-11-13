@@ -87,7 +87,7 @@ export function DealsView({
   const weighted = deals.reduce((s, d) => s + d.value * ((d.probability ?? stages.find((x) => x.id === d.stageId)?.probability ?? 0) / 100), 0);
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] flex-col">
+    <div className="flex h-[calc(100vh-4rem-2.75rem)] flex-col">
       <div className="border-b border-line px-4 pb-4 pt-7 lg:px-8">
         <div className="flex flex-wrap items-end justify-between gap-5">
           <div className="min-w-0">

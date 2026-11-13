@@ -2,8 +2,9 @@ import { brandOverrideCss } from "@/lib/brand-colors";
 import { googleFontsHref, themeCss, type BrandTheme } from "@/lib/theme-options";
 import { BrandMark } from "@/components/brand-mark";
 import { Terminal } from "@/components/terminal";
+import { DrapSignature } from "@/components/drap-signature";
 
-const FEATURES = ["Funis com arrastar e soltar", "Contatos PF e PJ", "Relatórios e metas", "Automações", "Whitelabel"];
+const FEATURES = ["Controle interno", "CRM integrado", "Funis e atividades", "Relatórios e metas", "Equipes e permissões"];
 
 export function AuthShell({
   brand,
@@ -33,10 +34,10 @@ export function AuthShell({
 
       <header className="glass-nav sticky top-0 z-10 border-b border-line">
         <div className="flex h-16 w-full items-center gap-3 px-4 lg:px-8">
-          <BrandMark logoUrl={brand.logoUrl} />
+          <BrandMark logoUrl={brand.logoUrl} name={brand.name} />
           <div className="leading-tight">
             <p className="text-[15px] font-semibold tracking-[-0.02em]">{brand.name}</p>
-            <p className="font-mono text-[9.5px] uppercase tracking-[0.2em] text-muted">CRM · Business</p>
+            <p className="font-mono text-[9.5px] uppercase tracking-[0.2em] text-muted">Gestão · CRM</p>
           </div>
           <span className="mono-label ml-auto hidden items-center gap-2 text-[10px] text-muted sm:flex">
             <span className="dot-ok" /> Todos os sistemas operacionais
@@ -47,19 +48,19 @@ export function AuthShell({
       <main className="grid w-full items-center gap-12 px-4 py-12 lg:grid-cols-[1.15fr_1fr] lg:px-8 lg:py-20 2xl:gap-24 2xl:px-16">
         <section className="animate-rise hidden lg:block">
           <span className="glass-pill mono-label inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[10.5px] text-fg-2">
-            <span className="size-1.5 rounded-full bg-[var(--accent)]" /> crm://acesso · v2026.11
+            <span className="size-1.5 rounded-full bg-[var(--accent)]" /> acesso seguro · v2026.11
           </span>
           <h2 className="mt-6 text-[clamp(48px,6vw,88px)] font-medium leading-[0.98] tracking-[-0.045em]">
-            Venda com um processo <span className="serif-i text-grad pr-2">organizado.</span>
+            Sua operação e suas vendas, <span className="serif-i text-grad pr-2">integradas.</span>
           </h2>
           <p className="mt-6 max-w-lg text-[19px] font-light leading-relaxed text-fg-2">
-            Pipeline, contatos, atividades e relatórios em um só lugar — com a marca da sua empresa.
+            Controle interno e CRM em uma única plataforma: equipe, processos, clientes, oportunidades e indicadores no mesmo lugar.
           </p>
           <div className="relative mt-10 max-w-xl">
             <Terminal
-              title="drap-crm — pipeline"
+              title="painel — resumo"
               lines={[
-                { kind: "cmd", text: "crm pipeline --resumo" },
+                { kind: "cmd", text: "resumo --hoje" },
                 { kind: "ok", text: "Qualificação · 05 negócios · R$ 114 mil" },
                 { kind: "ok", text: "Proposta · 03 negócios · R$ 69 mil" },
                 { kind: "ok", text: "Negociação · 04 negócios · R$ 135 mil" },
@@ -68,8 +69,8 @@ export function AuthShell({
               footerLeft="region: sa-east-1 · sync: tempo real"
               footerRight="healthy"
             />
-            <span className="glass-pill mono-label absolute -top-5 right-24 rounded-[10px] px-3 py-2 text-[10px] text-fg-2 shadow-card">LGPD compliant</span>
-            <span className="glass-pill mono-label absolute -bottom-5 left-[40%] rounded-[10px] px-3 py-2 text-[10px] text-fg-2 shadow-card">PF · PJ · Whitelabel</span>
+            <span className="glass-pill mono-label absolute -top-5 right-24 rounded-[10px] px-3 py-2 text-[10px] text-fg-2 shadow-card">LGPD</span>
+            <span className="glass-pill mono-label absolute -bottom-5 left-[40%] rounded-[10px] px-3 py-2 text-[10px] text-fg-2 shadow-card">Multissegmento</span>
           </div>
           <p className="mono-label mt-12 flex flex-wrap gap-x-3 gap-y-1 text-[10.5px] text-muted">
             {FEATURES.map((f, i) => (
@@ -88,7 +89,10 @@ export function AuthShell({
             <p className="relative mb-7 mt-2 text-sm text-fg-2">{subtitle}</p>
             <div className="relative">{children}</div>
           </div>
-          <p className="mono-label mt-5 text-center text-[10px] text-muted">© {new Date().getFullYear()} {brand.name}</p>
+          <div className="mt-6 flex flex-col items-center gap-2">
+            <p className="mono-label text-center text-[10px] text-muted">© {new Date().getFullYear()} {brand.name}</p>
+            <DrapSignature />
+          </div>
         </section>
       </main>
     </div>

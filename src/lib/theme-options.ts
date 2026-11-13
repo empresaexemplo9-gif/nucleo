@@ -2,9 +2,9 @@
 
 export type FontOption = { key: string; label: string; family: string; google?: string; kind: "sans" | "serif" };
 
-/** Fontes principais (corpo e títulos). A primeira é o padrão DRAP, já carregada pelo app. */
+/** Fontes principais (corpo e títulos). A primeira é o padrão da plataforma, já carregada pelo app. */
 export const SANS_FONTS: FontOption[] = [
-  { key: "inter-tight", label: "Inter Tight (DRAP)", family: "var(--font-inter-tight), 'Inter Tight'", kind: "sans" },
+  { key: "inter-tight", label: "Inter Tight (padrão)", family: "var(--font-inter-tight), 'Inter Tight'", kind: "sans" },
   { key: "inter", label: "Inter", family: "'Inter'", google: "Inter:wght@300;400;500;600;700", kind: "sans" },
   { key: "manrope", label: "Manrope", family: "'Manrope'", google: "Manrope:wght@300;400;500;600;700", kind: "sans" },
   { key: "plus-jakarta", label: "Plus Jakarta Sans", family: "'Plus Jakarta Sans'", google: "Plus+Jakarta+Sans:wght@300;400;500;600;700", kind: "sans" },
@@ -20,7 +20,7 @@ export const SANS_FONTS: FontOption[] = [
 
 /** Fontes de destaque (palavras em itálico nos títulos). */
 export const SERIF_FONTS: FontOption[] = [
-  { key: "instrument", label: "Instrument Serif (DRAP)", family: "var(--font-instrument), 'Instrument Serif'", kind: "serif" },
+  { key: "instrument", label: "Instrument Serif (padrão)", family: "var(--font-instrument), 'Instrument Serif'", kind: "serif" },
   { key: "playfair", label: "Playfair Display", family: "'Playfair Display'", google: "Playfair+Display:ital,wght@0,400;1,400", kind: "serif" },
   { key: "lora", label: "Lora", family: "'Lora'", google: "Lora:ital,wght@0,400;1,400", kind: "serif" },
   { key: "dm-serif", label: "DM Serif Display", family: "'DM Serif Display'", google: "DM+Serif+Display:ital@0;1", kind: "serif" },
@@ -33,7 +33,7 @@ export type SurfaceOption = { key: string; label: string; vars: Record<string, s
 
 /** Tons de fundo do tema claro. */
 export const SURFACES: SurfaceOption[] = [
-  { key: "paper", label: "Papel (DRAP)", vars: {} },
+  { key: "paper", label: "Papel (padrão)", vars: {} },
   { key: "neutral", label: "Neutro", vars: { "--bg": "#f3f4f6", "--surface-2": "#f9fafb", "--surface-3": "#e5e7eb", "--card-bg": "linear-gradient(180deg,#ffffff,#f9fafb)", "--nav-bg": "rgba(243,244,246,.8)", "--menu-bg": "rgba(243,244,246,.97)" } },
   { key: "white", label: "Branco", vars: { "--bg": "#ffffff", "--surface-2": "#fafafa", "--surface-3": "#ededed", "--card-bg": "#ffffff", "--nav-bg": "rgba(255,255,255,.82)", "--menu-bg": "rgba(255,255,255,.97)" } },
   { key: "brand", label: "Tom da marca", vars: { "--bg": "color-mix(in oklab, var(--accent) 6%, #f7f7f5)", "--surface-2": "color-mix(in oklab, var(--accent) 3%, #fbfbfa)", "--surface-3": "color-mix(in oklab, var(--accent) 12%, #ecebe7)", "--nav-bg": "color-mix(in oklab, var(--accent) 5%, rgba(247,247,245,.8))" } },
@@ -42,7 +42,7 @@ export const SURFACES: SurfaceOption[] = [
 export type BrandTheme = { font?: string; serifFont?: string; surface?: string; radius?: string };
 
 export const RADII = [
-  { key: "soft", label: "Suave (DRAP)", radius: "14px", sm: "8px" },
+  { key: "soft", label: "Suave (padrão)", radius: "14px", sm: "8px" },
   { key: "sharp", label: "Reto", radius: "6px", sm: "4px" },
   { key: "round", label: "Arredondado", radius: "22px", sm: "12px" },
 ];

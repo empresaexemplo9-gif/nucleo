@@ -49,6 +49,9 @@
   --warn: #b7791f;
   --whatsapp: #25d366;
   --on-data: #ffffff; /* texto sobre cores de etapas/etiquetas (dados do cliente) */
+  /* Assinatura DRAP (fixa, independe do tema do cliente) */
+  --drap-ink: #15171c;
+  --drap-gold: linear-gradient(180deg,#d9b97f,#b48a4f);
 }
 
 :root[data-theme="dark"], .dark {

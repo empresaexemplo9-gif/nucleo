@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { Building2, CalendarCheck, Check, ChevronsUpDown, KanbanSquare, LogOut, Menu, Moon, Plus, Search, Sun, User, X } from "lucide-react";
 import { Avatar, Badge, Button, cn } from "./ui";
 import { BrandMark } from "./brand-mark";
+import { DrapSignature } from "./drap-signature";
 import { useOrg } from "./org-context";
 import { QuickCreateProvider, useQuickCreate } from "./quick-create";
 import { logout, setTheme, switchOrg } from "@/actions/auth";
@@ -40,10 +41,23 @@ export function AppShell({ children, orgs, overdue, dark }: { children: React.Re
         <div className="flex min-w-0 flex-1 flex-col">
           <Topbar onMenu={() => setMobile(true)} initialDark={dark} />
           <main className="min-w-0 flex-1">{children}</main>
+          <AppFooter />
         </div>
       </div>
       <CommandPalette />
     </QuickCreateProvider>
+  );
+}
+
+function AppFooter() {
+  const { org } = useOrg();
+  return (
+    <footer className="flex h-11 flex-wrap items-center justify-between gap-2 border-t border-line px-4 lg:px-8">
+      <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted">
+        © {new Date().getFullYear()} {org.name}
+      </span>
+      <DrapSignature />
+    </footer>
   );
 }
 
@@ -85,10 +99,10 @@ function Sidebar({ orgs, overdue, onClose }: { orgs: { id: string; name: string 
     <div className="flex h-full flex-col">
       <div className="relative border-b border-line px-4 py-4">
         <button onClick={() => setSwitcher((s) => !s)} className="flex w-full items-center gap-3 rounded-[10px] p-1 text-left transition hover:bg-tint">
-          <BrandMark logoUrl={org.logoUrl} />
+          <BrandMark logoUrl={org.logoUrl} name={org.name} />
           <span className="min-w-0 flex-1">
             <span className="block truncate text-[15px] font-semibold tracking-[-0.02em]">{org.name}</span>
-            <span className="block truncate font-mono text-[9.5px] uppercase tracking-[0.18em] text-muted">CRM · Business</span>
+            <span className="block truncate font-mono text-[9.5px] uppercase tracking-[0.18em] text-muted">Gestão · CRM</span>
           </span>
           <ChevronsUpDown className="size-4 text-muted" />
         </button>

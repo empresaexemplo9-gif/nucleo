@@ -1,16 +1,21 @@
-/** Marca DRAP: quadrado com barra diagonal. Usa o logotipo da empresa quando houver. */
-export function BrandMark({ logoUrl, size = 34 }: { logoUrl?: string | null; size?: number }) {
+import { initials } from "@/lib/format";
+
+/**
+ * Marca da empresa cliente (whitelabel): usa o logotipo enviado ou, na falta dele,
+ * um monograma com as iniciais na cor da marca. Não exibe a marca da plataforma.
+ */
+export function BrandMark({ logoUrl, name, size = 34 }: { logoUrl?: string | null; name: string; size?: number }) {
   if (logoUrl) {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={logoUrl} alt="" style={{ width: size, height: size }} className="shrink-0 rounded-[var(--radius-sm)] border border-line bg-[var(--surface-1)] object-contain p-0.5" />;
+    return <img src={logoUrl} alt={name} style={{ width: size, height: size }} className="shrink-0 rounded-[var(--radius-sm)] border border-line bg-[var(--surface-1)] object-contain p-0.5" />;
   }
   return (
     <span
       aria-hidden
-      className="relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-[var(--radius-sm)]"
-      style={{ width: size, height: size, background: "var(--btn-bg)", boxShadow: "var(--btn-shadow)" }}
+      className="inline-flex shrink-0 items-center justify-center rounded-[var(--radius-sm)] font-semibold tracking-[-0.03em]"
+      style={{ width: size, height: size, background: "var(--grad)", color: "var(--on-accent)", fontSize: size * 0.4 }}
     >
-      <span className="absolute h-[140%] w-[3px] rotate-[32deg] rounded-full" style={{ background: "var(--btn-icon-bg)" }} />
+      {initials(name || "?")}
     </span>
   );
 }

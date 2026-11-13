@@ -12,8 +12,8 @@ const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains", 
 const THEME_SCRIPT = `try{var m=document.cookie.match(/(?:^|; )theme=(light|dark)/);var t=m?m[1]:(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");var r=document.documentElement;r.dataset.theme=t;r.classList.toggle("dark",t==="dark");if(!m){document.cookie="theme="+t+";path=/;max-age=31536000"}}catch(e){}`;
 
 export const metadata: Metadata = {
-  title: { default: process.env.NEXT_PUBLIC_APP_NAME || "Núcleo CRM", template: `%s · ${process.env.NEXT_PUBLIC_APP_NAME || "Núcleo CRM"}` },
-  description: "CRM completo, personalizável e whitelabel para qualquer tipo de empresa.",
+  title: { default: process.env.NEXT_PUBLIC_APP_NAME || "Gestão & CRM", template: `%s · ${process.env.NEXT_PUBLIC_APP_NAME || "Gestão & CRM"}` },
+  description: "Sistema de controle interno com CRM integrado para empresas de diversos segmentos.",
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

@@ -7,6 +7,7 @@ import { useToast } from "@/components/toast";
 import { updateBranding } from "@/actions/settings";
 import { DRAP_PRIMARY, DRAP_SECONDARY } from "@/lib/brand-colors";
 import { contrast, extractPalette, fileToLogoDataUrl, loadImage, mix, suggestPair } from "@/lib/color-tools";
+import { initials } from "@/lib/format";
 import { findSans, findSerif, RADII, SANS_FONTS, SERIF_FONTS, SURFACES, type BrandTheme } from "@/lib/theme-options";
 import { ensureFontLink, LogoGenerator } from "./logo-generator";
 
@@ -16,7 +17,7 @@ const TIMEZONES = ["America/Sao_Paulo", "America/Manaus", "America/Fortaleza", "
 
 /** Combinações prontas (principal, destaque). */
 const PALETTES: [string, string, string][] = [
-  ["DRAP", DRAP_PRIMARY, DRAP_SECONDARY],
+  ["Padrão", DRAP_PRIMARY, DRAP_SECONDARY],
   ["Oceano", "#0f5f8c", "#22b8cf"],
   ["Floresta", "#2f6b3a", "#9bbf4d"],
   ["Agro", "#486b3a", "#7a5c38"],
@@ -124,7 +125,7 @@ export function BrandStudio({ org, theme }: { org: Org; theme: BrandTheme }) {
     setSerifFont(SERIF_FONTS[0]!.key);
     setSurface("paper");
     setRadius("soft");
-    toast("Padrão DRAP restaurado na prévia — salve para aplicar");
+    toast("Visual padrão restaurado na prévia — salve para aplicar");
   };
 
   const chip = (active: boolean) =>
@@ -374,13 +375,13 @@ export function BrandStudio({ org, theme }: { org: Org; theme: BrandTheme }) {
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={logo} alt="Logotipo atual" className="size-full object-contain p-1" />
                 ) : (
-                  <span className="relative flex size-full items-center justify-center overflow-hidden" style={{ background: "var(--btn-bg)" }}>
-                    <span className="absolute h-[140%] w-[4px] rotate-[32deg] rounded-full" style={{ background: primary }} />
+                  <span className="flex size-full items-center justify-center text-xl font-semibold" style={{ background: `linear-gradient(100deg, ${primary}, ${accent})`, color: "#fff" }}>
+                    {initials(name)}
                   </span>
                 )}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium">{logo ? "Logotipo personalizado" : "Marca padrão (quadrado com barra)"}</p>
+                <p className="text-sm font-medium">{logo ? "Logotipo personalizado" : "Monograma com as iniciais (sem logotipo)"}</p>
                 <p className="text-xs text-muted">Aparece no menu, na tela de login e nos convites.</p>
               </div>
               {logo && (
@@ -460,8 +461,8 @@ export function BrandStudio({ org, theme }: { org: Org; theme: BrandTheme }) {
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={logo} alt="" className="size-7 rounded-[var(--radius-sm)] border border-line bg-[var(--surface-1)] object-contain" />
                   ) : (
-                    <span className="relative flex size-7 items-center justify-center overflow-hidden rounded-[var(--radius-sm)]" style={{ background: "var(--btn-bg)" }}>
-                      <span className="absolute h-[140%] w-[2.5px] rotate-[32deg] rounded-full" style={{ background: "var(--btn-icon-bg)" }} />
+                    <span className="flex size-7 items-center justify-center rounded-[var(--radius-sm)] text-[11px] font-semibold" style={{ background: "var(--grad)", color: "#fff" }}>
+                      {initials(name)}
                     </span>
                   )}
                   <span className="truncate text-[11px] font-semibold">{name}</span>
@@ -508,10 +509,10 @@ export function BrandStudio({ org, theme }: { org: Org; theme: BrandTheme }) {
       </div>
 
       <div className="glass-nav sticky bottom-0 z-10 -mx-1 mt-6 flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius)] border border-line px-4 py-3">
-        <p className="text-xs text-muted">As alterações valem para toda a equipe, no menu, nas telas e no login.</p>
+        <p className="text-xs text-muted">Sua marca aparece em toda a plataforma: menu, telas, login e convites.</p>
         <div className="flex gap-2">
           <Button type="button" variant="secondary" trail={<RotateCcw className="size-3.5" />} onClick={reset}>
-            Padrão DRAP
+            Restaurar padrão
           </Button>
           <Button trail loading={pending}>
             Salvar identidade

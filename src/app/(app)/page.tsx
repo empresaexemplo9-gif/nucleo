@@ -141,7 +141,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
 
         <div className="animate-rise relative min-w-0 [animation-delay:120ms]">
           <Terminal
-            title={`drap-crm — ${ctx.org.name.toLowerCase()}`}
+            title={`${ctx.org.slug} — painel`}
+            user={ctx.user.name.split(" ")[0]!.toLowerCase()}
             lines={[
               { kind: "cmd", text: "crm status --hoje" },
               { kind: todayCount ? "ok" : "info", text: `${String(todayCount).padStart(2, "0")} atividade(s) para hoje` },

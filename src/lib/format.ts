@@ -47,10 +47,10 @@ export function daysSince(d: Date | string) {
 export function initials(name: string) {
   return name
     .split(/\s+/)
-    .filter(Boolean)
+    .filter((w) => /[\p{L}\p{N}]/u.test(w))
     .slice(0, 2)
-    .map((p) => p[0]!.toUpperCase())
-    .join("");
+    .map((p) => p.match(/[\p{L}\p{N}]/u)![0].toUpperCase())
+    .join("") || "?";
 }
 
 export function toDateInput(d: Date | string | null | undefined) {

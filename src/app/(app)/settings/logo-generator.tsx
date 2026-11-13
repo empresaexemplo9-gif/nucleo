@@ -5,7 +5,7 @@ import { Button, cn, Field, Input, Select } from "@/components/ui";
 import { SANS_FONTS, SERIF_FONTS, type FontOption } from "@/lib/theme-options";
 
 export const LOGO_STYLES = [
-  { key: "drap", label: "Barra diagonal" },
+  { key: "split", label: "Faixa" },
   { key: "square", label: "Quadrado" },
   { key: "circle", label: "Círculo" },
   { key: "hexagon", label: "Hexágono" },
@@ -56,8 +56,8 @@ function polygon(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: numbe
 export function LogoGenerator({ companyName, primary, accent, onUse }: { companyName: string; primary: string; accent: string; onUse: (dataUrl: string) => void }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const [text, setText] = useState(initialsOf(companyName));
-  const [style, setStyle] = useState<StyleKey>("drap");
-  const [fill, setFill] = useState<Fill>("dark");
+  const [style, setStyle] = useState<StyleKey>("square");
+  const [fill, setFill] = useState<Fill>("gradient");
   const [fontKey, setFontKey] = useState("inter-tight");
   const [italic, setItalic] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
@@ -107,16 +107,11 @@ export function LogoGenerator({ companyName, primary, accent, onUse }: { company
       ctx.fill();
     }
     ctx.clip();
-    if (style === "drap") {
+    if (style === "split") {
       ctx.save();
       ctx.translate(S / 2, S / 2);
-      ctx.rotate((32 * Math.PI) / 180);
-      const g = ctx.createLinearGradient(0, -S, 0, S);
-      g.addColorStop(0, fill === "dark" ? primary : "#ffffff");
-      g.addColorStop(1, fill === "dark" ? accent : "rgba(255,255,255,.6)");
-      ctx.fillStyle = g;
-      ctx.globalAlpha = text ? 0.35 : 1;
-      ctx.fillRect(-14, -S, 28, S * 2);
+      ctx.fillStyle = fill === "dark" ? accent : "rgba(255,255,255,.22)";
+      ctx.fillRect(-S, S / 2 - 150, S * 2, 150);
       ctx.restore();
     }
     ctx.restore();
@@ -169,7 +164,7 @@ export function LogoGenerator({ companyName, primary, accent, onUse }: { company
           <Field label="Fonte do logo">
             <Select value={fontKey} onChange={(e) => setFontKey(e.target.value)}>
               {FONT_CHOICES.map((f) => (
-                <option key={f.key} value={f.key}>{f.label.replace(" (DRAP)", "")}</option>
+                <option key={f.key} value={f.key}>{f.label.replace(" (padrão)", "")}</option>
               ))}
             </Select>
           </Field>

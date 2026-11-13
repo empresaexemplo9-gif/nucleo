@@ -1,7 +1,8 @@
-/** Terminal estilo DRAP (peça-assinatura). Linhas aparecem em sequência. */
+/** Terminal (peça visual do painel). Linhas aparecem em sequência. */
 export type TermLine = { kind: "cmd" | "ok" | "warn" | "info" | "blank"; text?: string };
 
-export function Terminal({ title, lines, footerLeft, footerRight, live = true }: { title: string; lines: TermLine[]; footerLeft?: string; footerRight?: string; live?: boolean }) {
+export function Terminal({ title, lines, footerLeft, footerRight, live = true, user = "equipe" }: { title: string; lines: TermLine[]; footerLeft?: string; footerRight?: string; live?: boolean; user?: string }) {
+  const prompt = `${user}@gestao ~ $`;
   return (
     <div className="terminal relative overflow-hidden text-[12.5px] leading-[1.75]">
       <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3">
@@ -20,7 +21,7 @@ export function Terminal({ title, lines, footerLeft, footerRight, live = true }:
           <div key={i} className="t-line truncate" style={{ animationDelay: `${150 + i * 220}ms` }}>
             {l.kind === "cmd" && (
               <>
-                <span className="t-prompt">drap@crm ~ $</span> <span>{l.text}</span>
+                <span className="t-prompt">{prompt}</span> <span>{l.text}</span>
               </>
             )}
             {l.kind === "ok" && (
@@ -38,7 +39,7 @@ export function Terminal({ title, lines, footerLeft, footerRight, live = true }:
           </div>
         ))}
         <div className="t-line" style={{ animationDelay: `${150 + lines.length * 220}ms` }}>
-          <span className="t-prompt">drap@crm ~ $</span> <span className="inline-block h-3.5 w-2 translate-y-0.5 animate-pulse bg-[var(--term-fg)]" />
+          <span className="t-prompt">{prompt}</span> <span className="inline-block h-3.5 w-2 translate-y-0.5 animate-pulse bg-[var(--term-fg)]" />
         </div>
       </div>
       {(footerLeft || footerRight) && (
