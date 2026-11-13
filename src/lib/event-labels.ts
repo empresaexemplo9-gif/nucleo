@@ -13,4 +13,9 @@ export const EVENT_LABELS: Record<string, string> = {
   RECORD_CREATED: "criou o registro",
   RECORD_UPDATED: "atualizou o registro",
   RECORD_STATUS: "alterou o status",
+  PROPOSAL_SENT: "enviou a proposta",
+  PROPOSAL_ACCEPTED: "proposta aceita pelo cliente",
+  PROPOSAL_REJECTED: "proposta recusada pelo cliente",
+  CONTRACT_SENT: "enviou o contrato para assinatura",
+  CONTRACT_SIGNED: "contrato assinado por todos",
 };

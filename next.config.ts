@@ -10,8 +10,8 @@ const nextConfig: NextConfig = {
     },
   },
   images: { remotePatterns: [{ protocol: "https", hostname: "**" }] },
-  // Logotipos enviados como imagem embutida (até ~800 KB) passam pela Server Action
-  experimental: { serverActions: { bodySizeLimit: "2mb" } },
+  // Logotipos em alta resolução e contratos em PDF (até 15 MB) passam pelas Server Actions
+  experimental: { serverActions: { bodySizeLimit: "20mb" } },
 };
 
 export default nextConfig;

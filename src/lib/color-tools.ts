@@ -97,7 +97,7 @@ export async function fileToLogoDataUrl(file: File, maxSide = 512): Promise<stri
     r.onerror = () => rej(r.error);
     r.readAsDataURL(file);
   });
-  if (file.type === "image/svg+xml" && raw.length < 600_000) return raw;
+  if (file.type === "image/svg+xml" && raw.length < 6_000_000) return raw;
   const img = await loadImage(raw);
   const ratio = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
   const c = document.createElement("canvas");
@@ -105,7 +105,7 @@ export async function fileToLogoDataUrl(file: File, maxSide = 512): Promise<stri
   c.height = Math.round(img.naturalHeight * ratio);
   c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
   const png = c.toDataURL("image/png");
-  return png.length < 700_000 ? png : c.toDataURL("image/webp", 0.85);
+  return png.length < 7_500_000 ? png : c.toDataURL("image/webp", 0.92);
 }
 
 export function loadImage(src: string) {

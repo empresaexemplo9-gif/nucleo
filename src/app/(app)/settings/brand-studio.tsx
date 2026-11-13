@@ -84,7 +84,7 @@ export function BrandStudio({ org, theme }: { org: Org; theme: BrandTheme }) {
         setPrimary(pair.primary);
         setAccent(pair.accent);
       }
-      if (useAsLogo) setLogo(url);
+      if (useAsLogo) setLogo(await fileToLogoDataUrl(file, 2400));
       toast(palette.length ? `${palette.length} cores encontradas — sugestão aplicada` : "Não encontramos cores marcantes nesta imagem");
     } catch (e) {
       toast(e instanceof Error ? e.message : "Falha ao ler a imagem", "error");
@@ -93,7 +93,7 @@ export function BrandStudio({ org, theme }: { org: Org; theme: BrandTheme }) {
 
   async function uploadLogo(file: File) {
     try {
-      setLogo(await fileToLogoDataUrl(file));
+      setLogo(await fileToLogoDataUrl(file, 2400));
     } catch (e) {
       toast(e instanceof Error ? e.message : "Falha ao ler a imagem", "error");
     }

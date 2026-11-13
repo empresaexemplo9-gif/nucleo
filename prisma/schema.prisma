@@ -76,23 +76,30 @@ model Organization {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  memberships  Membership[]
-  pipelines    Pipeline[]
-  deals        Deal[]
-  contacts     Contact[]
-  companies    Company[]
-  activities   Activity[]
-  notes        Note[]
-  products     Product[]
-  customFields CustomField[]
-  lostReasons  LostReason[]
-  tags         Tag[]
-  events       TimelineEvent[]
-  automations  Automation[]
-  goals        Goal[]
-  invites      Invite[]
-  modules      CustomModule[]
-  records      ModuleRecord[]
+  memberships       Membership[]
+  pipelines         Pipeline[]
+  deals             Deal[]
+  contacts          Contact[]
+  companies         Company[]
+  activities        Activity[]
+  notes             Note[]
+  products          Product[]
+  customFields      CustomField[]
+  lostReasons       LostReason[]
+  tags              Tag[]
+  events            TimelineEvent[]
+  automations       Automation[]
+  goals             Goal[]
+  invites           Invite[]
+  modules           CustomModule[]
+  records           ModuleRecord[]
+  proposals         Proposal[]
+  orders            Order[]
+  contracts         Contract[]
+  contractTemplates ContractTemplate[]
+  files             StoredFile[]
+  stockMoves        StockMove[]
+  notifications     Notification[]
 }
 
 model User {
@@ -116,6 +123,8 @@ model User {
   goals           Goal[]
   assignedRecords ModuleRecord[]  @relation("RecordAssignee")
   createdRecords  ModuleRecord[]  @relation("RecordCreator")
+  proposals       Proposal[]      @relation("ProposalOwner")
+  notifications   Notification[]
 }
 
 model Membership {
@@ -201,6 +210,9 @@ model Company {
   notes        Note[]
   events       TimelineEvent[]
   records      ModuleRecord[]
+  proposals    Proposal[]
+  orders       Order[]
+  contracts    Contract[]
 
   @@index([orgId])
 }
@@ -230,6 +242,9 @@ model Contact {
   notes        Note[]
   events       TimelineEvent[]
   records      ModuleRecord[]
+  proposals    Proposal[]
+  orders       Order[]
+  contracts    Contract[]
 
   @@index([orgId])
   @@index([companyId])
@@ -267,23 +282,41 @@ model Deal {
   activities     Activity[]
   notes          Note[]
   events         TimelineEvent[]
+  proposals      Proposal[]
+  orders         Order[]
+  contracts      Contract[]
 
   @@index([orgId, pipelineId, status])
   @@index([stageId])
 }
 
 model Product {
-  id          String        @id @default(cuid())
-  orgId       String
-  name        String
-  sku         String?
-  description String?
-  price       Decimal       @default(0) @db.Decimal(14, 2)
-  unit        String?
-  active      Boolean       @default(true)
-  createdAt   DateTime      @default(now())
-  org         Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  deals       DealProduct[]
+  id            String         @id @default(cuid())
+  orgId         String
+  name          String
+  sku           String?
+  description   String?
+  price         Decimal        @default(0) @db.Decimal(14, 2)
+  unit          String?
+  active        Boolean        @default(true)
+  /// Texto completo exibido na proposta (benefícios, escopo, o que está incluso)
+  details       String?
+  /// ONE_TIME (pagamento único) ou RECURRING (assinatura)
+  billing       String         @default("ONE_TIME")
+  /// MONTHLY, QUARTERLY, SEMIANNUAL, YEARLY (quando recorrente)
+  interval      String?
+  /// Taxa de implantação/adesão cobrada uma vez
+  setupFee      Decimal        @default(0) @db.Decimal(14, 2)
+  trackStock    Boolean        @default(false)
+  stock         Decimal        @default(0) @db.Decimal(14, 2)
+  minStock      Decimal        @default(0) @db.Decimal(14, 2)
+  leadTimeDays  Int            @default(7)
+  createdAt     DateTime       @default(now())
+  org           Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  deals         DealProduct[]
+  proposalItems ProposalItem[]
+  orderItems    OrderItem[]
+  stockMoves    StockMove[]
 
   @@index([orgId])
 }
@@ -516,4 +549,235 @@ model ModuleRecord {
 
   @@unique([moduleId, number])
   @@index([orgId, moduleId, statusId])
+}
+
+/**
+ * ------------------------------------------------------------------
+ */
+/**
+ * Propostas, pedidos, estoque, contratos e arquivos
+ */
+/**
+ * ------------------------------------------------------------------
+ */
+
+model Proposal {
+  id                 String         @id @default(cuid())
+  orgId              String
+  number             Int
+  token              String         @unique
+  title              String
+  status             String         @default("DRAFT") // DRAFT, SENT, VIEWED, ACCEPTED, REJECTED
+  dealId             String?
+  contactId          String?
+  companyId          String?
+  ownerId            String?
+  validUntil         DateTime?
+  intro              String?
+  terms              String?
+  discount           Decimal        @default(0) @db.Decimal(14, 2)
+  totalOnce          Decimal        @default(0) @db.Decimal(14, 2)
+  totalMonthly       Decimal        @default(0) @db.Decimal(14, 2)
+  contractTemplateId String?
+  sentAt             DateTime?
+  viewedAt           DateTime?
+  acceptedAt         DateTime?
+  acceptedName       String?
+  acceptedEmail      String?
+  acceptedDoc        String?
+  acceptedIp         String?
+  acceptedAgent      String?
+  rejectedAt         DateTime?
+  rejectedReason     String?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  org                Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  deal               Deal?          @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  contact            Contact?       @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  company            Company?       @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  owner              User?          @relation("ProposalOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  items              ProposalItem[]
+  orders             Order[]
+  contracts          Contract[]
+
+  @@unique([orgId, number])
+  @@index([orgId, status])
+}
+
+model ProposalItem {
+  id          String   @id @default(cuid())
+  proposalId  String
+  productId   String?
+  name        String
+  description String?
+  details     String?
+  billing     String   @default("ONE_TIME")
+  interval    String?
+  quantity    Decimal  @default(1) @db.Decimal(12, 2)
+  price       Decimal  @default(0) @db.Decimal(14, 2)
+  discount    Decimal  @default(0) @db.Decimal(5, 2)
+  setupFee    Decimal  @default(0) @db.Decimal(14, 2)
+  position    Int      @default(0)
+  proposal    Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  product     Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+}
+
+model Order {
+  id         String       @id @default(cuid())
+  orgId      String
+  number     Int
+  status     String       @default("NEW") // NEW, PROCESSING, FULFILLED, CANCELED
+  proposalId String?
+  dealId     String?
+  contactId  String?
+  companyId  String?
+  total      Decimal      @default(0) @db.Decimal(14, 2)
+  monthly    Decimal      @default(0) @db.Decimal(14, 2)
+  notes      String?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  org        Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  proposal   Proposal?    @relation(fields: [proposalId], references: [id], onDelete: SetNull)
+  deal       Deal?        @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  contact    Contact?     @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  company    Company?     @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  items      OrderItem[]
+  stockMoves StockMove[]
+
+  @@unique([orgId, number])
+  @@index([orgId, createdAt])
+}
+
+model OrderItem {
+  id        String   @id @default(cuid())
+  orderId   String
+  productId String?
+  name      String
+  billing   String   @default("ONE_TIME")
+  interval  String?
+  quantity  Decimal  @default(1) @db.Decimal(12, 2)
+  price     Decimal  @default(0) @db.Decimal(14, 2)
+  total     Decimal  @default(0) @db.Decimal(14, 2)
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+}
+
+model StockMove {
+  id        String       @id @default(cuid())
+  orgId     String
+  productId String
+  quantity  Decimal      @db.Decimal(14, 2) // positivo = entrada, negativo = saída
+  reason    String // ORDER, PURCHASE, ADJUST, CANCEL
+  orderId   String?
+  note      String?
+  userId    String?
+  createdAt DateTime     @default(now())
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  product   Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  order     Order?       @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([orgId, productId, createdAt])
+}
+
+model ContractTemplate {
+  id        String       @id @default(cuid())
+  orgId     String
+  name      String
+  kind      String       @default("TEXT") // TEXT ou PDF
+  body      String?
+  fileId    String?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  file      StoredFile?  @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  contracts Contract[]
+
+  @@index([orgId])
+}
+
+model Contract {
+  id            String            @id @default(cuid())
+  orgId         String
+  number        Int
+  title         String
+  status        String            @default("DRAFT") // DRAFT, SENT, SIGNED, CANCELED
+  kind          String            @default("TEXT")
+  body          String?
+  fileId        String?
+  hash          String?
+  templateId    String?
+  proposalId    String?
+  dealId        String?
+  contactId     String?
+  companyId     String?
+  requireSelfie Boolean           @default(true)
+  createdById   String?
+  sentAt        DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  org           Organization      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  file          StoredFile?       @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  template      ContractTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  proposal      Proposal?         @relation(fields: [proposalId], references: [id], onDelete: SetNull)
+  deal          Deal?             @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  contact       Contact?          @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  company       Company?          @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  signers       ContractSigner[]
+
+  @@unique([orgId, number])
+  @@index([orgId, status])
+}
+
+model ContractSigner {
+  id         String    @id @default(cuid())
+  contractId String
+  token      String    @unique
+  name       String
+  email      String?
+  document   String?
+  role       String    @default("Contratante")
+  position   Int       @default(0)
+  status     String    @default("PENDING") // PENDING, SIGNED
+  viewedAt   DateTime?
+  signedAt   DateTime?
+  signature  String? // PNG (data URL) desenhada na tela
+  selfie     String? // JPEG (data URL) capturada pela câmera
+  faceCheck  String? // resultado da verificação de rosto no aparelho
+  ip         String?
+  userAgent  String?
+  geo        String?
+  hash       String? // hash do documento no momento da assinatura
+  contract   Contract  @relation(fields: [contractId], references: [id], onDelete: Cascade)
+}
+
+model StoredFile {
+  id        String             @id @default(cuid())
+  orgId     String
+  name      String
+  mime      String
+  size      Int
+  data      Bytes
+  createdAt DateTime           @default(now())
+  org       Organization       @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  templates ContractTemplate[]
+  contracts Contract[]
+
+  @@index([orgId])
+}
+
+model Notification {
+  id        String       @id @default(cuid())
+  orgId     String
+  userId    String
+  type      String
+  title     String
+  body      String?
+  href      String?
+  readAt    DateTime?
+  createdAt DateTime     @default(now())
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
 }

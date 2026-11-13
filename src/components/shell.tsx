@@ -2,12 +2,13 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Building2, CalendarCheck, Check, ChevronsUpDown, KanbanSquare, LogOut, Menu, Moon, Plus, Search, Sun, User, X } from "lucide-react";
+import { Building2, CalendarCheck, FileSignature, FileText, Check, ChevronsUpDown, KanbanSquare, LogOut, Menu, Moon, Plus, Search, Sun, User, X } from "lucide-react";
 import { Avatar, Badge, Button, cn } from "./ui";
 import { BrandMark } from "./brand-mark";
 import { DrapSignature } from "./drap-signature";
 import { useOrg } from "./org-context";
 import { ModuleIcon } from "./module-icon";
+import { NotificationBell } from "./notification-bell";
 import { QuickCreateProvider, useQuickCreate } from "./quick-create";
 import { logout, setTheme, switchOrg } from "@/actions/auth";
 
@@ -79,6 +80,14 @@ function Sidebar({ orgs, overdue, onClose }: { orgs: { id: string; name: string 
         { href: "/deals", label: labels.deal.plural },
         { href: "/activities", label: labels.activity.plural, badge: overdue },
         settings.modules.products && { href: "/products", label: labels.product.plural },
+      ],
+    },
+    {
+      title: "Comercial",
+      items: [
+        { href: "/proposals", label: "Propostas" },
+        { href: "/orders", label: "Pedidos" },
+        { href: "/contracts", label: "Contratos" },
       ],
     },
     {
@@ -251,6 +260,7 @@ function Topbar({ onMenu, initialDark }: { onMenu: () => void; initialDark: bool
             <Moon className="size-3.5" />
           </button>
         </div>
+        <NotificationBell />
         {can("SALES") && (
           <div className="relative">
             <Button onClick={() => setMenu(menu === "new" ? null : "new")} trail={<Plus className="size-3.5" />}>
@@ -282,6 +292,22 @@ function Topbar({ onMenu, initialDark }: { onMenu: () => void; initialDark: bool
                       <span className="block text-xs text-muted">{d}</span>
                     </span>
                   </button>
+                ))}
+                <p className="eyebrow mt-1 border-t border-line px-2.5 pb-1.5 pt-2.5 text-[10px]">Comercial</p>
+                {(
+                  [
+                    ["/proposals/new", "Proposta", FileText, "Itens do catálogo com aceite online"],
+                    ["/contracts/new", "Contrato", FileSignature, "Assinatura com selfie e na tela"],
+                  ] as const
+                ).map(([href, l, I, d]) => (
+                  <Link key={href} href={href} onClick={() => setMenu(null)} className="flex w-full items-center gap-3 rounded-[var(--radius-sm)] px-2.5 py-2 text-left transition hover:bg-tint">
+                    <span className="w-5" />
+                    <I className="size-4 text-accent-text" />
+                    <span>
+                      <span className="block text-sm font-medium">{l}</span>
+                      <span className="block text-xs text-muted">{d}</span>
+                    </span>
+                  </Link>
                 ))}
                 {modules.some((m) => m.canEdit) && (
                   <>

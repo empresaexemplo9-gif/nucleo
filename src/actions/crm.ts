@@ -298,6 +298,13 @@ export async function saveProduct(id: string | null, fd: FormData): Promise<Acti
       unit: str(fd, "unit"),
       price: moneyOf(fd, "price"),
       active: fd.get("active") !== "false",
+      details: str(fd, "details"),
+      billing: str(fd, "billing") === "RECURRING" ? "RECURRING" : "ONE_TIME",
+      interval: str(fd, "billing") === "RECURRING" ? (["MONTHLY", "QUARTERLY", "SEMIANNUAL", "YEARLY"].includes(str(fd, "interval") ?? "") ? str(fd, "interval") : "MONTHLY") : null,
+      setupFee: moneyOf(fd, "setupFee"),
+      trackStock: fd.get("trackStock") === "on",
+      minStock: numOr(fd, "minStock", 0),
+      leadTimeDays: Math.max(0, Math.round(numOr(fd, "leadTimeDays", 7))),
     };
     if (!data.name) return { ok: false, error: "Informe o nome" };
     if (id) await db.product.updateMany({ where: { id, orgId: ctx.org.id }, data });

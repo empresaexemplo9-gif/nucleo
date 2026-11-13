@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Info, ArrowLeft, Building2, Mail, MessageCircle, Pencil, Phone, RotateCcw, ThumbsDown, ThumbsUp, Trash2, User, Package, X } from "lucide-react";
+import { ArrowLeft, Building2, FileText, Info, Mail, MessageCircle, Package, Pencil, Phone, RotateCcw, ThumbsDown, ThumbsUp, Trash2, User, X } from "lucide-react";
 import { Avatar, Badge, Button, Card, CardHeader, cn, Field, Input, Modal } from "@/components/ui";
 import { CustomFieldValues, InfoRow } from "@/components/custom-fields";
 import { EntityPicker, TagList } from "@/components/pickers";
@@ -116,6 +116,11 @@ export function DealDetail({
                     <RotateCcw className="size-4" /> Reabrir
                   </Button>
                 )}
+                <Link href={`/proposals/new?deal=${deal.id}`}>
+                  <Button variant="secondary">
+                    <FileText className="size-4" /> Proposta
+                  </Button>
+                </Link>
                 <Button variant="secondary" onClick={() => setEditing(true)}>
                   <Pencil className="size-4" /> Editar
                 </Button>

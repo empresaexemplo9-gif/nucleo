@@ -1,4 +1,5 @@
 "use server";
+import { storeDataUrl } from "@/lib/commerce-server";
 import { revalidatePath } from "next/cache";
 import { randomBytes } from "crypto";
 import type { EntityType, FieldType, Role, StageType } from "@prisma/client";
@@ -20,8 +21,9 @@ const done = (message = "Configurações salvas"): ActionResult => {
 /** Logo: link https ou imagem embutida (data URL) de tipos seguros e tamanho limitado. */
 function isValidLogo(v: string) {
   if (/^https:\/\/[^\s"'<>]+$/i.test(v)) return v.length <= 2000;
+  if (/^\/api\/public\/logo\/[a-z0-9]+$/.test(v)) return true;
   const m = /^data:image\/(png|jpeg|webp|svg\+xml);base64,([A-Za-z0-9+/=]+)$/.exec(v);
-  return !!m && m[2]!.length <= 800_000;
+  return !!m && m[2]!.length <= 8_200_000;
 }
 
 export async function updateBranding(fd: FormData): Promise<ActionResult> {
@@ -32,8 +34,10 @@ export async function updateBranding(fd: FormData): Promise<ActionResult> {
       const taken = await db.organization.findFirst({ where: { customDomain, NOT: { id: ctx.org.id } } });
       if (taken) return { ok: false, error: "Este domínio já está em uso" };
     }
-    const logoUrl = str(fd, "logoUrl");
-    if (logoUrl && !isValidLogo(logoUrl)) return { ok: false, error: "Logotipo inválido: use um link https ou uma imagem PNG, JPG, WebP ou SVG de até 600 KB" };
+    let logoUrl = str(fd, "logoUrl");
+    if (logoUrl && !isValidLogo(logoUrl)) return { ok: false, error: "Logotipo inválido: use um link https ou uma imagem PNG, JPG, WebP ou SVG de até 6 MB" };
+    // imagens enviadas ficam guardadas em alta resolução no ambiente da empresa e são servidas por link próprio
+    if (logoUrl?.startsWith("data:")) logoUrl = `/api/public/logo/${(await storeDataUrl(ctx.org.id, "logotipo", logoUrl)).id}`;
     const hex = (k: string) => {
       const v = str(fd, k);
       return v && /^#[0-9a-fA-F]{6}$/.test(v) ? v.toLowerCase() : null;
