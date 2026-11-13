@@ -313,7 +313,7 @@ function Board({ mod, rows: initial, refs }: { mod: ModInfo; rows: RecordRow[]; 
                         {cardFields.map((f) => (
                           <p key={f.id} className="flex justify-between gap-2 truncate">
                             <span className="text-muted">{f.label}</span>
-                            <span className="truncate"><RecordFieldValue f={f} value={r.data[f.key]} refs={refs} /></span>
+                            <span className="truncate"><RecordFieldValue f={f} value={r.data[f.key]} refs={refs} plain /></span>
                           </p>
                         ))}
                       </div>

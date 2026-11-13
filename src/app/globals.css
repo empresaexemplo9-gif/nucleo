@@ -10,7 +10,7 @@
   --bg:#f5f3ee; --surface-1:#ffffff; --surface-2:#fbfaf7; --surface-3:#ebe7df;
   --card-bg:linear-gradient(180deg,#ffffff,#fbfaf7);
   --line:rgba(18,20,25,.08); --line-strong:rgba(18,20,25,.15);
-  --text:#121419; --text-dim:#4b505a; --text-mute:#7d828c;
+  --text:#121419; --text-dim:#4b505a; --text-mute:#6a6e77;
   --accent:#b48a4f; --accent-text:#8a672f;
   --accent-2:#3c78c0; --accent-2-text:#2d63a3;
   --grad:linear-gradient(100deg,#9c7740 0%,#c39b5f 45%,#3c78c0 100%);
@@ -25,7 +25,7 @@
   --btn-shadow:0 0 0 1px rgba(18,20,25,.9),0 12px 30px -12px rgba(18,20,25,.55),inset 0 1px 0 rgba(255,255,255,.12);
   --btn-shadow-hover:0 0 0 1px rgba(180,138,79,.9),0 18px 40px -14px rgba(180,138,79,.6),inset 0 1px 0 rgba(255,255,255,.15);
   --btn-sheen:rgba(255,255,255,.18);
-  --ok:#17905f; --err:#cf3a56;
+  --ok:#147d53; --err:#c53752;
   --grid-opacity:.9; --glow-opacity:.16; --noise-opacity:.02; --c-glow:.28;
   --radius:14px; --radius-sm:8px;
   --ease:cubic-bezier(.2,.7,.1,1);
@@ -46,7 +46,7 @@
   --term-mute: #8b909a;
   --orb-1: #e9c79a; --orb-2: #9cc8f0; --orb-3: #9fe0c4; --orb-4: #cdbdf0;
   --orb-opacity: var(--glow-opacity);
-  --warn: #b7791f;
+  --warn: #966319;
   --whatsapp: #25d366;
   --on-data: #ffffff; /* texto sobre cores de etapas/etiquetas (dados do cliente) */
   /* Assinatura DRAP (fixa, independe do tema do cliente) */
@@ -58,7 +58,7 @@
   --bg:#06070a; --surface-1:#0b0d12; --surface-2:#11141b; --surface-3:#181c25;
   --card-bg:linear-gradient(180deg,#11141b,#0b0d12);
   --line:rgba(233,231,225,.08); --line-strong:rgba(233,231,225,.16);
-  --text:#ebe8e1; --text-dim:#a4a7af; --text-mute:#6c707a;
+  --text:#ebe8e1; --text-dim:#a4a7af; --text-mute:#7c8089;
   --accent:#e2c58f; --accent-text:#e2c58f;
   --accent-2:#8ccfff; --accent-2-text:#8ccfff;
   --grad:linear-gradient(100deg,#e2c58f 0%,#f3e3c3 40%,#8ccfff 100%);

@@ -80,7 +80,7 @@ export function RecordFieldInput({ f, value, refs }: { f: MField; value: unknown
 }
 
 /** Exibe o valor de um campo de módulo. */
-export function RecordFieldValue({ f, value, refs }: { f: MField; value: unknown; refs: Refs }) {
+export function RecordFieldValue({ f, value, refs, plain }: { f: MField; value: unknown; refs: Refs; plain?: boolean }) {
   const { fmt } = useOrg();
   if (value == null || value === "" || (Array.isArray(value) && !value.length)) return <span className="text-muted">—</span>;
   switch (f.type) {
@@ -95,14 +95,17 @@ export function RecordFieldValue({ f, value, refs }: { f: MField; value: unknown
     case "MULTISELECT":
       return <span>{(value as string[]).join(", ")}</span>;
     case "URL":
+      if (plain) return <span>link</span>;
       return (
         <a href={String(value)} target="_blank" rel="noreferrer" className="text-accent-text underline-offset-4 hover:underline">
           abrir link
         </a>
       );
     case "CONTACT":
+      if (plain) return <>{refs[String(value)] ?? "—"}</>;
       return <Link href={`/contacts/${value}`} className="hover:text-accent-text">{refs[String(value)] ?? "—"}</Link>;
     case "COMPANY":
+      if (plain) return <>{refs[String(value)] ?? "—"}</>;
       return <Link href={`/companies/${value}`} className="hover:text-accent-text">{refs[String(value)] ?? "—"}</Link>;
     default:
       return <span className="break-words">{String(value)}</span>;
