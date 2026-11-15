@@ -291,7 +291,7 @@ export function BrandStudio({ org, theme }: { org: Org; theme: BrandTheme }) {
                   <EditorialTitle text="Escolha um visual completo" highlight="completo" />
                 </h2>
                 <p className="mt-1 max-w-2xl text-sm text-fg-2">
-                  50 identidades com paleta, tipografia, cantos e navegação próprios. Clique para ver na prévia e salve para aplicar a toda a equipe — depois ajuste as cores e o logotipo abaixo.
+                  {THEME_PRESETS.length} identidades com paleta, tipografia, cantos e navegação próprios. Clique para ver na prévia e salve para aplicar a toda a equipe — depois ajuste as cores e o logotipo abaixo.
                 </p>
               </div>
               <Tabs value={group} onChange={setGroup} items={PRESET_GROUPS.map((g) => ({ value: g.key, label: g.label }))} />

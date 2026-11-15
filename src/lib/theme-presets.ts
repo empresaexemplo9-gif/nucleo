@@ -6,7 +6,7 @@
  */
 import { contrast, mix } from "./color-tools";
 
-export type PresetGroup = "classicos" | "profissionais" | "detalhados" | "ousados" | "criativos";
+export type PresetGroup = "classicos" | "profissionais" | "detalhados" | "ousados" | "criativos" | "segmentos";
 type Look = "soft" | "flat" | "hard" | "lift" | "glass" | "glow";
 
 export type ThemePreset = {
@@ -48,6 +48,7 @@ export const PRESET_GROUPS: { key: PresetGroup; label: string; hint: string }[] 
   { key: "detalhados", label: "Detalhados", hint: "Operacionais, ricos em contraste de dados" },
   { key: "ousados", label: "Ousados", hint: "Cor e personalidade fortes" },
   { key: "criativos", label: "Criativos", hint: "Inspirados em design gráfico" },
+  { key: "segmentos", label: "Segmentos", hint: "Paletas pensadas para cada tipo de negócio" },
 ];
 
 /** Fontes usadas pelos temas: família CSS e especificação do Google Fonts. */
@@ -302,6 +303,44 @@ export const THEME_PRESETS: ThemePreset[] = [
     bg: "#170a1f", card: "#24152d", text: "#efe6fa", primary: "#d05cf0", accent: "#3fd0e6",
     nav: ["#180624", "#d9c9ea", "#7a2a9c", "#ffffff"], btn: ["#c94ae8", "#170a1f"],
     display: "Sora", body: "Inter", head: { w: 600, track: "-0.03em" }, mono: true, radius: 10, look: "glow" },
+
+  /* ------------------------------ Segmentos ------------------------------ */
+  { key: "seg-fazenda", name: "Fazenda", group: "segmentos", note: "Gestão agrícola: verde-floresta, marrom-terra e marfim",
+    bg: "#f7f4ec", card: "#ffffff", text: "#1f2a17", primary: "#486b3a", accent: "#7a5c3b",
+    nav: ["#3a4e26", "#eef2e4", "#5d8249", "#ffffff"], btn: ["p", "#ffffff"],
+    display: "Nunito Sans", body: "Nunito Sans", head: { w: 700, track: "-0.02em" }, radius: 8, look: "soft" },
+  { key: "seg-empresa", name: "Empresa", group: "segmentos", note: "Gestão financeira: ciano, marinho e coral sobre branco quente",
+    bg: "#fafaf0", card: "#ffffff", text: "#0e1420", primary: "#00bcff", accent: "#ff5547",
+    nav: ["#0e1420", "#dfe7f2", "p", "#0e1420"], btn: ["p", "#0e1420"],
+    display: "Inter", body: "Inter", head: { w: 600, track: "-0.02em" }, radius: 8, look: "soft" },
+  { key: "seg-granja", name: "Granja", group: "segmentos", note: "Avicultura de postura: terracota, ocre e creme",
+    bg: "#f9f1e4", card: "#ffffff", text: "#251c14", primary: "#9a4f2b", accent: "#b88836",
+    nav: ["#251c14", "#f1e4d0", "p", "#ffffff"], btn: ["p", "#ffffff"],
+    display: "Nunito Sans", body: "Nunito Sans", head: { w: 700, track: "-0.02em" }, radius: 8, look: "soft" },
+  { key: "seg-pecuaria", name: "Pecuária", group: "segmentos", note: "Gestão de rebanho: marrom-terra, floresta e carvão",
+    bg: "#fbfaf5", card: "#ffffff", text: "#111410", primary: "#7a5c3b", accent: "#486b3a",
+    nav: ["#2c2f22", "#ece9dc", "p", "#ffffff"], btn: ["p", "#ffffff"],
+    display: "Work Sans", body: "Work Sans", head: { w: 600, track: "-0.02em" }, radius: 8, look: "soft" },
+  { key: "seg-loja", name: "Loja", group: "segmentos", note: "Varejo e e-commerce: violeta, marinho e coral",
+    bg: "#fbfbf2", card: "#ffffff", text: "#0e1420", primary: "#7c3aed", accent: "#ff5547",
+    nav: ["#0e1420", "#e3e1f5", "p", "#ffffff"], btn: ["p", "#ffffff"],
+    display: "DM Sans", body: "DM Sans", head: { w: 700, track: "-0.02em" }, radius: 10, look: "soft" },
+  { key: "seg-backoffice", name: "Backoffice", group: "segmentos", note: "Arquitetura, engenharia e obras: azul técnico e pedra",
+    bg: "#f4f6f8", card: "#ffffff", text: "#0d151f", primary: "#27557b", accent: "#8f8a82",
+    nav: ["#204362", "#e1eaf2", "#3b76a6", "#ffffff"], btn: ["p", "#ffffff"],
+    display: "Archivo", body: "Inter", head: { w: 600, track: "-0.03em" }, radius: 6, look: "flat" },
+  { key: "seg-office", name: "Office", group: "segmentos", note: "Produtividade: verde-oliva, verde-escuro e verde-pálido",
+    bg: "#f5f7f4", card: "#ffffff", text: "#23332e", primary: "#4b5320", accent: "#7f9a6a",
+    nav: ["#e4eddd", "#23332e", "p", "#ffffff"], btn: ["p", "#ffffff"],
+    display: "Inter", body: "Inter", head: { w: 600, track: "-0.02em" }, radius: 8, look: "soft" },
+  { key: "seg-concord", name: "Concord", group: "segmentos", note: "Serviços e agendamentos: petróleo, argila e creme",
+    bg: "#f3ebdf", card: "#fbf7f1", text: "#2b2622", primary: "#1f4e5a", accent: "#c8745a",
+    nav: ["p", "#eaf1f0", "a", "#2b2622"], btn: ["a", "#2b2622"],
+    display: "Fraunces", body: "Work Sans", head: { w: 600, track: "-0.02em" }, hl: true, radius: 10, look: "soft" },
+  { key: "seg-professor", name: "Professor", group: "segmentos", note: "Cursos e mentorias (EAD): azul profundo e dourado suave",
+    bg: "#faf9f6", card: "#ffffff", text: "#102a3c", primary: "#25465a", accent: "#c9a86a",
+    nav: ["#102a3c", "#e3ebf0", "a", "#102a3c"], btn: ["a", "#102a3c"],
+    display: "Nunito Sans", body: "Nunito Sans", head: { w: 700, track: "-0.02em" }, radius: 8, look: "soft" },
 ];
 
 /** Base neutra usada quando a empresa personaliza tudo sem partir de um tema pronto. */
