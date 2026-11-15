@@ -39,7 +39,7 @@ export const SURFACES: SurfaceOption[] = [
   { key: "brand", label: "Tom da marca", vars: { "--bg": "color-mix(in oklab, var(--accent) 6%, #f7f7f5)", "--surface-2": "color-mix(in oklab, var(--accent) 3%, #fbfbfa)", "--surface-3": "color-mix(in oklab, var(--accent) 12%, #ecebe7)", "--nav-bg": "color-mix(in oklab, var(--accent) 5%, rgba(247,247,245,.8))" } },
 ];
 
-export type BrandTheme = { font?: string; serifFont?: string; surface?: string; radius?: string };
+export type BrandTheme = { font?: string; serifFont?: string; surface?: string; radius?: string; /** Tema pronto (ver theme-presets) */ preset?: string };
 
 export const RADII = [
   { key: "soft", label: "Suave (padrão)", radius: "14px", sm: "8px" },

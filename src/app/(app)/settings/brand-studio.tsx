@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ImageUp, Link2, RotateCcw, Sparkles, Trash2, Upload, Wand2 } from "lucide-react";
+import { Check, ImageUp, Link2, Moon, RotateCcw, Sparkles, Sun, Trash2, Upload, Wand2 } from "lucide-react";
 import { Badge, Button, Card, cn, EditorialTitle, Eyebrow, Field, Input, Select, Tabs } from "@/components/ui";
 import { useAction } from "@/components/use-action";
 import { useToast } from "@/components/toast";
@@ -9,6 +9,7 @@ import { DRAP_PRIMARY, DRAP_SECONDARY } from "@/lib/brand-colors";
 import { contrast, extractPalette, fileToLogoDataUrl, loadImage, mix, suggestPair } from "@/lib/color-tools";
 import { initials } from "@/lib/format";
 import { findSans, findSerif, RADII, SANS_FONTS, SERIF_FONTS, SURFACES, type BrandTheme } from "@/lib/theme-options";
+import { cssVarsOnly, findPreset, PRESET_GROUPS, presetFontsHref, presetStyle, THEME_PRESETS, type PresetGroup, type ThemePreset } from "@/lib/theme-presets";
 import { ensureFontLink, LogoGenerator } from "./logo-generator";
 
 const CURRENCIES = [["BRL", "Real (R$)"], ["USD", "Dólar (US$)"], ["EUR", "Euro (€)"], ["GBP", "Libra (£)"], ["ARS", "Peso argentino"], ["MXN", "Peso mexicano"], ["CLP", "Peso chileno"], ["COP", "Peso colombiano"], ["PYG", "Guarani"], ["UYU", "Peso uruguaio"], ["AOA", "Kwanza"], ["MZN", "Metical"]];
@@ -45,6 +46,56 @@ function Contrast({ fg, bg, label }: { fg: string; bg: string; label: string }) 
   );
 }
 
+const headStyle = (s: ThemePreset): React.CSSProperties => ({
+  fontFamily: "var(--app-display)",
+  fontWeight: s.head?.w ?? 600,
+  fontStyle: s.head?.italic ? "italic" : "normal",
+  textTransform: s.head?.upper ? "uppercase" : "none",
+  letterSpacing: s.head?.track ?? "-0.02em",
+});
+
+/** Miniatura fiel do tema: usa os mesmos tokens que serão aplicados na plataforma. */
+function PresetThumb({ s }: { s: ThemePreset }) {
+  const st = useMemo(() => presetStyle(s), [s]);
+  const r = Math.min(s.radius, 12) * 0.5;
+  const panel: React.CSSProperties = { background: "var(--card-bg)", border: "var(--card-border-w) solid var(--card-border)", boxShadow: s.look === "hard" ? `2px 2px 0 ${s.text}` : s.look === "lift" ? "1.5px 2px 0 var(--line-strong)" : "none", borderRadius: r };
+  return (
+    <div aria-hidden className="grid aspect-[16/10] grid-cols-[28%_1fr] overflow-hidden text-left" style={{ ...cssVarsOnly(st.vars), background: s.bgImage ? `${s.bgImage}, ${s.bg}` : s.bg, color: "var(--text)", fontFamily: "var(--app-font)" }}>
+      <div className="flex flex-col gap-[5px] p-2" style={{ ...cssVarsOnly(st.nav), background: "var(--nav-bg)", color: "var(--text)" }}>
+        <span className="mb-1 flex items-center gap-1 text-[7px] font-semibold">
+          <span className="size-2 rounded-[2px]" style={{ background: "var(--nav-active-bg)" }} /> Workspace
+        </span>
+        {["Início", "Contatos", "Negócios", "Agenda"].map((n, i) => (
+          <span key={n} className="px-1.5 py-[3px] text-[6.5px] leading-none" style={i === 0 ? { background: "var(--nav-active-bg)", color: "var(--nav-active-fg)", borderRadius: r, fontWeight: 600 } : { color: "var(--text-dim)" }}>
+            {n}
+          </span>
+        ))}
+      </div>
+      <div className="flex min-w-0 flex-col gap-1.5 p-2.5">
+        <div className="flex items-center justify-between gap-1">
+          <span className="truncate text-[15px] leading-none" style={headStyle(s)}>Visão geral</span>
+          <span className="shrink-0 px-1.5 py-[3px] text-[6.5px] font-semibold leading-none" style={{ background: "var(--btn-bg)", color: "var(--btn-fg)", borderRadius: r, boxShadow: s.look === "hard" ? `1.5px 1.5px 0 ${s.text}` : "none" }}>
+            + Novo
+          </span>
+        </div>
+        <div className="grid grid-cols-3 gap-1.5">
+          {["R$ 84.500", "48", "32%"].map((v, i) => (
+            <span key={v} className="px-1.5 py-1" style={panel}>
+              <span className="block h-[3px] w-4 rounded-full" style={{ background: i === 1 ? "var(--accent-2)" : "var(--accent)" }} />
+              <span className="mt-1 block truncate text-[8px] font-semibold leading-none">{v}</span>
+            </span>
+          ))}
+        </div>
+        <span className="flex flex-1 items-end gap-[3px] px-1.5 pb-1 pt-1.5" style={panel}>
+          {[38, 52, 46, 64, 58, 76, 70, 92].map((h, i) => (
+            <span key={i} className="flex-1" style={{ height: `${h}%`, background: i === 7 ? "var(--accent-2)" : "var(--accent)", opacity: i === 7 ? 1 : 0.55 + i * 0.05, borderRadius: Math.min(r, 2) }} />
+          ))}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export function BrandStudio({ org, theme }: { org: Org; theme: BrandTheme }) {
   const { run, pending } = useAction();
   const toast = useToast();
@@ -56,6 +107,9 @@ export function BrandStudio({ org, theme }: { org: Org; theme: BrandTheme }) {
   const [serifFont, setSerifFont] = useState(theme.serifFont ?? SERIF_FONTS[0]!.key);
   const [surface, setSurface] = useState(theme.surface ?? "paper");
   const [radius, setRadius] = useState(theme.radius ?? "soft");
+  const [preset, setPreset] = useState(findPreset(theme.preset)?.key ?? "");
+  const active = findPreset(preset);
+  const [group, setGroup] = useState<PresetGroup>(active?.group ?? "classicos");
   const [logoTab, setLogoTab] = useState<"upload" | "generate" | "link">("upload");
   const [source, setSource] = useState<{ url: string; palette: string[]; name: string } | null>(null);
   const [useAsLogo, setUseAsLogo] = useState(true);
@@ -68,6 +122,27 @@ export function BrandStudio({ org, theme }: { org: Org; theme: BrandTheme }) {
     ensureFontLink(sans);
     ensureFontLink(serif);
   }, [sans, serif]);
+
+  // Carrega as fontes dos temas da aba aberta (e do tema escolhido) para as miniaturas e a prévia.
+  useEffect(() => {
+    const href = presetFontsHref([...THEME_PRESETS.filter((s) => s.group === group), ...(active ? [active] : [])]);
+    if (!href) return;
+    const id = "gf-presets-" + group + (active?.key ?? "");
+    if (document.getElementById(id)) return;
+    const l = document.createElement("link");
+    l.id = id;
+    l.rel = "stylesheet";
+    l.href = href;
+    document.head.appendChild(l);
+  }, [group, active]);
+
+  const applyPreset = (s: ThemePreset) => {
+    setPreset(s.key);
+    setPrimary(s.primary);
+    setAccent(s.accent);
+    toast(`Tema “${s.name}” na prévia — salve para aplicar`);
+  };
+  const activeStyle = useMemo(() => (active ? presetStyle(active, primary, accent) : null), [active, primary, accent]);
 
   async function analyze(file: File) {
     if (!file.type.startsWith("image/")) {
@@ -101,6 +176,7 @@ export function BrandStudio({ org, theme }: { org: Org; theme: BrandTheme }) {
 
   // Variáveis aplicadas apenas na pré-visualização
   const previewVars = useMemo(() => {
+    if (activeStyle && active) return { ...cssVarsOnly(activeStyle.vars), fontFamily: "var(--app-font)", color: "var(--text)", background: active.bgImage ? `${active.bgImage}, ${active.bg}` : active.bg } as React.CSSProperties;
     const sv = SURFACES.find((s) => s.key === surface)?.vars ?? {};
     const r = RADII.find((x) => x.key === radius) ?? RADII[0]!;
     return {
@@ -116,9 +192,11 @@ export function BrandStudio({ org, theme }: { org: Org; theme: BrandTheme }) {
       "--radius-sm": r.sm,
       fontFamily: "var(--app-font)",
     } as React.CSSProperties;
-  }, [primary, accent, sans, serif, surface, radius]);
+  }, [primary, accent, sans, serif, surface, radius, activeStyle, active]);
+  const previewNav = activeStyle ? ({ ...cssVarsOnly(activeStyle.nav), color: "var(--text)" } as React.CSSProperties) : undefined;
 
   const reset = () => {
+    setPreset("");
     setPrimary(DRAP_PRIMARY);
     setAccent(DRAP_SECONDARY);
     setFont(SANS_FONTS[0]!.key);
@@ -149,9 +227,70 @@ export function BrandStudio({ org, theme }: { org: Org; theme: BrandTheme }) {
       <input type="hidden" name="serifFont" value={serifFont} />
       <input type="hidden" name="surface" value={surface} />
       <input type="hidden" name="radius" value={radius} />
+      <input type="hidden" name="preset" value={preset} />
 
       <div className="grid gap-6 2xl:grid-cols-[1fr_400px]">
         <div className="min-w-0 space-y-6">
+          {/* Temas prontos */}
+          <Card className="p-6">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <Eyebrow>00 / Temas prontos</Eyebrow>
+                <h2 className="mt-2 text-2xl font-medium tracking-[-0.03em]">
+                  <EditorialTitle text="Escolha um visual completo" highlight="completo" />
+                </h2>
+                <p className="mt-1 max-w-2xl text-sm text-fg-2">
+                  30 identidades com paleta, tipografia, cantos e navegação próprios. Clique para ver na prévia e salve para aplicar a toda a equipe — depois ajuste as cores e o logotipo abaixo.
+                </p>
+              </div>
+              <Tabs value={group} onChange={setGroup} items={PRESET_GROUPS.map((g) => ({ value: g.key, label: g.label }))} />
+            </div>
+            <div className="mt-5 grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-3">
+              {THEME_PRESETS.filter((s) => s.group === group).map((s) => {
+                const on = preset === s.key;
+                return (
+                  <button
+                    key={s.key}
+                    type="button"
+                    onClick={() => applyPreset(s)}
+                    aria-pressed={on}
+                    title={s.note}
+                    className={cn("group overflow-hidden rounded-[var(--radius)] border bg-surface text-left transition duration-300 hover:-translate-y-0.5", on ? "border-[var(--text)] ring-2 ring-[var(--accent)]" : "border-line-strong hover:border-[var(--text-mute)]")}
+                  >
+                    <PresetThumb s={s} />
+                    <span className="flex items-center gap-2 border-t border-line px-3 py-2">
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[13px] font-medium">{s.name}</span>
+                        <span className="mono-label flex items-center gap-1 text-[9.5px] text-muted">
+                          {s.dark ? <Moon className="size-2.5" /> : <Sun className="size-2.5" />} {s.dark ? "Escuro" : "Claro"}
+                        </span>
+                      </span>
+                      {on && (
+                        <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-[var(--chip-active-bg)] text-[var(--chip-active-fg)]">
+                          <Check className="size-3" />
+                        </span>
+                      )}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
+              {active ? (
+                <>
+                  <span className="text-fg-2">
+                    Tema selecionado: <strong className="font-medium text-fg">{active.name}</strong> — {active.note.toLowerCase()}.
+                  </span>
+                  <Button type="button" variant="secondary" size="sm" onClick={() => setPreset("")}>
+                    Usar visual personalizado
+                  </Button>
+                </>
+              ) : (
+                <span className="text-muted">Nenhum tema pronto selecionado: vale o visual personalizado das seções abaixo.</span>
+              )}
+            </div>
+          </Card>
+
           {/* 01 — Identidade oficial */}
           <Card grid className="p-6">
             <Eyebrow className="relative">01 / Identidade oficial</Eyebrow>
@@ -294,7 +433,8 @@ export function BrandStudio({ org, theme }: { org: Org; theme: BrandTheme }) {
                 </button>
               ))}
             </div>
-            <div className="mt-6 grid gap-5 lg:grid-cols-2">
+            {active && <p className="mt-6 text-xs text-muted">Fundo e cantos são definidos pelo tema “{active.name}”.</p>}
+            <div className={cn("mt-6 grid gap-5 lg:grid-cols-2", active && "hidden")}>
               <div>
                 <p className="mono-label mb-2 text-[10.5px] text-muted">Tom de fundo (tema claro)</p>
                 <div className="flex flex-wrap gap-1.5">
@@ -324,7 +464,8 @@ export function BrandStudio({ org, theme }: { org: Org; theme: BrandTheme }) {
             <h2 className="mt-2 text-2xl font-medium tracking-[-0.03em]">
               <EditorialTitle text="Fontes da marca" highlight="marca" />
             </h2>
-            <div className="mt-5 grid gap-5 lg:grid-cols-2">
+            {active && <p className="mt-4 text-xs text-muted">As fontes são definidas pelo tema “{active.name}”.</p>}
+            <div className={cn("mt-5 grid gap-5 lg:grid-cols-2", active && "hidden")}>
               <Field label="Fonte principal" hint="Textos, títulos e números">
                 <Select value={font} onChange={(e) => setFont(e.target.value)}>
                   {SANS_FONTS.map((f) => (
@@ -341,8 +482,8 @@ export function BrandStudio({ org, theme }: { org: Org; theme: BrandTheme }) {
               </Field>
             </div>
             <div className="mt-5 rounded-[var(--radius)] border border-line bg-well p-5" style={previewVars}>
-              <p className="text-[clamp(28px,3vw,40px)] font-medium leading-[1.05] tracking-[-0.035em]">
-                Vendas com <span className="serif-i" style={{ color: "var(--accent-text)" }}>propósito</span>
+              <p className="text-[clamp(28px,3vw,40px)] font-medium leading-[1.05] tracking-[-0.035em]" style={active ? headStyle(active) : undefined}>
+                Vendas com <span className={active ? undefined : "serif-i"} style={{ color: "var(--accent-text)", fontStyle: active?.hl ? "italic" : undefined }}>propósito</span>
               </p>
               <p className="mt-2 max-w-xl text-[15px] font-light leading-relaxed text-fg-2">
                 Pipeline, contatos e relatórios com a identidade da sua empresa. 0123456789 · R$ 48.250,00
@@ -454,8 +595,8 @@ export function BrandStudio({ org, theme }: { org: Org; theme: BrandTheme }) {
         <div className="2xl:sticky 2xl:top-20 2xl:self-start">
           <Eyebrow className="mb-2">Prévia ao vivo</Eyebrow>
           <div className="card-drap overflow-hidden" style={previewVars}>
-            <div className="grid grid-cols-[120px_1fr]" style={{ background: "var(--bg)" }}>
-              <div className="border-r border-line p-3" style={{ background: "var(--nav-bg)" }}>
+            <div className="grid grid-cols-[120px_1fr]" style={active ? undefined : { background: "var(--bg)" }}>
+              <div className="border-r border-line p-3" style={{ ...previewNav, background: "var(--nav-bg)" }}>
                 <div className="flex items-center gap-2">
                   {logo ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -469,19 +610,19 @@ export function BrandStudio({ org, theme }: { org: Org; theme: BrandTheme }) {
                 </div>
                 <div className="mt-3 space-y-1 text-[10px]">
                   {["Painel", "Negócios", "Contatos"].map((n, i) => (
-                    <div key={n} className={cn("flex items-center gap-1.5 rounded-[var(--radius-sm)] px-1.5 py-1", i === 1 && "bg-[var(--surface-1)] shadow-[0_0_0_1px_var(--line)]")}>
-                      <span className="font-mono" style={{ color: i === 1 ? "var(--accent-text)" : "var(--text-mute)" }}>0{i + 1}</span> {n}
+                    <div key={n} className={cn("flex items-center gap-1.5 rounded-[var(--radius-sm)] px-1.5 py-1", i === 1 && "bg-[var(--nav-active-bg,var(--surface-1))] text-[var(--nav-active-fg,var(--text))] shadow-[0_0_0_1px_var(--line)]")}>
+                      <span className="font-mono" style={{ color: i === 1 ? "var(--nav-active-num,var(--accent-text))" : "var(--text-mute)" }}>0{i + 1}</span> {n}
                     </div>
                   ))}
                 </div>
               </div>
               <div className="min-w-0 p-4">
                 <p className="eyebrow text-[9px]">01 / Pipeline</p>
-                <p className="mt-1 text-2xl font-medium leading-tight tracking-[-0.04em]">
-                  Bom dia, <span className="serif-i text-grad pr-1">equipe.</span>
+                <p className="mt-1 text-2xl font-medium leading-tight tracking-[-0.04em]" style={active ? headStyle(active) : undefined}>
+                  Bom dia, <span className={cn("text-grad pr-1", !active && "serif-i")} style={{ fontStyle: active?.hl ? "italic" : undefined }}>equipe.</span>
                 </p>
                 <div className="mt-3 flex gap-2">
-                  <span className="btn-drap inline-flex items-center gap-1.5 rounded-[10px] py-1.5 pl-3 pr-1.5 text-[11px]">
+                  <span className="btn-drap inline-flex items-center gap-1.5 rounded-[var(--radius-btn,10px)] py-1.5 pl-3 pr-1.5 text-[11px]">
                     Novo negócio <span className="btn-icon size-5 text-[10px]">→</span>
                   </span>
                 </div>

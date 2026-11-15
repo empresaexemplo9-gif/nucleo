@@ -1,5 +1,4 @@
-import { brandOverrideCss } from "@/lib/brand-colors";
-import { googleFontsHref, themeCss } from "@/lib/theme-options";
+import { brandStyle } from "@/lib/brand-style";
 import { resolveSettings } from "@/lib/labels";
 import { DrapSignature } from "./drap-signature";
 
@@ -7,9 +6,7 @@ type Org = { name: string; logoUrl: string | null; primaryColor: string; accentC
 
 /** Aplica a identidade visual da empresa (cores, fontes) nas páginas públicas. */
 export function PublicBrandStyles({ org }: { org: Org }) {
-  const brand = resolveSettings(org.settings).brand;
-  const css = brandOverrideCss(org.primaryColor, org.accentColor) + themeCss(brand);
-  const fonts = googleFontsHref(brand);
+  const { css, fontsHref: fonts } = brandStyle(org.primaryColor, org.accentColor, resolveSettings(org.settings).brand);
   return (
     <>
       {fonts && <link rel="stylesheet" href={fonts} precedence="default" />}

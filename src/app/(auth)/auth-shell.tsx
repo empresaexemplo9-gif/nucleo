@@ -1,5 +1,5 @@
-import { brandOverrideCss } from "@/lib/brand-colors";
-import { googleFontsHref, themeCss, type BrandTheme } from "@/lib/theme-options";
+import { brandStyle } from "@/lib/brand-style";
+import type { BrandTheme } from "@/lib/theme-options";
 import { BrandMark } from "@/components/brand-mark";
 import { Terminal } from "@/components/terminal";
 import { DrapSignature } from "@/components/drap-signature";
@@ -17,8 +17,7 @@ export function AuthShell({
   subtitle: string;
   children: React.ReactNode;
 }) {
-  const css = brandOverrideCss(brand.primaryColor, brand.accentColor) + themeCss(brand.theme ?? {});
-  const fontsHref = googleFontsHref(brand.theme ?? {});
+  const { css, fontsHref } = brandStyle(brand.primaryColor, brand.accentColor, brand.theme);
   return (
     <div className="relative min-h-screen">
       {fontsHref && <link rel="stylesheet" href={fontsHref} precedence="default" />}

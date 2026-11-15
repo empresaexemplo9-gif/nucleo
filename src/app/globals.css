@@ -51,6 +51,7 @@
   --on-data: #ffffff; /* texto sobre cores de etapas/etiquetas (dados do cliente) */
   /* Assinatura DRAP (fixa, independe do tema do cliente) */
   --drap-ink: #15171c;
+  --drap-mark: #024C5E;
   --drap-gold: linear-gradient(180deg,#d9b97f,#b48a4f);
 }
 
@@ -82,6 +83,7 @@
   --chip-active-bg: var(--text);
   --chip-active-fg: var(--bg);
   --warn: #f0b860;
+  --drap-mark: #FBF7F2;
 }
 
 /* Mapeamento para utilitários Tailwind usados no app */
@@ -108,10 +110,10 @@
   --font-sans: var(--app-font);
   --font-serif: var(--app-serif);
   --font-mono: var(--font-jetbrains), "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-  --font-display: var(--app-font);
+  --font-display: var(--app-display, var(--app-font));
   --radius-card: var(--radius);
   --shadow-soft: 0 1px 2px var(--tint-2);
-  --shadow-card: 0 20px 50px -30px var(--shadow);
+  --shadow-card: var(--card-shadow, 0 20px 50px -30px var(--shadow));
   --shadow-lift: 0 28px 60px -28px var(--shadow-strong);
   --shadow-pop: 0 40px 80px -30px var(--term-shadow);
   --ease-drap: var(--ease);
@@ -132,7 +134,7 @@ body {
 }
 
 h1, h2, h3, .font-display {
-  font-family: var(--app-font);
+  font-family: var(--app-display, var(--app-font));
   letter-spacing: -0.03em;
 }
 
@@ -183,9 +185,11 @@ h1, h2, h3, .font-display {
 .card-drap {
   min-width: 0;
   background: var(--card-bg);
-  border: 1px solid var(--line);
+  border: var(--card-border-w, 1px) solid var(--card-border, var(--line));
   border-radius: var(--radius);
-  box-shadow: 0 20px 50px -30px var(--shadow);
+  box-shadow: var(--card-shadow, 0 20px 50px -30px var(--shadow));
+  -webkit-backdrop-filter: var(--card-blur, none);
+  backdrop-filter: var(--card-blur, none);
 }
 .card-grid-top { position: relative; }
 .card-grid-top::before {
@@ -194,7 +198,7 @@ h1, h2, h3, .font-display {
   background-size: 24px 24px;
   -webkit-mask-image: linear-gradient(to bottom, #000, transparent);
   mask-image: linear-gradient(to bottom, #000, transparent);
-  opacity: .7;
+  opacity: var(--card-grid, .7);
 }
 .glass-nav {
   background: var(--nav-bg);
