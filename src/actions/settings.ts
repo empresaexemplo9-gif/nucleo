@@ -8,7 +8,7 @@ import { checkPassword, hashPassword, requireContext, requireRole } from "@/lib/
 import { slugify } from "@/lib/format";
 import { DEFAULT_LABELS, type Labels, type OrgSettings } from "@/lib/labels";
 import { RADII, SANS_FONTS, SERIF_FONTS, SURFACES } from "@/lib/theme-options";
-import { PRESET_KEYS } from "@/lib/theme-presets";
+import { PRESET_KEYS, sanitizeCustom } from "@/lib/theme-presets";
 import { fail, moneyOf, numOr, str } from "./helpers";
 import type { ActionResult } from "@/components/use-action";
 
@@ -25,6 +25,14 @@ function isValidLogo(v: string) {
   if (/^\/api\/public\/logo\/[a-z0-9]+$/.test(v)) return true;
   const m = /^data:image\/(png|jpeg|webp|svg\+xml);base64,([A-Za-z0-9+/=]+)$/.exec(v);
   return !!m && m[2]!.length <= 8_200_000;
+}
+
+function parseJson(v: string | null | undefined): unknown {
+  try {
+    return v ? JSON.parse(v) : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function updateBranding(fd: FormData): Promise<ActionResult> {
@@ -55,6 +63,7 @@ export async function updateBranding(fd: FormData): Promise<ActionResult> {
       radius: pick("radius", RADII.map((f) => f.key)) ?? ctx.settings.brand.radius,
       // enviado vazio = sem tema pronto (personalizado); ausente = mantém o atual
       preset: fd.has("preset") ? pick("preset", PRESET_KEYS) : ctx.settings.brand.preset,
+      custom: fd.has("custom") ? sanitizeCustom(parseJson(str(fd, "custom"))) : ctx.settings.brand.custom,
     };
     await db.organization.update({
       where: { id: ctx.org.id },

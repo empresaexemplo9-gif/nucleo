@@ -1,15 +1,15 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, ImageUp, Link2, Moon, RotateCcw, Sparkles, Sun, Trash2, Upload, Wand2 } from "lucide-react";
+import { Check, Download, ImageUp, Link2, Moon, Palette, RotateCcw, Sparkles, Sun, Trash2, Upload, Wand2 } from "lucide-react";
 import { Badge, Button, Card, cn, EditorialTitle, Eyebrow, Field, Input, Select, Tabs } from "@/components/ui";
 import { useAction } from "@/components/use-action";
 import { useToast } from "@/components/toast";
 import { updateBranding } from "@/actions/settings";
 import { DRAP_PRIMARY, DRAP_SECONDARY } from "@/lib/brand-colors";
-import { contrast, extractPalette, fileToLogoDataUrl, loadImage, mix, suggestPair } from "@/lib/color-tools";
+import { contrast, extractAesthetic, extractPalette, fileToLogoDataUrl, loadImage, mix, suggestPair } from "@/lib/color-tools";
 import { initials } from "@/lib/format";
 import { findSans, findSerif, RADII, SANS_FONTS, SERIF_FONTS, SURFACES, type BrandTheme } from "@/lib/theme-options";
-import { cssVarsOnly, findPreset, PRESET_GROUPS, presetFontsHref, presetStyle, THEME_PRESETS, type PresetGroup, type ThemePreset } from "@/lib/theme-presets";
+import { BASE_PRESET, cssVarsOnly, findPreset, FONT_NAMES, LOOKS, PRESET_GROUPS, presetFontsHref, presetStyle, resolveTheme, sanitizeCustom, THEME_PRESETS, type PresetGroup, type ThemeCustom, type ThemePreset } from "@/lib/theme-presets";
 import { ensureFontLink, LogoGenerator } from "./logo-generator";
 
 const CURRENCIES = [["BRL", "Real (R$)"], ["USD", "Dólar (US$)"], ["EUR", "Euro (€)"], ["GBP", "Libra (£)"], ["ARS", "Peso argentino"], ["MXN", "Peso mexicano"], ["CLP", "Peso chileno"], ["COP", "Peso colombiano"], ["PYG", "Guarani"], ["UYU", "Peso uruguaio"], ["AOA", "Kwanza"], ["MZN", "Metical"]];
@@ -110,6 +110,12 @@ export function BrandStudio({ org, theme }: { org: Org; theme: BrandTheme }) {
   const [preset, setPreset] = useState(findPreset(theme.preset)?.key ?? "");
   const active = findPreset(preset);
   const [group, setGroup] = useState<PresetGroup>(active?.group ?? "classicos");
+  /** Ajustes da empresa sobre o tema (ou sobre a base neutra): cores, fontes, cantos, painéis. */
+  const [custom, setCustom] = useState<ThemeCustom>(() => sanitizeCustom(theme.custom) ?? {});
+  const hasCustom = Object.keys(custom).length > 0;
+  const spec = useMemo(() => resolveTheme({ preset, custom }), [preset, custom]);
+  const eff = spec ?? BASE_PRESET;
+  const [fullLook, setFullLook] = useState(true);
   const [logoTab, setLogoTab] = useState<"upload" | "generate" | "link">("upload");
   const [source, setSource] = useState<{ url: string; palette: string[]; name: string } | null>(null);
   const [useAsLogo, setUseAsLogo] = useState(true);
@@ -125,26 +131,69 @@ export function BrandStudio({ org, theme }: { org: Org; theme: BrandTheme }) {
 
   // Carrega as fontes dos temas da aba aberta (e do tema escolhido) para as miniaturas e a prévia.
   useEffect(() => {
-    const href = presetFontsHref([...THEME_PRESETS.filter((s) => s.group === group), ...(active ? [active] : [])]);
+    const href = presetFontsHref([...THEME_PRESETS.filter((s) => s.group === group), ...(spec ? [spec] : [])]);
     if (!href) return;
-    const id = "gf-presets-" + group + (active?.key ?? "");
+    const id = "gf-presets-" + group + (spec ? spec.display + spec.body : "").replace(/\s/g, "");
     if (document.getElementById(id)) return;
     const l = document.createElement("link");
     l.id = id;
     l.rel = "stylesheet";
     l.href = href;
     document.head.appendChild(l);
-  }, [group, active]);
+  }, [group, spec]);
 
   const applyPreset = (s: ThemePreset) => {
     setPreset(s.key);
+    setCustom({});
     setPrimary(s.primary);
     setAccent(s.accent);
     toast(`Tema “${s.name}” na prévia — salve para aplicar`);
   };
-  const activeStyle = useMemo(() => (active ? presetStyle(active, primary, accent) : null), [active, primary, accent]);
+  const activeStyle = useMemo(() => (spec ? presetStyle(spec, primary, accent) : null), [spec, primary, accent]);
+  const setC = (patch: ThemeCustom) => setCustom((c) => ({ ...c, ...patch }));
+  const refColor = (v: string) => (v === "p" ? primary : v === "a" ? accent : v);
+  const setNav = (i: number, v: string) => setC({ nav: eff.nav.map((x, j) => (j === i ? v : x)) as ThemePreset["nav"] });
+  const setBtn = (i: number, v: string) => setC({ btn: eff.btn.map((x, j) => (j === i ? v : x)) as ThemePreset["btn"] });
+
+  /** Arquivo de tema (.json): leva o visual completo de uma empresa para outra. */
+  const exportTheme = () => {
+    const blob = new Blob([JSON.stringify({ tipo: "tema-crm", versao: 1, preset: preset || null, custom, primaryColor: primary, accentColor: accent }, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `tema-${org.slug}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+  async function importTheme(file: File) {
+    try {
+      const data = JSON.parse(await file.text()) as Record<string, unknown>;
+      const hex = (v: unknown) => (typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v) ? v.toLowerCase() : null);
+      const p = findPreset(typeof data.preset === "string" ? data.preset : null);
+      const c = sanitizeCustom(data.custom);
+      if (!p && !c && !hex(data.primaryColor)) throw new Error("Arquivo de tema inválido");
+      setPreset(p?.key ?? "");
+      setCustom(c ?? {});
+      setPrimary(hex(data.primaryColor) ?? p?.primary ?? primary);
+      setAccent(hex(data.accentColor) ?? p?.accent ?? accent);
+      toast("Tema importado na prévia — salve para aplicar");
+    } catch (e) {
+      toast(e instanceof Error && e.message === "Arquivo de tema inválido" ? e.message : "Não foi possível ler o arquivo de tema", "error");
+    }
+  }
+  async function useLogoColors() {
+    try {
+      const pair = suggestPair(extractPalette(await loadImage(logo), 8));
+      if (!pair) return toast("Não encontramos cores marcantes no logotipo", "error");
+      setPrimary(pair.primary);
+      setAccent(pair.accent);
+      toast("Cores do logotipo aplicadas — salve para manter");
+    } catch {
+      toast("Não foi possível ler as cores deste logotipo (envie o arquivo em vez do link)", "error");
+    }
+  }
 
   async function analyze(file: File) {
+    if (file.type === "application/json" || file.name.toLowerCase().endsWith(".json")) return importTheme(file);
     if (!file.type.startsWith("image/")) {
       toast("Envie uma imagem (PNG, JPG, WebP ou SVG). Para manual de marca em PDF, exporte a página das cores como imagem.", "error");
       return;
@@ -154,13 +203,19 @@ export function BrandStudio({ org, theme }: { org: Org; theme: BrandTheme }) {
       const img = await loadImage(url);
       const palette = extractPalette(img, 8);
       setSource({ url, palette, name: file.name });
+      const look = fullLook ? extractAesthetic(img) : null;
       const pair = suggestPair(palette);
-      if (pair) {
+      if (look) {
+        // estética completa: fundo, painéis, texto, menu e botões seguem a imagem
+        setCustom((c) => ({ ...c, bg: look.bg, card: look.card, text: look.text, nav: look.nav, btn: look.btn }));
+        setPrimary(look.primary);
+        setAccent(look.accent);
+      } else if (pair) {
         setPrimary(pair.primary);
         setAccent(pair.accent);
       }
       if (useAsLogo) setLogo(await fileToLogoDataUrl(file, 2400));
-      toast(palette.length ? `${palette.length} cores encontradas — sugestão aplicada` : "Não encontramos cores marcantes nesta imagem");
+      toast(look ? "Estética da imagem aplicada na prévia — ajuste o que quiser e salve" : palette.length ? `${palette.length} cores encontradas — sugestão aplicada` : "Não encontramos cores marcantes nesta imagem");
     } catch (e) {
       toast(e instanceof Error ? e.message : "Falha ao ler a imagem", "error");
     }
@@ -176,7 +231,7 @@ export function BrandStudio({ org, theme }: { org: Org; theme: BrandTheme }) {
 
   // Variáveis aplicadas apenas na pré-visualização
   const previewVars = useMemo(() => {
-    if (activeStyle && active) return { ...cssVarsOnly(activeStyle.vars), fontFamily: "var(--app-font)", color: "var(--text)", background: active.bgImage ? `${active.bgImage}, ${active.bg}` : active.bg } as React.CSSProperties;
+    if (activeStyle && spec) return { ...cssVarsOnly(activeStyle.vars), fontFamily: "var(--app-font)", color: "var(--text)", background: spec.bgImage ? `${spec.bgImage}, ${spec.bg}` : spec.bg } as React.CSSProperties;
     const sv = SURFACES.find((s) => s.key === surface)?.vars ?? {};
     const r = RADII.find((x) => x.key === radius) ?? RADII[0]!;
     return {
@@ -192,11 +247,12 @@ export function BrandStudio({ org, theme }: { org: Org; theme: BrandTheme }) {
       "--radius-sm": r.sm,
       fontFamily: "var(--app-font)",
     } as React.CSSProperties;
-  }, [primary, accent, sans, serif, surface, radius, activeStyle, active]);
+  }, [primary, accent, sans, serif, surface, radius, activeStyle, spec]);
   const previewNav = activeStyle ? ({ ...cssVarsOnly(activeStyle.nav), color: "var(--text)" } as React.CSSProperties) : undefined;
 
   const reset = () => {
     setPreset("");
+    setCustom({});
     setPrimary(DRAP_PRIMARY);
     setAccent(DRAP_SECONDARY);
     setFont(SANS_FONTS[0]!.key);
@@ -205,12 +261,6 @@ export function BrandStudio({ org, theme }: { org: Org; theme: BrandTheme }) {
     setRadius("soft");
     toast("Visual padrão restaurado na prévia — salve para aplicar");
   };
-
-  const chip = (active: boolean) =>
-    cn(
-      "mono-label rounded-[var(--radius-sm)] border px-2.5 py-1.5 text-[10.5px] transition",
-      active ? "border-transparent bg-[var(--chip-active-bg)] text-[var(--chip-active-fg)]" : "border-line-strong bg-surface text-fg-2 hover:border-[var(--text-mute)]",
-    );
 
   return (
     <form
@@ -228,6 +278,7 @@ export function BrandStudio({ org, theme }: { org: Org; theme: BrandTheme }) {
       <input type="hidden" name="surface" value={surface} />
       <input type="hidden" name="radius" value={radius} />
       <input type="hidden" name="preset" value={preset} />
+      <input type="hidden" name="custom" value={JSON.stringify(custom)} />
 
       <div className="grid gap-6 2xl:grid-cols-[1fr_400px]">
         <div className="min-w-0 space-y-6">
@@ -279,14 +330,14 @@ export function BrandStudio({ org, theme }: { org: Org; theme: BrandTheme }) {
               {active ? (
                 <>
                   <span className="text-fg-2">
-                    Tema selecionado: <strong className="font-medium text-fg">{active.name}</strong> — {active.note.toLowerCase()}.
+                    Tema selecionado: <strong className="font-medium text-fg">{active.name}</strong> — {active.note.toLowerCase()}.{hasCustom && " Com ajustes seus."}
                   </span>
-                  <Button type="button" variant="secondary" size="sm" onClick={() => setPreset("")}>
+                  <Button type="button" variant="secondary" size="sm" onClick={() => { setPreset(""); setCustom({}); }}>
                     Usar visual personalizado
                   </Button>
                 </>
               ) : (
-                <span className="text-muted">Nenhum tema pronto selecionado: vale o visual personalizado das seções abaixo.</span>
+                <span className="text-muted">Nenhum tema pronto selecionado: vale o visual personalizado das seções abaixo{hasCustom ? " (com a sua paleta completa)" : ""}.</span>
               )}
             </div>
           </Card>
@@ -298,7 +349,7 @@ export function BrandStudio({ org, theme }: { org: Org; theme: BrandTheme }) {
               <EditorialTitle text="Comece pela sua marca" highlight="marca" />
             </h2>
             <p className="relative mt-1 text-sm text-fg-2">
-              Envie o logotipo ou uma imagem da identidade visual (manual de marca, paleta, papelaria). Extraímos as cores automaticamente e você escolhe como aplicar.
+              Envie o logotipo, uma imagem da identidade visual (manual de marca, paleta, papelaria, uma tela de referência) ou um arquivo de tema exportado daqui. A plataforma inteira se adapta às cores da imagem, e você ajusta o que quiser depois.
             </p>
             <div className="relative mt-5 grid gap-5 lg:grid-cols-[minmax(0,320px)_1fr]">
               <button
@@ -319,12 +370,12 @@ export function BrandStudio({ org, theme }: { org: Org; theme: BrandTheme }) {
                   <ImageUp className="size-8 text-muted transition group-hover:text-accent-text" />
                 )}
                 <span className="text-sm font-medium">{source ? "Trocar imagem" : "Arraste ou clique para enviar"}</span>
-                <span className="mono-label text-[10px] text-muted">PNG · JPG · WebP · SVG</span>
+                <span className="mono-label text-[10px] text-muted">PNG · JPG · WebP · SVG · tema .json</span>
               </button>
               <input
                 ref={fileRef}
                 type="file"
-                accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                accept="image/png,image/jpeg,image/webp,image/svg+xml,application/json,.json"
                 className="hidden"
                 onChange={(e) => {
                   const f = e.target.files?.[0];
@@ -336,6 +387,13 @@ export function BrandStudio({ org, theme }: { org: Org; theme: BrandTheme }) {
                 <label className="flex items-center gap-2 text-sm">
                   <input type="checkbox" checked={useAsLogo} onChange={(e) => setUseAsLogo(e.target.checked)} className="size-4 accent-[var(--accent)]" />
                   Usar esta imagem também como logotipo
+                </label>
+                <label className="mt-2 flex items-start gap-2 text-sm">
+                  <input type="checkbox" checked={fullLook} onChange={(e) => setFullLook(e.target.checked)} className="mt-0.5 size-4 accent-[var(--accent)]" />
+                  <span>
+                    Adaptar toda a estética à imagem
+                    <span className="block text-xs text-muted">Fundo, painéis, texto, menu e botões seguem as cores da imagem. Desmarque para aproveitar só as duas cores da marca.</span>
+                  </span>
                 </label>
                 {source ? (
                   <>
@@ -433,29 +491,63 @@ export function BrandStudio({ org, theme }: { org: Org; theme: BrandTheme }) {
                 </button>
               ))}
             </div>
-            {active && <p className="mt-6 text-xs text-muted">Fundo e cantos são definidos pelo tema “{active.name}”.</p>}
-            <div className={cn("mt-6 grid gap-5 lg:grid-cols-2", active && "hidden")}>
-              <div>
-                <p className="mono-label mb-2 text-[10.5px] text-muted">Tom de fundo (tema claro)</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {SURFACES.map((s) => (
-                    <button key={s.key} type="button" onClick={() => setSurface(s.key)} className={chip(surface === s.key)}>
-                      {s.label}
-                    </button>
-                  ))}
+            {logo && (
+              <Button type="button" variant="secondary" size="sm" className="mt-4" trail={<Palette className="size-3.5" />} onClick={useLogoColors}>
+                Usar as cores do logotipo
+              </Button>
+            )}
+
+            <div className="mt-7 border-t border-line pt-6">
+              <div className="flex flex-wrap items-end justify-between gap-3">
+                <div>
+                  <p className="text-[15px] font-semibold tracking-[-0.02em]">Paleta completa</p>
+                  <p className="mt-0.5 max-w-xl text-xs text-muted">
+                    Troque qualquer cor{active ? ` do tema “${active.name}”` : ""}: a prévia responde na hora e o contraste dos textos é corrigido automaticamente.
+                  </p>
                 </div>
+                {hasCustom && (
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setCustom({})}>
+                    <RotateCcw className="size-3.5" /> {active ? "Voltar às cores do tema" : "Desfazer ajustes"}
+                  </Button>
+                )}
               </div>
-              <div>
-                <p className="mono-label mb-2 text-[10.5px] text-muted">Cantos</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {RADII.map((r) => (
-                    <button key={r.key} type="button" onClick={() => setRadius(r.key)} className={chip(radius === r.key)}>
-                      {r.label}
-                    </button>
-                  ))}
-                </div>
+              <div className="mt-4 grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">
+                {(
+                  [
+                    ["Fundo da página", eff.bg, (v: string) => setC({ bg: v })],
+                    ["Painéis", eff.card, (v: string) => setC({ card: v })],
+                    ["Texto", eff.text, (v: string) => setC({ text: v })],
+                    ["Menu · fundo", refColor(eff.nav[0]), (v: string) => setNav(0, v)],
+                    ["Menu · texto", refColor(eff.nav[1]), (v: string) => setNav(1, v)],
+                    ["Item ativo · fundo", refColor(eff.nav[2]), (v: string) => setNav(2, v)],
+                    ["Item ativo · texto", refColor(eff.nav[3]), (v: string) => setNav(3, v)],
+                    ["Botão · fundo", refColor(eff.btn[0]), (v: string) => setBtn(0, v)],
+                    ["Botão · texto", refColor(eff.btn[1]), (v: string) => setBtn(1, v)],
+                  ] as const
+                ).map(([l, v, set]) => (
+                  <label key={l} className="flex cursor-pointer items-center gap-2.5 rounded-[var(--radius-sm)] border border-line bg-surface p-2">
+                    <input type="color" value={v} onChange={(e) => set(e.target.value)} className="h-9 w-10 shrink-0 cursor-pointer" aria-label={l} />
+                    <span className="min-w-0">
+                      <span className="block truncate text-xs font-medium">{l}</span>
+                      <span className="block font-mono text-[10px] uppercase text-muted">{v}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+              <div className="mt-5 grid gap-5 lg:grid-cols-2">
+                <Field label={`Cantos · ${eff.radius}px`} hint="De retos a bem arredondados">
+                  <input type="range" min={0} max={24} value={eff.radius} onChange={(e) => setC({ radius: Number(e.target.value) })} className="w-full accent-[var(--accent)]" aria-label="Arredondamento dos cantos" />
+                </Field>
+                <Field label="Estilo dos painéis" hint="Sombra, contorno ou vidro">
+                  <Select value={eff.look} onChange={(e) => setC({ look: e.target.value as ThemePreset["look"] })}>
+                    {LOOKS.map((l) => (
+                      <option key={l.key} value={l.key}>{l.label}</option>
+                    ))}
+                  </Select>
+                </Field>
               </div>
             </div>
+
           </Card>
 
           {/* 03 — Tipografia */}
@@ -464,8 +556,25 @@ export function BrandStudio({ org, theme }: { org: Org; theme: BrandTheme }) {
             <h2 className="mt-2 text-2xl font-medium tracking-[-0.03em]">
               <EditorialTitle text="Fontes da marca" highlight="marca" />
             </h2>
-            {active && <p className="mt-4 text-xs text-muted">As fontes são definidas pelo tema “{active.name}”.</p>}
-            <div className={cn("mt-5 grid gap-5 lg:grid-cols-2", active && "hidden")}>
+            {spec && (
+              <div className="mt-5 grid gap-5 lg:grid-cols-2">
+                <Field label="Fonte dos títulos" hint="Títulos de página e de seções">
+                  <Select value={eff.display} onChange={(e) => setC({ display: e.target.value })}>
+                    {FONT_NAMES.map((f) => (
+                      <option key={f}>{f}</option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field label="Fonte dos textos" hint="Textos, menus e números">
+                  <Select value={eff.body} onChange={(e) => setC({ body: e.target.value })}>
+                    {FONT_NAMES.map((f) => (
+                      <option key={f}>{f}</option>
+                    ))}
+                  </Select>
+                </Field>
+              </div>
+            )}
+            <div className={cn("mt-5 grid gap-5 lg:grid-cols-2", spec && "hidden")}>
               <Field label="Fonte principal" hint="Textos, títulos e números">
                 <Select value={font} onChange={(e) => setFont(e.target.value)}>
                   {SANS_FONTS.map((f) => (
@@ -482,8 +591,8 @@ export function BrandStudio({ org, theme }: { org: Org; theme: BrandTheme }) {
               </Field>
             </div>
             <div className="mt-5 rounded-[var(--radius)] border border-line bg-well p-5" style={previewVars}>
-              <p className="text-[clamp(28px,3vw,40px)] font-medium leading-[1.05] tracking-[-0.035em]" style={active ? headStyle(active) : undefined}>
-                Vendas com <span className={active ? undefined : "serif-i"} style={{ color: "var(--accent-text)", fontStyle: active?.hl ? "italic" : undefined }}>propósito</span>
+              <p className="text-[clamp(28px,3vw,40px)] font-medium leading-[1.05] tracking-[-0.035em]" style={spec ? headStyle(spec) : undefined}>
+                Vendas com <span className={spec ? undefined : "serif-i"} style={{ color: "var(--accent-text)", fontStyle: spec?.hl ? "italic" : undefined }}>propósito</span>
               </p>
               <p className="mt-2 max-w-xl text-[15px] font-light leading-relaxed text-fg-2">
                 Pipeline, contatos e relatórios com a identidade da sua empresa. 0123456789 · R$ 48.250,00
@@ -595,7 +704,7 @@ export function BrandStudio({ org, theme }: { org: Org; theme: BrandTheme }) {
         <div className="2xl:sticky 2xl:top-20 2xl:self-start">
           <Eyebrow className="mb-2">Prévia ao vivo</Eyebrow>
           <div className="card-drap overflow-hidden" style={previewVars}>
-            <div className="grid grid-cols-[120px_1fr]" style={active ? undefined : { background: "var(--bg)" }}>
+            <div className="grid grid-cols-[120px_1fr]" style={spec ? undefined : { background: "var(--bg)" }}>
               <div className="border-r border-line p-3" style={{ ...previewNav, background: "var(--nav-bg)" }}>
                 <div className="flex items-center gap-2">
                   {logo ? (
@@ -618,8 +727,8 @@ export function BrandStudio({ org, theme }: { org: Org; theme: BrandTheme }) {
               </div>
               <div className="min-w-0 p-4">
                 <p className="eyebrow text-[9px]">01 / Pipeline</p>
-                <p className="mt-1 text-2xl font-medium leading-tight tracking-[-0.04em]" style={active ? headStyle(active) : undefined}>
-                  Bom dia, <span className={cn("text-grad pr-1", !active && "serif-i")} style={{ fontStyle: active?.hl ? "italic" : undefined }}>equipe.</span>
+                <p className="mt-1 text-2xl font-medium leading-tight tracking-[-0.04em]" style={spec ? headStyle(spec) : undefined}>
+                  Bom dia, <span className={cn("text-grad pr-1", !spec && "serif-i")} style={{ fontStyle: spec?.hl ? "italic" : undefined }}>equipe.</span>
                 </p>
                 <div className="mt-3 flex gap-2">
                   <span className="btn-drap inline-flex items-center gap-1.5 rounded-[var(--radius-btn,10px)] py-1.5 pl-3 pr-1.5 text-[11px]">
@@ -652,6 +761,9 @@ export function BrandStudio({ org, theme }: { org: Org; theme: BrandTheme }) {
       <div className="glass-nav sticky bottom-0 z-10 -mx-1 mt-6 flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius)] border border-line px-4 py-3">
         <p className="text-xs text-muted">Sua marca aparece em toda a plataforma: menu, telas, login e convites.</p>
         <div className="flex gap-2">
+          <Button type="button" variant="secondary" trail={<Download className="size-3.5" />} onClick={exportTheme}>
+            Exportar tema
+          </Button>
           <Button type="button" variant="secondary" trail={<RotateCcw className="size-3.5" />} onClick={reset}>
             Restaurar padrão
           </Button>

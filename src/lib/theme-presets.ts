@@ -218,8 +218,65 @@ export const THEME_PRESETS: ThemePreset[] = [
     display: "Archivo Narrow", body: "Inter", head: { w: 700, upper: true, track: "0.01em" }, mono: true, radius: 4, look: "lift" },
 ];
 
+/** Base neutra usada quando a empresa personaliza tudo sem partir de um tema pronto. */
+export const BASE_PRESET: ThemePreset = {
+  key: "personalizado", name: "Personalizado", group: "classicos", note: "Visual próprio da empresa",
+  bg: "#f5f3ee", card: "#ffffff", text: "#121419", primary: "#b48a4f", accent: "#3c78c0",
+  nav: ["#efece5", "#121419", "#ffffff", "#121419"], btn: ["#15171c", "#f5f3ee"],
+  display: "Inter Tight", body: "Inter Tight", head: { w: 500, track: "-0.03em" }, mono: true, radius: 14, look: "soft",
+};
+
+export const FONT_NAMES = Object.keys(FONTS);
+export const LOOKS: { key: Look; label: string }[] = [
+  { key: "soft", label: "Suave (sombra leve)" },
+  { key: "flat", label: "Plano (só contorno)" },
+  { key: "lift", label: "Recorte (sombra sólida)" },
+  { key: "hard", label: "Brutalista (contorno grosso)" },
+  { key: "glass", label: "Vidro (translúcido)" },
+  { key: "glow", label: "Brilho (neon)" },
+];
+
+/** Ajustes da empresa sobre o tema: qualquer cor, fonte, canto ou estilo de painel. */
+export type ThemeCustom = Partial<Pick<ThemePreset, "bg" | "card" | "text" | "nav" | "btn" | "display" | "body" | "radius" | "look">>;
+
+const HEX = /^#[0-9a-f]{6}$/i;
+const isHex = (v: unknown): v is string => typeof v === "string" && HEX.test(v);
+const isRef = (v: unknown): v is string => isHex(v) || v === "p" || v === "a";
+
+/** Valida ajustes vindos do formulário, do banco ou de um arquivo de tema (nada fora do esperado chega ao CSS). */
+export function sanitizeCustom(raw: unknown): ThemeCustom | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const r = raw as Record<string, unknown>;
+  const out: ThemeCustom = {};
+  for (const k of ["bg", "card", "text"] as const) if (isHex(r[k])) out[k] = (r[k] as string).toLowerCase();
+  if (Array.isArray(r.nav) && r.nav.length === 4 && r.nav.every(isRef)) out.nav = r.nav as ThemePreset["nav"];
+  if (Array.isArray(r.btn) && r.btn.length === 2 && r.btn.every(isRef)) out.btn = r.btn as ThemePreset["btn"];
+  for (const k of ["display", "body"] as const) if (typeof r[k] === "string" && FONT_NAMES.includes(r[k] as string)) out[k] = r[k] as string;
+  if (typeof r.radius === "number" && Number.isFinite(r.radius)) out.radius = Math.max(0, Math.min(28, Math.round(r.radius)));
+  if (LOOKS.some((l) => l.key === r.look)) out.look = r.look as Look;
+  return Object.keys(out).length ? out : undefined;
+}
+
+/** Tema efetivo da empresa: tema pronto (ou base neutra) com os ajustes aplicados. `undefined` = visual padrão. */
+export function resolveTheme(t: { preset?: string | null; custom?: unknown }): ThemePreset | undefined {
+  const preset = findPresetByKey(t.preset);
+  const custom = sanitizeCustom(t.custom);
+  if (!preset && !custom) return undefined;
+  const s: ThemePreset = { ...(preset ?? BASE_PRESET), ...custom };
+  if (custom?.bg || custom?.card || custom?.text) {
+    // cores de base trocadas: o modo acompanha o fundo e os efeitos presos à paleta original saem
+    s.dark = contrast("#ffffff", s.bg) > contrast("#000000", s.bg);
+    s.bgImage = undefined;
+    s.line = undefined;
+  }
+  return s;
+}
+
 export const PRESET_KEYS = THEME_PRESETS.map((p) => p.key);
-export const findPreset = (key?: string | null) => (key ? THEME_PRESETS.find((p) => p.key === key) : undefined);
+export const findPreset = (key?: string | null) => findPresetByKey(key);
+function findPresetByKey(key?: string | null) {
+  return key ? THEME_PRESETS.find((p) => p.key === key) : undefined;
+}
 
 /* ----------------------------- Derivação ----------------------------- */
 
@@ -260,8 +317,10 @@ export function presetStyle(s: ThemePreset, primary?: string | null, accent?: st
   const p = primary || s.primary;
   const a = accent || s.accent;
   const pick = (v: string) => (v === "p" ? p : v === "a" ? a : v);
-  const { bg, card, text } = s;
+  const { bg, card } = s;
   const dark = !!s.dark;
+  // texto escolhido pela empresa nunca fica ilegível: aproxima do preto/branco até 7:1
+  const text = readable(s.text, [card, bg], bestOn(bg), 7);
   const surfaces = [card, bg];
 
   const dim = readable(mix(text, card, 0.28), surfaces, text);
