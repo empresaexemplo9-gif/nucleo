@@ -3,8 +3,7 @@ import type { Metadata } from "next";
 import { getContext, requireContext } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { setTimeZone } from "@/lib/format";
-import { brandOverrideCss } from "@/lib/brand-colors";
-import { googleFontsHref, themeCss } from "@/lib/theme-options";
+import { brandStyle } from "@/lib/brand-style";
 import { canEditModule, visibleModules } from "@/lib/modules";
 import { OrgProvider } from "@/components/org-context";
 import { AppShell } from "@/components/shell";
@@ -22,8 +21,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const ctx = await requireContext();
   const orgId = ctx.org.id;
   setTimeZone(ctx.org.timezone);
-  const brandCss = brandOverrideCss(ctx.org.primaryColor, ctx.org.accentColor) + themeCss(ctx.settings.brand);
-  const fontsHref = googleFontsHref(ctx.settings.brand);
+  const { css: brandCss, fontsHref, mode: fixedMode } = brandStyle(ctx.org.primaryColor, ctx.org.accentColor, ctx.settings.brand);
   const [members, tags, fields, pipelines, lostReasons, myOrgs, overdue, modules] = await Promise.all([
     db.membership.findMany({ where: { orgId, active: true }, include: { user: true }, orderBy: { user: { name: "asc" } } }),
     db.tag.findMany({ where: { orgId }, orderBy: { name: "asc" } }),
@@ -58,7 +56,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     >
       {fontsHref && <link rel="stylesheet" href={fontsHref} precedence="default" />}
       {brandCss && <style>{brandCss}</style>}
-      <AppShell dark={(await cookies()).get("theme")?.value === "dark"} orgs={myOrgs.map((m) => ({ id: m.org.id, name: m.org.name }))} overdue={overdue}>
+      <AppShell fixedMode={fixedMode} dark={(await cookies()).get("theme")?.value === "dark"} orgs={myOrgs.map((m) => ({ id: m.org.id, name: m.org.name }))} overdue={overdue}>
         {children}
       </AppShell>
     </OrgProvider>

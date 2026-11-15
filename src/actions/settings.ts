@@ -8,6 +8,7 @@ import { checkPassword, hashPassword, requireContext, requireRole } from "@/lib/
 import { slugify } from "@/lib/format";
 import { DEFAULT_LABELS, type Labels, type OrgSettings } from "@/lib/labels";
 import { RADII, SANS_FONTS, SERIF_FONTS, SURFACES } from "@/lib/theme-options";
+import { PRESET_KEYS } from "@/lib/theme-presets";
 import { fail, moneyOf, numOr, str } from "./helpers";
 import type { ActionResult } from "@/components/use-action";
 
@@ -52,6 +53,8 @@ export async function updateBranding(fd: FormData): Promise<ActionResult> {
       serifFont: pick("serifFont", SERIF_FONTS.map((f) => f.key)) ?? ctx.settings.brand.serifFont,
       surface: pick("surface", SURFACES.map((f) => f.key)) ?? ctx.settings.brand.surface,
       radius: pick("radius", RADII.map((f) => f.key)) ?? ctx.settings.brand.radius,
+      // enviado vazio = sem tema pronto (personalizado); ausente = mantém o atual
+      preset: fd.has("preset") ? pick("preset", PRESET_KEYS) : ctx.settings.brand.preset,
     };
     await db.organization.update({
       where: { id: ctx.org.id },

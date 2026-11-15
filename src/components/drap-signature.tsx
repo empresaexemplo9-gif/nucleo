@@ -6,7 +6,7 @@ export const DRAP_URL = "https://drap-softwerehouse.vercel.app/";
 /** Marca oficial DRAP (vetor do site oficial). Cor fixa da marca, independente do tema do cliente. */
 export function DrapMark({ size = 18 }: { size?: number }) {
   return (
-    <svg aria-hidden viewBox="0 0 778 781" width={size} height={size} className="shrink-0 text-[#024C5E] dark:text-[#FBF7F2]" fill="currentColor">
+    <svg aria-hidden viewBox="0 0 778 781" width={size} height={size} className="shrink-0 text-[var(--drap-mark)]" fill="currentColor">
       <path d="M0 0H533L212 781H0Z" />
       <path d="M581 2C601 2 777 60 777 290V480C777 675 652 781 512 781H219Z" />
     </svg>
