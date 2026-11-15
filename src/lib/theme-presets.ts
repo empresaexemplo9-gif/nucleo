@@ -6,7 +6,7 @@
  */
 import { contrast, mix } from "./color-tools";
 
-export type PresetGroup = "classicos" | "ousados" | "criativos";
+export type PresetGroup = "classicos" | "profissionais" | "detalhados" | "ousados" | "criativos";
 type Look = "soft" | "flat" | "hard" | "lift" | "glass" | "glow";
 
 export type ThemePreset = {
@@ -44,6 +44,8 @@ export type ThemePreset = {
 
 export const PRESET_GROUPS: { key: PresetGroup; label: string; hint: string }[] = [
   { key: "classicos", label: "Clássicos", hint: "Elegantes e discretos" },
+  { key: "profissionais", label: "Profissionais", hint: "Sóbrios, para o dia a dia corporativo" },
+  { key: "detalhados", label: "Detalhados", hint: "Operacionais, ricos em contraste de dados" },
   { key: "ousados", label: "Ousados", hint: "Cor e personalidade fortes" },
   { key: "criativos", label: "Criativos", hint: "Inspirados em design gráfico" },
 ];
@@ -216,6 +218,90 @@ export const THEME_PRESETS: ThemePreset[] = [
     bg: "#e6e0ee", card: "#f8f6fa", text: "#1c1024", primary: "#5c1f58", accent: "#c6e235",
     nav: ["#461142", "#f1e6f2", "a", "#1c1024"], btn: ["a", "#1c1024"],
     display: "Archivo Narrow", body: "Inter", head: { w: 700, upper: true, track: "0.01em" }, mono: true, radius: 4, look: "lift" },
+
+  /* ---------------------------- Profissionais ---------------------------- */
+  { key: "azul-corporativo", name: "Azul corporativo", group: "profissionais", note: "Branco, menu marinho e azul-royal contido",
+    bg: "#f7f8fa", card: "#ffffff", text: "#101828", primary: "#1a56db", accent: "#0e9f8e",
+    nav: ["#0c1c3f", "#dbe3f3", "p", "#ffffff"], btn: ["p", "#ffffff"],
+    display: "Inter", body: "Inter", head: { w: 600, track: "-0.02em" }, radius: 8, look: "flat" },
+  { key: "ardosia", name: "Ardósia", group: "profissionais", note: "Cinza frio, menu ardósia e azul-aço discreto",
+    bg: "#ecf0f4", card: "#ffffff", text: "#1f2a37", primary: "#3f6b99", accent: "#7d93ad",
+    nav: ["#2d3b49", "#e3e9ef", "#475a6e", "#ffffff"], btn: ["#2f5f8f", "#ffffff"],
+    display: "Work Sans", body: "Work Sans", head: { w: 600, track: "-0.02em" }, radius: 6, look: "flat" },
+  { key: "petroleo-executivo", name: "Petróleo executivo", group: "profissionais", note: "Branco quente, menu petróleo e verde-azulado",
+    bg: "#f8f7f4", card: "#ffffff", text: "#10292b", primary: "#0f766e", accent: "#5a8f93",
+    nav: ["#023135", "#d9eceb", "#0f5e5a", "#ffffff"], btn: ["#0f6b64", "#ffffff"],
+    display: "Nunito Sans", body: "Nunito Sans", head: { w: 700, track: "-0.02em" }, radius: 8, look: "flat" },
+  { key: "preto-branco", name: "Preto e branco", group: "profissionais", note: "Cinza suave, menu quase preto e azul só nos gráficos",
+    bg: "#f6f7f8", card: "#ffffff", text: "#111418", primary: "#1f2329", accent: "#4a78b5",
+    nav: ["#131820", "#e8eaed", "#2a313c", "#ffffff"], btn: ["p", "#ffffff"],
+    display: "Archivo", body: "Inter", head: { w: 600, track: "-0.03em" }, radius: 4, look: "flat" },
+  { key: "indigo-institucional", name: "Índigo institucional", group: "profissionais", note: "Cinza muito claro com índigo profundo",
+    bg: "#f3f4f8", card: "#ffffff", text: "#1e2235", primary: "#3b3f9e", accent: "#6b7fb8",
+    nav: ["#1c1d51", "#dcdff5", "p", "#ffffff"], btn: ["p", "#ffffff"],
+    display: "Inter", body: "Inter", head: { w: 600, track: "-0.02em" }, radius: 8, look: "flat" },
+  { key: "verde-corporativo", name: "Verde corporativo", group: "profissionais", note: "Pedra clara, verde-floresta e sálvia",
+    bg: "#f5f6f4", card: "#ffffff", text: "#14261c", primary: "#1f6b3f", accent: "#6f9a80",
+    nav: ["#12452a", "#dcefe3", "#2a8250", "#ffffff"], btn: ["p", "#ffffff"],
+    display: "Nunito Sans", body: "Nunito Sans", head: { w: 700, track: "-0.02em" }, radius: 6, look: "flat" },
+  { key: "marinho-claro", name: "Marinho claro", group: "profissionais", note: "Menu marinho, área de trabalho cinza-claro e dados em azul",
+    bg: "#ecf0f5", card: "#ffffff", text: "#0f1f3a", primary: "#1d5fd1", accent: "#5a7bb0",
+    nav: ["#011c40", "#dbe6f5", "p", "#ffffff"], btn: ["p", "#ffffff"],
+    display: "IBM Plex Sans", body: "IBM Plex Sans", head: { w: 600, track: "-0.02em" }, radius: 4, look: "flat" },
+  { key: "grafite-profissional", name: "Grafite profissional", group: "profissionais", note: "Modo escuro fosco com azul dessaturado, sem brilho", dark: true,
+    bg: "#111519", card: "#1d2127", text: "#e9ecef", primary: "#6b9be0", accent: "#4fb3a5",
+    nav: ["#14181d", "#c5cbd3", "#2a3b52", "#ffffff"], btn: ["#5b8fd6", "#0c1014"],
+    display: "Inter", body: "Inter", head: { w: 600, track: "-0.02em" }, radius: 6, look: "flat" },
+  { key: "bordo-discreto", name: "Bordô discreto", group: "profissionais", note: "Cinza quente, menu carvão e bordô contido",
+    bg: "#f3f0f0", card: "#fbfafa", text: "#231c1e", primary: "#8a1c33", accent: "#b9717f",
+    nav: ["#2c2b2c", "#ebe6e6", "p", "#ffffff"], btn: ["p", "#ffffff"],
+    display: "Work Sans", body: "Work Sans", head: { w: 600, track: "-0.02em" }, radius: 6, look: "flat" },
+  { key: "azul-aco", name: "Azul aço", group: "profissionais", note: "Azul-acinzentado claro, menu azul-aço e cobalto suave",
+    bg: "#e8eff8", card: "#fbfcfe", text: "#10294d", primary: "#2456b8", accent: "#6f8fb8",
+    nav: ["#133764", "#dce8f7", "#2e63a8", "#ffffff"], btn: ["p", "#ffffff"],
+    display: "Inter", body: "Inter", head: { w: 600, track: "-0.02em" }, radius: 6, look: "flat" },
+
+  /* ------------------------------ Detalhados ----------------------------- */
+  { key: "indigo-operacional", name: "Índigo operacional", group: "detalhados", note: "Índigo e cinza-gelo, estados ativos em cobalto e série violeta",
+    bg: "#f1f1f6", card: "#ffffff", text: "#14163c", primary: "#1f4fe0", accent: "#8b7cf0",
+    nav: ["#171a6a", "#e6e8ff", "p", "#ffffff"], btn: ["p", "#ffffff"],
+    display: "Nunito Sans", body: "Nunito Sans", head: { w: 700, track: "-0.02em" }, radius: 10, look: "soft" },
+  { key: "areia-petroleo", name: "Areia e petróleo", group: "detalhados", note: "Areia quente, petróleo profundo e ações em âmbar",
+    bg: "#f5ebe0", card: "#fbf5ed", text: "#10302f", primary: "#0e4a48", accent: "#e09a1f",
+    nav: ["#0e393a", "#eef3ea", "#1b5a57", "#ffffff"], btn: ["a", "#10302f"],
+    display: "Fraunces", body: "Inter", head: { w: 600, track: "-0.02em" }, hl: true, radius: 8, look: "soft" },
+  { key: "grafite-coral", name: "Grafite coral", group: "detalhados", note: "Grafite escuro com controles coral e selos menta", dark: true,
+    bg: "#11141a", card: "#191d22", text: "#eceef0", primary: "#ff6b5a", accent: "#5fd3a2",
+    nav: ["#12161b", "#c9ced6", "p", "#11141a"], btn: ["p", "#11141a"],
+    display: "Poppins", body: "Inter", head: { w: 600, track: "-0.02em" }, mono: true, radius: 8, look: "flat" },
+  { key: "lilas-citron", name: "Lilás citron", group: "detalhados", note: "Lilás claro, texto ameixa e ações em amarelo-citron",
+    bg: "#f2e5fd", card: "#fdfdfe", text: "#3a1446", primary: "#8a4fd6", accent: "#14a39a",
+    nav: ["#f7effe", "#3a1446", "#dcee4a", "#2a1033"], btn: ["#d7ee2f", "#2a1033"],
+    display: "Archivo", body: "Inter", head: { w: 700, track: "-0.03em" }, radius: 12, look: "soft" },
+  { key: "marinho-cobre", name: "Marinho e cobre", group: "detalhados", note: "Marinho rico, bordas de cobre e tipografia marfim", dark: true,
+    bg: "#07111e", card: "#101a26", text: "#f3ead9", primary: "#d98a4e", accent: "#e8c9a0",
+    nav: ["#09131f", "#e6dcc8", "#1b2a3d", "#f0b27a"], btn: ["p", "#0a121d"],
+    display: "Playfair Display", body: "Inter", head: { w: 600, track: "-0.01em" }, hl: true, radius: 6, look: "flat", line: "#c98552", lineA: 24 },
+  { key: "verde-mineral", name: "Verde mineral", group: "detalhados", note: "Verde mineral e branco-giz, gráficos jade e pêssego",
+    bg: "#f3f1ec", card: "#fdfcfa", text: "#12332c", primary: "#1f7a5c", accent: "#e09a7c",
+    nav: ["#082d27", "#dcebe4", "#1d5c4a", "#ffffff"], btn: ["#0f5a43", "#ffffff"],
+    display: "Nunito", body: "Nunito", head: { w: 700, track: "-0.01em" }, radius: 12, look: "soft" },
+  { key: "rubi-nevoa", name: "Rubi névoa", group: "detalhados", note: "Cinza-névoa com menu e ações em vermelho-rubi",
+    bg: "#f1f1f5", card: "#fdfdfd", text: "#1a1418", primary: "#b00f2e", accent: "#e0708a",
+    nav: ["#950e2a", "#ffeef1", "#b8324b", "#ffffff"], btn: ["p", "#ffffff"],
+    display: "Archivo Narrow", body: "Inter", head: { w: 700, track: "0" }, radius: 6, look: "soft" },
+  { key: "azul-eletrico", name: "Azul elétrico", group: "detalhados", note: "Branco e ultramarino técnico com detalhes ciano",
+    bg: "#f3f6fb", card: "#ffffff", text: "#0a1230", primary: "#0b2fe0", accent: "#12b5d6",
+    nav: ["#012c80", "#e6edff", "#1d4df0", "#ffffff"], btn: ["p", "#ffffff"],
+    display: "Chakra Petch", body: "Inter", head: { w: 600, track: "0" }, mono: true, radius: 3, look: "flat", grid: 0.35 },
+  { key: "oliva-editorial", name: "Oliva editorial", group: "detalhados", note: "Marfim quente, verde-oliva e destaques terracota",
+    bg: "#f8efe0", card: "#fcf7ee", text: "#2d2f1c", primary: "#5d6234", accent: "#c0603a",
+    nav: ["#efe6d2", "#2d2f1c", "p", "#ffffff"], btn: ["#555a2e", "#ffffff"],
+    display: "Cormorant Garamond", body: "Work Sans", head: { w: 600, track: "-0.01em" }, hl: true, radius: 8, look: "soft" },
+  { key: "orquidea-noturna", name: "Orquídea noturna", group: "detalhados", note: "Ameixa noturna, estados ativos orquídea e linhas ciano", dark: true,
+    bg: "#170a1f", card: "#24152d", text: "#efe6fa", primary: "#d05cf0", accent: "#3fd0e6",
+    nav: ["#180624", "#d9c9ea", "#7a2a9c", "#ffffff"], btn: ["#c94ae8", "#170a1f"],
+    display: "Sora", body: "Inter", head: { w: 600, track: "-0.03em" }, mono: true, radius: 10, look: "glow" },
 ];
 
 /** Base neutra usada quando a empresa personaliza tudo sem partir de um tema pronto. */
