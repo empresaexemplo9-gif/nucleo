@@ -117,3 +117,63 @@ export function loadImage(src: string) {
     img.src = src;
   });
 }
+
+export type Aesthetic = { bg: string; card: string; text: string; primary: string; accent: string; nav: [string, string, string, string]; btn: [string, string] };
+
+/**
+ * Lê a estética completa de uma imagem (identidade visual, tela, moodboard): fundo dominante,
+ * painéis, texto, cor do menu, cor principal e de destaque — ponderando a área que cada cor ocupa.
+ */
+export function extractAesthetic(img: HTMLImageElement): Aesthetic | null {
+  const size = 128;
+  const c = document.createElement("canvas");
+  const ratio = Math.min(size / (img.naturalWidth || size), size / (img.naturalHeight || size));
+  c.width = Math.max(1, Math.round((img.naturalWidth || size) * ratio));
+  c.height = Math.max(1, Math.round((img.naturalHeight || size) * ratio));
+  const ctx = c.getContext("2d", { willReadFrequently: true })!;
+  ctx.drawImage(img, 0, 0, c.width, c.height);
+  const data = ctx.getImageData(0, 0, c.width, c.height).data;
+  const buckets = new Map<number, { n: number; r: number; g: number; b: number }>();
+  let total = 0;
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3]! < 160) continue;
+    const [r, g, b] = [data[i]!, data[i + 1]!, data[i + 2]!];
+    const key = ((r >> 4) << 8) | ((g >> 4) << 4) | (b >> 4);
+    const e = buckets.get(key) ?? { n: 0, r: 0, g: 0, b: 0 };
+    e.n++; e.r += r; e.g += g; e.b += b;
+    buckets.set(key, e);
+    total++;
+  }
+  if (!total) return null;
+  const merged: { n: number; rgb: RGB }[] = [];
+  for (const e of [...buckets.values()].sort((a, b) => b.n - a.n)) {
+    const rgb: RGB = [e.r / e.n, e.g / e.n, e.b / e.n];
+    const near = merged.find((o) => Math.hypot(o.rgb[0] - rgb[0], o.rgb[1] - rgb[1], o.rgb[2] - rgb[2]) < 36);
+    if (near) near.n += e.n;
+    else if (merged.length < 40) merged.push({ n: e.n, rgb });
+  }
+  const cs = merged.sort((a, b) => b.n - a.n).map((m) => ({ h: toHex(m.rgb), share: m.n / total, hsl: rgbToHsl(m.rgb) }));
+  const on = (x: string) => (contrast("#ffffff", x) >= contrast("#0a0a0a", x) ? "#ffffff" : "#0a0a0a");
+  const hueDist = (a: number, b: number) => Math.min(Math.abs(a - b), 360 - Math.abs(a - b));
+
+  const top = cs[0]!.h;
+  const darkBg = on(top) === "#ffffff";
+  // fundo e painéis: as duas cores vizinhas de maior área; o painel é sempre a mais clara
+  const panel = cs.find((x) => x.h !== top && x.share > 0.06 && contrast(x.h, top) < 1.3)?.h;
+  const lighter = (a: string, b: string) => (contrast(a, "#000000") >= contrast(b, "#000000") ? [a, b] : [b, a]);
+  const [card, bg] = panel ? lighter(top, panel) : [mix(top, "#ffffff", darkBg ? 0.07 : 0.6), top];
+  const ink = cs.filter((x) => x.share > 0.004).sort((a, b) => contrast(b.h, bg) - contrast(a.h, bg))[0];
+  const text = ink && contrast(ink.h, bg) >= 7 ? ink.h : darkBg ? "#f4f4f2" : "#141414";
+  const navBg = cs.find((x) => x.h !== bg && x.share > 0.06 && contrast(x.h, bg) > 1.8)?.h ?? bg;
+  const vivid = cs.filter((x) => x.hsl[1] > 0.3 && x.hsl[2] > 0.15 && x.hsl[2] < 0.85 && x.h !== bg)
+    // cor de marca: saturada, presente e que se destaca do fundo (não um pastel de área grande)
+    .map((x) => ({ ...x, score: Math.sqrt(x.share) * x.hsl[1] * Math.min(contrast(x.h, bg), 4) }))
+    .sort((a, b) => b.score - a.score);
+  const free = vivid.filter((x) => x.h !== navBg);
+  const main = free[0] ?? vivid[0];
+  const primary = main?.h ?? text;
+  const second = main ? (free.find((x) => x.h !== primary && hueDist(x.hsl[0], main.hsl[0]) > 35) ?? vivid.find((x) => x.h !== primary)) : undefined;
+  const accent = second?.h ?? mix(primary, darkBg ? "#ffffff" : "#000000", 0.35);
+  const active = [accent, primary].find((x) => contrast(x, navBg) >= 1.6) ?? on(navBg);
+  return { bg, card, text, primary, accent, nav: [navBg, on(navBg), active, on(active)], btn: [primary, on(primary)] };
+}

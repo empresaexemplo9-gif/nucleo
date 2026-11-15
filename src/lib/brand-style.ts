@@ -1,10 +1,10 @@
 /** Estilo final da empresa: tema pronto (quando escolhido) ou cores/fontes personalizadas. */
 import { brandOverrideCss, hasCustomBrand } from "./brand-colors";
 import { googleFontsHref, themeCss, type BrandTheme } from "./theme-options";
-import { findPreset, presetCss, presetFontsHref } from "./theme-presets";
+import { presetCss, presetFontsHref, resolveTheme } from "./theme-presets";
 
 export function brandStyle(primary: string | null | undefined, accent: string | null | undefined, theme: BrandTheme = {}) {
-  const preset = findPreset(theme.preset);
+  const preset = resolveTheme(theme);
   if (preset) {
     const custom = hasCustomBrand(primary, accent);
     return {
