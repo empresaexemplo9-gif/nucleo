@@ -11,7 +11,7 @@ import { DealForm } from "@/components/forms/deal-form";
 import { useOrg } from "@/components/org-context";
 import { useAction } from "@/components/use-action";
 import { addDealProduct, deleteDeal, moveDeal, removeDealProduct, setDealStatus } from "@/actions/deals";
-import { date, daysSince } from "@/lib/format";
+import { date, dateTime, daysSince } from "@/lib/format";
 import { LostReasonModal } from "../lost-reason-modal";
 
 type Deal = {
@@ -31,6 +31,7 @@ type Deal = {
   createdAt: string;
   closedAt: string | null;
   stageChangedAt: string;
+  transfer: { at: string; fromId: string | null; byId: string | null } | null;
   contact: { id: string; label: string; email: string | null; phone: string | null; whatsapp: string | null; position: string | null } | null;
   company: { id: string; label: string; city: string | null; website: string | null } | null;
   products: { id: string; name: string; quantity: number; price: number; discount: number }[];
@@ -96,6 +97,12 @@ export function DealDetail({
                     <p className="mt-0.5 flex items-center gap-1.5 font-medium">
                       <Avatar name={owner.name} color={owner.avatarColor} size={22} /> {owner.name}
                     </p>
+                    {deal.transfer && (
+                      <p className="mt-0.5 text-xs text-muted">
+                        Transferido de {member(deal.transfer.fromId)?.name ?? "sem responsável"}
+                        {member(deal.transfer.byId) ? ` por ${member(deal.transfer.byId)!.name}` : ""} em {dateTime(deal.transfer.at)}
+                      </p>
+                    )}
                   </div>
                 )}
               </div>

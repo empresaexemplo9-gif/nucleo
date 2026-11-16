@@ -62,6 +62,7 @@ export default async function DealsPage({
     probability: d.probability,
     expectedClose: d.expectedClose?.toISOString() ?? null,
     stageChangedAt: d.stageChangedAt.toISOString(),
+    transfer: d.transferredAt ? { at: d.transferredAt.toISOString(), fromId: d.transferFromId, byId: d.transferById } : null,
     createdAt: d.createdAt.toISOString(),
     contact: d.contact,
     company: d.company,

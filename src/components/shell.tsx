@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { Building2, CalendarCheck, FileSignature, FileText, Check, ChevronsUpDown, KanbanSquare, LogOut, Menu, Moon, Plus, Search, Sun, User, X } from "lucide-react";
 import { Avatar, Badge, Button, cn } from "./ui";
 import { BrandLockup } from "./brand-lockup";
+import { roleLabel } from "@/lib/roles";
 import { DrapSignature } from "./drap-signature";
 import { useOrg } from "./org-context";
 import { ModuleIcon } from "./module-icon";
@@ -135,7 +136,7 @@ function Sidebar({ orgs, overdue, onClose }: { orgs: { id: string; name: string 
   ];
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : href === "/settings" ? pathname.startsWith("/settings") && !pathname.startsWith("/settings/profile") && !pathname.startsWith("/settings/modules") : pathname === href || pathname.startsWith(href + "/");
-  const roleLabel = { OWNER: "Proprietário", ADMIN: "Administrador", MANAGER: "Gestor", SALES: "Vendedor", VIEWER: "Leitura" }[role];
+  const roleText = superadmin ? "Superadmin" : roleLabel(role);
   let n = 0;
 
   return (
@@ -220,7 +221,7 @@ function Sidebar({ orgs, overdue, onClose }: { orgs: { id: string; name: string 
           <Avatar name={user.name} color={user.avatarColor} size={32} />
           <span className="min-w-0 flex-1">
             <span className="block truncate text-sm font-medium">{user.name}</span>
-            <span className="block truncate font-mono text-[10px] uppercase tracking-[0.1em] text-muted">{roleLabel}</span>
+            <span className="block truncate font-mono text-[10px] uppercase tracking-[0.1em] text-muted">{roleText}</span>
           </span>
         </Link>
       </div>

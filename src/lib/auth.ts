@@ -8,6 +8,7 @@ import { db } from "./db";
 import { SESSION_COOKIE, signSession, verifySession } from "./session";
 import { resolveLabels, resolveSettings } from "./labels";
 import { isSuperadminEmail, SUPERADMIN_ONLY } from "./superadmin";
+import { canFinance, canManageUsers, RANK, ROLE_INFO } from "./roles";
 
 export async function hashPassword(pw: string) {
   return bcrypt.hash(pw, 10);
@@ -72,8 +73,6 @@ export async function requireContext(): Promise<Ctx> {
   return ctx;
 }
 
-const RANK: Record<Role, number> = { VIEWER: 0, SALES: 1, MANAGER: 2, ADMIN: 3, OWNER: 4 };
-
 export function hasRole(ctx: Ctx, min: Role) {
   return RANK[ctx.role] >= RANK[min];
 }
@@ -81,6 +80,20 @@ export function hasRole(ctx: Ctx, min: Role) {
 export async function requireRole(min: Role) {
   const ctx = await requireContext();
   if (!hasRole(ctx, min)) throw new Error("Você não tem permissão para esta ação.");
+  return ctx;
+}
+
+/** Gestão de usuários: superadmin, administradores e gestores. */
+export async function requireUserManager() {
+  const ctx = await requireContext();
+  if (!canManageUsers(ctx.role, ctx.superadmin)) throw new Error("Você não tem permissão para gerenciar usuários.");
+  return ctx;
+}
+
+/** Parte financeira da plataforma: administradores e financeiro. */
+export async function requireFinance() {
+  const ctx = await requireContext();
+  if (!canFinance(ctx.role, ctx.superadmin)) throw new Error("Somente o financeiro ou a administração pode fazer esta alteração.");
   return ctx;
 }
 
@@ -97,10 +110,4 @@ export function ownerScope(ctx: Ctx): { ownerId?: string } {
   return {};
 }
 
-export const ROLE_LABELS: Record<Role, string> = {
-  OWNER: "Proprietário",
-  ADMIN: "Administrador",
-  MANAGER: "Gestor",
-  SALES: "Vendedor",
-  VIEWER: "Somente leitura",
-};
+export const ROLE_LABELS: Record<Role, string> = Object.fromEntries(Object.entries(ROLE_INFO).map(([k, v]) => [k, v.label])) as Record<Role, string>;

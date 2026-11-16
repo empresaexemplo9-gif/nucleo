@@ -38,6 +38,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
         createdAt: deal.createdAt.toISOString(),
         closedAt: deal.closedAt?.toISOString() ?? null,
         stageChangedAt: deal.stageChangedAt.toISOString(),
+        transfer: deal.transferredAt ? { at: deal.transferredAt.toISOString(), fromId: deal.transferFromId, byId: deal.transferById } : null,
         contact: deal.contact ? { id: deal.contact.id, label: deal.contact.name, email: deal.contact.email, phone: deal.contact.phone, whatsapp: deal.contact.whatsapp, position: deal.contact.position } : null,
         company: deal.company ? { id: deal.company.id, label: deal.company.name, city: deal.company.city, website: deal.company.website } : null,
         products: deal.products.map((p) => ({ id: p.id, name: p.product.name, quantity: Number(p.quantity), price: Number(p.price), discount: Number(p.discount) })),

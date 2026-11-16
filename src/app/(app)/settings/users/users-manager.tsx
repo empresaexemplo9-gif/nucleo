@@ -5,23 +5,17 @@ import { Avatar, Badge, Button, Card, Field, Input, Modal, Select, Tabs } from "
 import { useAction } from "@/components/use-action";
 import { useToast } from "@/components/toast";
 import { createUserDirect, inviteUser, revokeInvite, updateMember } from "@/actions/settings";
-
-const ROLES: Record<string, { label: string; desc: string }> = {
-  OWNER: { label: "Proprietário", desc: "Acesso total, inclusive gerenciar proprietários." },
-  ADMIN: { label: "Administrador", desc: "Configura o CRM, usuários e automações." },
-  MANAGER: { label: "Gestor", desc: "Vê tudo, define metas, exclui registros." },
-  SALES: { label: "Vendedor", desc: "Cria e edita negócios, contatos e atividades." },
-  VIEWER: { label: "Somente leitura", desc: "Apenas visualiza dados e relatórios." },
-};
+import { ROLE_INFO, ROLE_ORDER, roleLabel, type Role } from "@/lib/roles";
 
 type M = { id: string; userId: string; name: string; email: string; color: string; role: string; active: boolean };
 
-export function UsersManager({ me, myRole, members, invites }: { me: string; myRole: string; members: M[]; invites: { id: string; email: string; role: string; token: string }[] }) {
+export function UsersManager({ me, assignable, superadmin, members, invites }: { me: string; assignable: Role[]; superadmin: boolean; members: M[]; invites: { id: string; email: string; role: string; token: string }[] }) {
   const { run, pending } = useAction();
   const toast = useToast();
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"invite" | "direct">("invite");
-  const roles = Object.entries(ROLES).filter(([k]) => k !== "OWNER" || myRole === "OWNER");
+  const roles = ROLE_ORDER.filter((r) => assignable.includes(r));
+  const canEdit = (m: M) => m.userId !== me && (superadmin || assignable.includes(m.role as Role));
   const copy = (token: string) => {
     navigator.clipboard.writeText(`${location.origin}/invite/${token}`);
     toast("Link copiado!");
@@ -34,6 +28,11 @@ export function UsersManager({ me, myRole, members, invites }: { me: string; myR
           <div>
             <h2 className="text-base font-semibold">Equipe</h2>
             <p className="text-sm text-muted">{members.filter((m) => m.active).length} usuário(s) ativo(s)</p>
+            <p className="mt-1 max-w-xl text-xs text-muted">
+              {superadmin
+                ? "Como superadmin, você cadastra todos os níveis, inclusive administradores, financeiro e gestores."
+                : "Você cadastra consultores e acessos de visualização. Administradores, financeiro e gestores são cadastrados pela DRAP."}
+            </p>
           </div>
           <Button onClick={() => setOpen(true)}><UserPlus className="size-4" /> Adicionar usuário</Button>
         </div>
@@ -46,15 +45,15 @@ export function UsersManager({ me, myRole, members, invites }: { me: string; myR
                 <p className="text-xs text-muted">{m.email}</p>
               </div>
               {!m.active && <Badge color="var(--err)">Desativado</Badge>}
-              <Select
-                className="w-44"
-                value={m.role}
-                disabled={m.userId === me || (m.role === "OWNER" && myRole !== "OWNER")}
-                onChange={(e) => run(() => updateMember(m.id, { role: e.target.value as never }))}
-              >
-                {Object.entries(ROLES).map(([k, v]) => <option key={k} value={k} disabled={k === "OWNER" && myRole !== "OWNER"}>{v.label}</option>)}
-              </Select>
-              {m.userId !== me && (
+              {canEdit(m) ? (
+                <Select className="w-48" value={m.role} onChange={(e) => run(() => updateMember(m.id, { role: e.target.value as never }))}>
+                  {m.role === "OWNER" && <option value="OWNER">{roleLabel("OWNER")}</option>}
+                  {roles.map((r) => <option key={r} value={r}>{roleLabel(r)}</option>)}
+                </Select>
+              ) : (
+                <Badge>{roleLabel(m.role)}</Badge>
+              )}
+              {canEdit(m) && (
                 <Button size="sm" variant="ghost" onClick={() => run(() => updateMember(m.id, { active: !m.active }))}>
                   {m.active ? "Desativar" : "Reativar"}
                 </Button>
@@ -72,9 +71,9 @@ export function UsersManager({ me, myRole, members, invites }: { me: string; myR
               <div key={i.id} className="flex items-center gap-3 py-2.5 text-sm">
                 <Link2 className="size-4 text-muted" />
                 <span className="flex-1">{i.email}</span>
-                <Badge>{ROLES[i.role]?.label}</Badge>
+                <Badge>{roleLabel(i.role)}</Badge>
                 <Button size="sm" variant="secondary" onClick={() => copy(i.token)}><Copy className="size-3.5" /> Copiar link</Button>
-                <Button size="icon" variant="ghost" onClick={() => run(() => revokeInvite(i.id))} aria-label="Revogar"><X className="size-4" /></Button>
+                {assignable.includes(i.role as Role) && <Button size="icon" variant="ghost" onClick={() => run(() => revokeInvite(i.id))} aria-label="Revogar"><X className="size-4" /></Button>}
               </div>
             ))}
           </div>
@@ -84,10 +83,13 @@ export function UsersManager({ me, myRole, members, invites }: { me: string; myR
       <Card className="p-5">
         <h2 className="mb-3 text-base font-semibold">Perfis de acesso</h2>
         <div className="grid gap-2 sm:grid-cols-2">
-          {Object.values(ROLES).map((r) => (
-            <div key={r.label} className="rounded-lg border border-line p-3">
-              <p className="text-sm font-medium">{r.label}</p>
-              <p className="text-xs text-muted">{r.desc}</p>
+          {ROLE_ORDER.map((k) => (
+            <div key={k} className="rounded-lg border border-line p-3">
+              <p className="flex items-center gap-2 text-sm font-medium">
+                {ROLE_INFO[k].label}
+                {!["SALES", "VIEWER"].includes(k) && <Badge>Cadastro pela DRAP</Badge>}
+              </p>
+              <p className="text-xs text-muted">{ROLE_INFO[k].desc}</p>
             </div>
           ))}
         </div>
@@ -117,7 +119,7 @@ export function UsersManager({ me, myRole, members, invites }: { me: string; myR
           {mode === "direct" && <Field label="Senha inicial" hint="Mínimo 8 caracteres. O usuário pode alterar depois."><Input name="password" type="text" minLength={8} required /></Field>}
           <Field label="Perfil">
             <Select name="role" defaultValue="SALES">
-              {roles.map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+              {roles.map((r) => <option key={r} value={r}>{roleLabel(r)}</option>)}
             </Select>
           </Field>
           {mode === "invite" && <p className="text-xs text-muted">Um link de convite será gerado e copiado para você enviar por e-mail ou WhatsApp.</p>}

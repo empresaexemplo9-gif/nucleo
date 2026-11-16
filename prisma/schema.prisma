@@ -11,6 +11,8 @@ datasource db {
 enum Role {
   OWNER
   ADMIN
+  /// Comanda a parte financeira (produtos, estoque, pedidos, lançamentos)
+  FINANCE
   MANAGER
   SALES
   VIEWER
@@ -269,6 +271,10 @@ model Deal {
   tags           String[]        @default([])
   customFields   Json            @default("{}")
   stageChangedAt DateTime        @default(now())
+  /// Última transferência de atendimento (aviso no card do funil)
+  transferredAt  DateTime?
+  transferFromId String?
+  transferById   String?
   closedAt       DateTime?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt

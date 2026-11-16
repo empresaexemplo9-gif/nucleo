@@ -22,7 +22,7 @@ type O = {
 };
 
 export function OrdersView({ orders, status, counts, totals }: { orders: O[]; status: string; counts: Record<string, number>; totals: { count: number; once: number; monthly: number } }) {
-  const { fmt, can } = useOrg();
+  const { fmt, finance } = useOrg();
   const { run, pending } = useAction();
   return (
     <div className="w-full px-4 pb-16 pt-8 lg:px-8">
@@ -66,7 +66,7 @@ export function OrdersView({ orders, status, counts, totals }: { orders: O[]; st
                   <td className="whitespace-nowrap px-4 py-3 text-right font-medium">{fmt(o.total)}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-right">{o.monthly ? `${fmt(o.monthly)}/mês` : "—"}</td>
                   <td className="px-4 py-3">
-                    {can("SALES") ? (
+                    {finance ? (
                       <Select
                         value={o.status}
                         disabled={pending}

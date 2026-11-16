@@ -6,6 +6,7 @@ import { hasRole, requireContext, requireSuperadmin } from "@/lib/auth";
 import { logEvent } from "@/lib/events";
 import { slugify } from "@/lib/format";
 import { canEditModule, installTemplate, newModuleKey } from "@/lib/modules";
+import { canFinance, isFinanceModule } from "@/lib/roles";
 import { FIELD_TYPES, MODULE_TEMPLATES } from "@/lib/module-templates";
 import { fail, moneyOf, str } from "./helpers";
 import type { ActionResult } from "@/components/use-action";
@@ -360,6 +361,8 @@ export async function deleteRecords(ids: string[]): Promise<ActionResult> {
   try {
     const ctx = await requireContext();
     const recs = await db.moduleRecord.findMany({ where: { id: { in: ids }, orgId: ctx.org.id }, include: { module: true } });
+    // lançamentos financeiros: só a administração e o financeiro
+    if (recs.some((r) => isFinanceModule(r.module) && !canFinance(ctx.role, ctx.superadmin))) return { ok: false, error: "Somente o financeiro ou a administração pode excluir lançamentos financeiros" };
     if (recs.some((r) => !hasRole(ctx, "MANAGER") && !(canEditModule(ctx, r.module) && r.createdById === ctx.user.id)))
       return { ok: false, error: "Apenas gestores podem excluir registros de outras pessoas" };
     await db.moduleRecord.deleteMany({ where: { id: { in: recs.map((r) => r.id) } } });

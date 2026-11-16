@@ -32,7 +32,7 @@ type P = {
 const num = (n: number) => new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2 }).format(n);
 
 export function ProductsView({ products, tab, period, ranking, stock }: { products: P[]; tab: string; period: string; ranking: ProductStat[]; stock: StockRow[] }) {
-  const { labels, can } = useOrg();
+  const { labels, finance } = useOrg();
   const set = useParamSetter();
   const [edit, setEdit] = useState<P | "new" | null>(null);
   return (
@@ -42,7 +42,7 @@ export function ProductsView({ products, tab, period, ranking, stock }: { produc
         icon={<Package />}
         title={labels.product.plural}
         description="Catálogo com preços, cobrança única ou recorrente, estoque, demanda e ranking de vendas para a gestão comercial."
-        actions={can("MANAGER") && <Button onClick={() => setEdit("new")}><Plus className="size-4" /> {labels.product.singular}</Button>}
+        actions={finance && <Button onClick={() => setEdit("new")}><Plus className="size-4" /> {labels.product.singular}</Button>}
       />
       <div className="mb-4">
         <Tabs
@@ -64,7 +64,7 @@ export function ProductsView({ products, tab, period, ranking, stock }: { produc
 }
 
 function Catalog({ products, onEdit }: { products: P[]; onEdit: (p: P) => void }) {
-  const { fmt, can } = useOrg();
+  const { fmt, finance } = useOrg();
   const { run } = useAction();
   return (
     <Card className="overflow-x-auto">
@@ -104,7 +104,7 @@ function Catalog({ products, onEdit }: { products: P[]; onEdit: (p: P) => void }
                 <td className={cn("whitespace-nowrap px-4 py-3 text-right", p.trackStock && p.stock <= p.minStock && "font-medium text-err")}>{p.trackStock ? num(p.stock) : <span className="text-muted">não controla</span>}</td>
                 <td className="px-4 py-3">{p.active ? <Badge color="var(--ok)" dot>Ativo</Badge> : <Badge>Inativo</Badge>}</td>
                 <td className="px-4 py-3 text-right">
-                  {can("MANAGER") && (
+                  {finance && (
                     <div className="flex justify-end gap-1">
                       <Button size="icon" variant="ghost" onClick={() => onEdit(p)} aria-label="Editar"><Pencil className="size-3.5" /></Button>
                       <Button size="icon" variant="ghost" onClick={() => confirm("Excluir produto?") && run(() => deleteProduct(p.id))} aria-label="Excluir"><Trash2 className="size-3.5" /></Button>
@@ -207,7 +207,7 @@ const STOCK_STATUS: Record<StockRow["status"], { label: string; color: string }>
 };
 
 function StockPlan({ rows, products }: { rows: StockRow[]; products: P[] }) {
-  const { can } = useOrg();
+  const { finance } = useOrg();
   const { run, pending } = useAction();
   const [move, setMove] = useState<{ row: StockRow; kind: "PURCHASE" | "ADJUST" } | null>(null);
   const [enable, setEnable] = useState("");
@@ -247,7 +247,7 @@ function StockPlan({ rows, products }: { rows: StockRow[]; products: P[] }) {
                   <td className="px-4 py-3 text-right font-medium">{r.suggested ? num(r.suggested) : "—"}</td>
                   <td className="px-4 py-3"><Badge color={STOCK_STATUS[r.status].color} dot>{STOCK_STATUS[r.status].label}</Badge></td>
                   <td className="px-4 py-3 text-right">
-                    {can("MANAGER") && (
+                    {finance && (
                       <div className="flex justify-end gap-1">
                         <Button size="sm" variant={r.status === "repor" ? "primary" : "secondary"} onClick={() => setMove({ row: r, kind: "PURCHASE" })}><ArrowDownToLine className="size-3.5" /> Entrada</Button>
                         <Button size="icon" variant="ghost" aria-label="Ajustar" onClick={() => setMove({ row: r, kind: "ADJUST" })}><SlidersHorizontal className="size-3.5" /></Button>
@@ -262,7 +262,7 @@ function StockPlan({ rows, products }: { rows: StockRow[]; products: P[] }) {
           <EmptyState icon={<Boxes />} title="Nenhum produto com estoque controlado" description="Ative o controle de estoque em produtos físicos. Assinaturas e serviços não precisam de estoque." />
         )}
       </Card>
-      {can("MANAGER") && untracked.length > 0 && (
+      {finance && untracked.length > 0 && (
         <Card className="flex flex-wrap items-end gap-3 p-4">
           <Field label="Começar a controlar o estoque de" className="min-w-64 flex-1">
             <Select value={enable} onChange={(e) => setEnable(e.target.value)}>
