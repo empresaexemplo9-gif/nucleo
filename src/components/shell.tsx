@@ -4,7 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Building2, CalendarCheck, FileSignature, FileText, Check, ChevronsUpDown, KanbanSquare, LogOut, Menu, Moon, Plus, Search, Sun, User, X } from "lucide-react";
 import { Avatar, Badge, Button, cn } from "./ui";
-import { BrandMark } from "./brand-mark";
+import { BrandLockup } from "./brand-lockup";
 import { DrapSignature } from "./drap-signature";
 import { useOrg } from "./org-context";
 import { ModuleIcon } from "./module-icon";
@@ -53,12 +53,30 @@ export function AppShell({ children, orgs, overdue, dark, fixedMode }: { childre
         {mobile && <div className="fixed inset-0 z-30 bg-[color-mix(in_oklab,var(--bg)_60%,transparent)] backdrop-blur-sm lg:hidden" onClick={() => setMobile(false)} />}
         <div className="flex min-w-0 flex-1 flex-col">
           <Topbar onMenu={() => setMobile(true)} initialDark={dark} fixedMode={!!fixedMode} />
+          <SuperadminBar />
           <main className="min-w-0 flex-1">{children}</main>
           <AppFooter />
         </div>
       </div>
       <CommandPalette />
     </QuickCreateProvider>
+  );
+}
+
+/** Faixa do superadmin: lembra em qual empresa cliente está e leva à implantação. */
+function SuperadminBar() {
+  const { superadmin, visiting, org } = useOrg();
+  if (!superadmin) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-line bg-[var(--chip-active-bg)] px-4 py-1.5 text-xs text-[var(--chip-active-fg)] lg:px-8">
+      <span className="mono-label text-[10px]">Superadmin</span>
+      <span className="min-w-0 flex-1 truncate">
+        {visiting ? "Acessando" : "Você está em"} <strong className="font-semibold">{org.name}</strong>
+        {visiting && " — você não faz parte da equipe desta empresa"}
+      </span>
+      <Link href="/settings" className="underline-offset-2 hover:underline">Identidade visual</Link>
+      <Link href="/settings/modules" className="underline-offset-2 hover:underline">Módulos</Link>
+    </div>
   );
 }
 
@@ -77,7 +95,7 @@ function AppFooter() {
 type NavItem = { href: string; label: string; badge?: number; dot?: string };
 
 function Sidebar({ orgs, overdue, onClose }: { orgs: { id: string; name: string }[]; overdue: number; onClose: () => void }) {
-  const { org, labels, settings, can, user, role, modules } = useOrg();
+  const { org, labels, settings, can, user, role, modules, superadmin } = useOrg();
   const pathname = usePathname();
   const quick = useQuickCreate();
   const [switcher, setSwitcher] = useState(false);
@@ -109,7 +127,7 @@ function Sidebar({ orgs, overdue, onClose }: { orgs: { id: string; name: string 
       ],
     },
     ...[...moduleGroups.entries()].map(([title, items]) => ({ title, items })),
-    ...(can("ADMIN") && !modules.length ? [{ title: "Controle interno", items: [{ href: "/settings/modules", label: "Ativar módulos" }] }] : []),
+    ...(superadmin && !modules.length ? [{ title: "Controle interno", items: [{ href: "/settings/modules", label: "Ativar módulos" }] }] : []),
     {
       title: "Análise",
       items: [{ href: "/reports", label: "Relatórios" }, can("MANAGER") && { href: "/settings", label: "Configurações" }],
@@ -124,11 +142,7 @@ function Sidebar({ orgs, overdue, onClose }: { orgs: { id: string; name: string 
     <div className="flex h-full flex-col">
       <div className="relative border-b border-line px-4 py-4">
         <button onClick={() => setSwitcher((s) => !s)} className="flex w-full items-center gap-3 rounded-[10px] p-1 text-left transition hover:bg-tint">
-          <BrandMark logoUrl={org.logoUrl} name={org.name} />
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-[15px] font-semibold tracking-[-0.02em]">{org.name}</span>
-            <span className="block truncate font-mono text-[9.5px] uppercase tracking-[0.18em] text-muted">Gestão · CRM</span>
-          </span>
+          <BrandLockup logoUrl={org.logoUrl} name={org.name} />
           <ChevronsUpDown className="size-4 text-muted" />
         </button>
         <button onClick={onClose} className="absolute right-3 top-3 rounded-md p-1 text-muted lg:hidden" aria-label="Fechar menu">
@@ -136,7 +150,7 @@ function Sidebar({ orgs, overdue, onClose }: { orgs: { id: string; name: string 
         </button>
         {switcher && (
           <div className="card-drap theme-base animate-in absolute left-4 right-4 top-full z-50 mt-1 p-1.5 shadow-pop">
-            <p className="eyebrow px-2 pb-1 pt-1 text-[10px]">Suas empresas</p>
+            <p className="eyebrow px-2 pb-1 pt-1 text-[10px]">{superadmin ? `Empresas clientes · ${orgs.length}` : "Suas empresas"}</p>
             {orgs.map((o) => (
               <button
                 key={o.id}

@@ -7,6 +7,7 @@ import type { Role } from "@prisma/client";
 import { db } from "./db";
 import { SESSION_COOKIE, signSession, verifySession } from "./session";
 import { resolveLabels, resolveSettings } from "./labels";
+import { isSuperadminEmail, SUPERADMIN_ONLY } from "./superadmin";
 
 export async function hashPassword(pw: string) {
   return bcrypt.hash(pw, 10);
@@ -39,12 +40,25 @@ export const getContext = cache(async () => {
     where: { userId_orgId: { userId: s.uid, orgId: s.oid } },
     include: { user: true, org: true },
   });
-  if (!membership || !membership.active) return null;
-  const { user, org } = membership;
+  let user = membership?.active ? membership.user : null;
+  let org = membership?.active ? membership.org : null;
+  let role: Role | null = membership?.active ? membership.role : null;
+  // superadmin entra em qualquer empresa cliente, mesmo sem fazer parte da equipe
+  const sa = membership?.user ?? (await db.user.findUnique({ where: { id: s.uid } }));
+  const superadmin = isSuperadminEmail(sa?.email);
+  if (superadmin && sa) {
+    user = sa;
+    org = org ?? (await db.organization.findUnique({ where: { id: s.oid } }));
+    role = "OWNER";
+  }
+  if (!user || !org || !role) return null;
   return {
     user: { id: user.id, name: user.name, email: user.email, avatarColor: user.avatarColor },
     org,
-    role: membership.role,
+    role,
+    superadmin,
+    /** Superadmin dentro de uma empresa da qual não é membro (implantação/demonstração). */
+    visiting: superadmin && !membership?.active,
     labels: resolveLabels(org.labels),
     settings: resolveSettings(org.settings),
   };
@@ -67,6 +81,13 @@ export function hasRole(ctx: Ctx, min: Role) {
 export async function requireRole(min: Role) {
   const ctx = await requireContext();
   if (!hasRole(ctx, min)) throw new Error("Você não tem permissão para esta ação.");
+  return ctx;
+}
+
+/** Identidade visual e módulos: só o superadmin da plataforma altera. */
+export async function requireSuperadmin() {
+  const ctx = await requireContext();
+  if (!ctx.superadmin) throw new Error(SUPERADMIN_ONLY);
   return ctx;
 }
 

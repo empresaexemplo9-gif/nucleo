@@ -120,10 +120,9 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const winsTicker = recentWins.map((w) => `${w.title} · ${fmt(Number(w.value), true)}`);
   const ticker = winsTicker.length ? winsTicker : (pipeline?.stages ?? []).map((st) => st.name);
 
-  return (
-    <div className="w-full px-4 pb-16 pt-8 lg:px-8">
-      {sp.welcome && <Welcome />}
-
+  // Abertura de demonstração (superadmin): saudação grande, painel estilo terminal e faixa de vitórias.
+  const showcaseHero = (
+    <>
       {/* ======== Hero editorial ======== */}
       <section className="grid items-center gap-10 lg:grid-cols-[1.15fr_1fr]">
         <div className="animate-rise min-w-0">
@@ -172,8 +171,27 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         <Marquee items={ticker} />
       </div>
 
+    </>
+  );
+  // Abertura objetiva para os clientes: direto aos números do CRM.
+  const clientHeader = (
+    <>
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div className="min-w-0">
+          <p className="eyebrow">{dateFmt(now, "pt-BR", { weekday: "long", day: "2-digit", month: "long" })}</p>
+          <h1 className="mt-1.5 text-[clamp(26px,2.4vw,34px)] font-medium leading-tight tracking-[-0.03em]">
+            {greeting}, {ctx.user.name.split(" ")[0]}
+          </h1>
+          <p className="mt-1 text-sm text-fg-2">{summary}</p>
+        </div>
+        <HeroActions compact />
+      </header>
+    </>
+  );
+  const todaySection = (
+    <>
       {/* ======== Seu dia ======== */}
-      <SectionTitle index={1} description="Seu dia" title="O que precisa de atenção agora" highlight="agora" />
+      <SectionTitle index={ctx.superadmin ? 1 : 2} description="Seu dia" title="O que precisa de atenção agora" highlight="agora" />
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="p-5 lg:col-span-2">
           <CardHeader
@@ -239,9 +257,13 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         </Card>
       </div>
 
+    </>
+  );
+  const resultsSection = (
+    <>
       {/* ======== Resultados ======== */}
-      <SectionTitle index={2} description={`Resultados · ${PERIODS[period]}`} title="Desempenho do período" highlight="período" action={<PeriodSelect value={period} options={PERIODS} />} />
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 2xl:grid-cols-6">
+      <SectionTitle index={ctx.superadmin ? 2 : 1} description={`Resultados · ${PERIODS[period]}`} title="Desempenho do período" highlight="período" action={<PeriodSelect value={period} options={PERIODS} />} />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 2xl:grid-cols-6">
         <StatCard className="animate-rise" label="Receita ganha" index={1} value={big(wonValue)} delta={delta(wonValue, prevWonValue)} sub="vs. anterior" icon={<Trophy />} color="var(--ok)" spark={<Sparkline id="won" values={series.map((s) => s.won)} color="var(--ok)" width={70} />} />
         <StatCard className="animate-rise [animation-delay:50ms]" label="Taxa de conversão" index={2} value={`${winRate}%`} delta={prevWinRate || winRate ? winRate - prevWinRate : null} sub={`${won.length}G · ${lost}P`} icon={<Percent />} color="var(--accent-2)" spark={<Sparkline id="rate" values={series.map((s) => s.rate)} color="var(--accent-2)" width={70} />} />
         <StatCard className="animate-rise [animation-delay:100ms]" label="Ticket médio" index={3} value={big(avgTicket)} delta={delta(avgTicket, prevTicket)} sub="vs. anterior" icon={<Target />} color="var(--accent)" spark={<Sparkline id="ticket" values={series.map((s) => s.ticket)} color="var(--accent)" width={70} />} />
@@ -299,6 +321,27 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           )}
         </Card>
       </div>
+
+    </>
+  );
+
+  return (
+    <div className="w-full px-4 pb-16 pt-8 lg:px-8">
+      {sp.welcome && <Welcome />}
+
+      {ctx.superadmin ? (
+        <>
+          {showcaseHero}
+          {todaySection}
+          {resultsSection}
+        </>
+      ) : (
+        <>
+          {clientHeader}
+          {resultsSection}
+          {todaySection}
+        </>
+      )}
 
       {/* ======== Pipeline & equipe ======== */}
       <SectionTitle

@@ -1,11 +1,11 @@
 import { db } from "@/lib/db";
-import { guard } from "../guard";
+import { superGuard } from "../guard";
 import { ModulesGallery } from "./modules-gallery";
 
 export const metadata = { title: "Módulos de controle interno" };
 
 export default async function ModulesSettingsPage() {
-  const ctx = await guard("ADMIN");
+  const ctx = await superGuard();
   const mods = await db.customModule.findMany({
     where: { orgId: ctx.org.id },
     orderBy: { position: "asc" },

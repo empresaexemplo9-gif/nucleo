@@ -6,7 +6,7 @@
  */
 import { contrast, mix } from "./color-tools";
 
-export type PresetGroup = "classicos" | "profissionais" | "detalhados" | "ousados" | "criativos" | "segmentos";
+export type PresetGroup = "classicos" | "profissionais" | "detalhados" | "ousados" | "criativos" | "segmentos" | "clientes";
 type Look = "soft" | "flat" | "hard" | "lift" | "glass" | "glow";
 
 export type ThemePreset = {
@@ -38,6 +38,8 @@ export type ThemePreset = {
   line?: string;
   lineA?: number;
   bgImage?: string;
+  /** Logotipo oficial do cliente (arquivo em /public/clientes), aplicado junto com o tema. */
+  logo?: string;
   noise?: number;
   grid?: number;
 };
@@ -49,6 +51,7 @@ export const PRESET_GROUPS: { key: PresetGroup; label: string; hint: string }[] 
   { key: "ousados", label: "Ousados", hint: "Cor e personalidade fortes" },
   { key: "criativos", label: "Criativos", hint: "Inspirados em design gráfico" },
   { key: "segmentos", label: "Segmentos", hint: "Paletas pensadas para cada tipo de negócio" },
+  { key: "clientes", label: "Clientes", hint: "Identidades criadas para clientes" },
 ];
 
 /** Fontes usadas pelos temas: família CSS e especificação do Google Fonts. */
@@ -56,6 +59,8 @@ const FONTS: Record<string, { css: string; google?: string }> = {
   "Inter Tight": { css: "var(--font-inter-tight), 'Inter Tight'" },
   "JetBrains Mono": { css: "var(--font-jetbrains), 'JetBrains Mono', ui-monospace" },
   Inter: { css: "'Inter'", google: "Inter:wght@300..700" },
+  Manrope: { css: "'Manrope'", google: "Manrope:wght@300..800" },
+  Prata: { css: "'Prata'", google: "Prata" },
   Nunito: { css: "'Nunito'", google: "Nunito:wght@300..900" },
   "Nunito Sans": { css: "'Nunito Sans'", google: "Nunito+Sans:wght@300..800" },
   "DM Sans": { css: "'DM Sans'", google: "DM+Sans:wght@300..700" },
@@ -84,7 +89,7 @@ const FONTS: Record<string, { css: string; google?: string }> = {
   Bitter: { css: "'Bitter'", google: "Bitter:wght@400..800" },
   "Zilla Slab": { css: "'Zilla Slab'", google: "Zilla+Slab:wght@400;500;600;700" },
 };
-const SERIFS = new Set(["Playfair Display", "Cormorant Garamond", "DM Serif Display", "Fraunces", "Bitter", "Zilla Slab", "Cinzel"]);
+const SERIFS = new Set(["Prata", "Playfair Display", "Cormorant Garamond", "DM Serif Display", "Fraunces", "Bitter", "Zilla Slab", "Cinzel"]);
 
 export const THEME_PRESETS: ThemePreset[] = [
   /* ------------------------------ Clássicos ------------------------------ */
@@ -341,6 +346,12 @@ export const THEME_PRESETS: ThemePreset[] = [
     bg: "#faf9f6", card: "#ffffff", text: "#102a3c", primary: "#25465a", accent: "#c9a86a",
     nav: ["#102a3c", "#e3ebf0", "a", "#102a3c"], btn: ["a", "#102a3c"],
     display: "Nunito Sans", body: "Nunito Sans", head: { w: 700, track: "-0.02em" }, radius: 8, look: "soft" },
+
+  /* ------------------------------- Clientes ------------------------------ */
+  { key: "cliente-mc-company", name: "MC Company", group: "clientes", note: "Moda feminina: off-white quente, grafite, nude e serifa Prata (identidade do site da marca)",
+    bg: "#faf8f6", card: "#ffffff", text: "#1e1a1b", primary: "#1e1a1b", accent: "#c6b6a9",
+    nav: ["#ffffff", "#1e1a1b", "#c6b6a9", "#1e1a1b"], btn: ["#1e1a1b", "#ffffff"],
+    display: "Prata", body: "Manrope", head: { w: 400, track: "0" }, radius: 8, look: "flat", line: "#1e1a1b", lineA: 10, logo: "/clientes/mc-company/logo.svg" },
 ];
 
 /** Base neutra usada quando a empresa personaliza tudo sem partir de um tema pronto. */

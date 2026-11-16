@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { checkPassword, endSession, hashPassword, requireContext, startSession } from "@/lib/auth";
 import { setupOrganization } from "@/lib/defaults";
 import { slugify } from "@/lib/format";
+import { isSuperadminEmail } from "@/lib/superadmin";
 import { str } from "./helpers";
 
 export type FormState = { error?: string } | undefined;
@@ -24,10 +25,17 @@ export async function login(_: FormState, fd: FormData): Promise<FormState> {
     include: { memberships: { where: { active: true }, orderBy: { createdAt: "asc" } } },
   });
   if (!user || !(await checkPassword(password, user.passwordHash))) return { error: "E-mail ou senha inválidos" };
-  if (!user.memberships.length) return { error: "Seu acesso foi desativado. Fale com o administrador." };
+  const superadmin = isSuperadminEmail(user.email);
   const orgSlug = str(fd, "org");
-  const m = user.memberships.find((x) => x.orgId === orgSlug) ?? user.memberships[0]!;
-  await startSession(user.id, m.orgId);
+  const m = user.memberships.find((x) => x.orgId === orgSlug) ?? user.memberships[0];
+  // superadmin sem equipe própria entra na empresa indicada ou na mais antiga
+  const orgId =
+    m?.orgId ??
+    (superadmin
+      ? ((orgSlug ? await db.organization.findFirst({ where: { OR: [{ id: orgSlug }, { slug: orgSlug }] } }) : null) ?? (await db.organization.findFirst({ orderBy: { createdAt: "asc" } })))?.id
+      : undefined);
+  if (!orgId) return { error: superadmin ? "Nenhuma empresa cadastrada ainda." : "Seu acesso foi desativado. Fale com o administrador." };
+  await startSession(user.id, orgId);
   const next = str(fd, "next");
   redirect(next && next.startsWith("/") && !next.startsWith("//") ? next : "/");
 }
@@ -85,6 +93,8 @@ export async function acceptInvite(_: FormState, fd: FormData): Promise<FormStat
   if (user) {
     if (!(await checkPassword(password, user.passwordHash))) return { error: "Senha incorreta para este e-mail" };
   } else {
+    // o convite é gerado por terceiros: não pode criar a conta de superadmin da plataforma
+    if (isSuperadminEmail(invite.email)) return { error: "Este e-mail não pode ser cadastrado por convite." };
     if (!name) return { error: "Informe seu nome" };
     user = await db.user.create({ data: { name, email: invite.email, passwordHash: await hashPassword(password), avatarColor: pickColor() } });
   }
@@ -105,8 +115,13 @@ export async function logout() {
 
 export async function switchOrg(orgId: string) {
   const ctx = await requireContext();
-  const m = await db.membership.findUnique({ where: { userId_orgId: { userId: ctx.user.id, orgId } } });
-  if (!m || !m.active) return;
+  if (ctx.superadmin) {
+    // superadmin acessa qualquer empresa cliente para demonstrar, personalizar e implantar módulos
+    if (!(await db.organization.findUnique({ where: { id: orgId } }))) return;
+  } else {
+    const m = await db.membership.findUnique({ where: { userId_orgId: { userId: ctx.user.id, orgId } } });
+    if (!m || !m.active) return;
+  }
   await startSession(ctx.user.id, orgId);
   redirect("/");
 }

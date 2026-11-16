@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, Package } from "lucide-react";
 import type { Ctx } from "@/lib/auth";
-import { hasRole } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { recordScope, visibleModules } from "@/lib/modules";
 import { Card, EmptyState, SectionTitle } from "@/components/ui";
@@ -10,7 +9,8 @@ import { ModuleIcon } from "@/components/module-icon";
 /** Seção do painel com indicadores de cada módulo de controle interno. */
 export async function ModulesOverview({ ctx, index, fmt }: { ctx: Ctx; index: number; fmt: (v: number, compact?: boolean) => string }) {
   const mods = await visibleModules(ctx);
-  if (!mods.length && !hasRole(ctx, "ADMIN")) return null;
+  // módulos são implantados pelo superadmin: os clientes só veem a seção quando há módulos
+  if (!mods.length && !ctx.superadmin) return null;
   const now = new Date();
   const scope = recordScope(ctx);
   const finals = mods.length
@@ -34,7 +34,7 @@ export async function ModulesOverview({ ctx, index, fmt }: { ctx: Ctx; index: nu
         highlight="interno"
         description="Módulos da operação"
         action={
-          hasRole(ctx, "ADMIN") && (
+          ctx.superadmin && (
             <Link href="/settings/modules" className="inline-flex items-center gap-1 text-xs font-semibold text-brand hover:underline">
               Gerenciar módulos <ArrowRight className="size-3" />
             </Link>

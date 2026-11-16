@@ -2,7 +2,7 @@
 import { revalidatePath } from "next/cache";
 import type { Prisma, Role } from "@prisma/client";
 import { db } from "@/lib/db";
-import { hasRole, requireContext, requireRole } from "@/lib/auth";
+import { hasRole, requireContext, requireSuperadmin } from "@/lib/auth";
 import { logEvent } from "@/lib/events";
 import { slugify } from "@/lib/format";
 import { canEditModule, installTemplate, newModuleKey } from "@/lib/modules";
@@ -26,7 +26,7 @@ async function ownModule(orgId: string, id: string) {
 
 export async function installModuleTemplates(keys: string[]): Promise<ActionResult> {
   try {
-    const ctx = await requireRole("ADMIN");
+    const ctx = await requireSuperadmin();
     const valid = keys.filter((k) => MODULE_TEMPLATES.some((t) => t.key === k));
     if (!valid.length) return { ok: false, error: "Selecione ao menos um modelo" };
     let lastKey = "";
@@ -41,7 +41,7 @@ export async function installModuleTemplates(keys: string[]): Promise<ActionResu
 
 export async function createModule(fd: FormData): Promise<ActionResult> {
   try {
-    const ctx = await requireRole("ADMIN");
+    const ctx = await requireSuperadmin();
     const name = str(fd, "name");
     const singular = str(fd, "singular");
     if (!name || !singular) return { ok: false, error: "Informe o nome no plural e no singular" };
@@ -76,7 +76,7 @@ export async function createModule(fd: FormData): Promise<ActionResult> {
 
 export async function updateModule(id: string, fd: FormData): Promise<ActionResult> {
   try {
-    const ctx = await requireRole("ADMIN");
+    const ctx = await requireSuperadmin();
     const m = await ownModule(ctx.org.id, id);
     const role = (k: string, d: Role) => {
       const v = str(fd, k) as Role | null;
@@ -110,7 +110,7 @@ export async function updateModule(id: string, fd: FormData): Promise<ActionResu
 
 export async function deleteModule(id: string): Promise<ActionResult> {
   try {
-    const ctx = await requireRole("ADMIN");
+    const ctx = await requireSuperadmin();
     await ownModule(ctx.org.id, id);
     await db.customModule.delete({ where: { id } });
     return done("Módulo excluído");
@@ -121,7 +121,7 @@ export async function deleteModule(id: string): Promise<ActionResult> {
 
 export async function moveModule(id: string, dir: -1 | 1): Promise<ActionResult> {
   try {
-    const ctx = await requireRole("ADMIN");
+    const ctx = await requireSuperadmin();
     const all = await db.customModule.findMany({ where: { orgId: ctx.org.id }, orderBy: { position: "asc" } });
     const i = all.findIndex((m) => m.id === id);
     const j = i + dir;
@@ -138,7 +138,7 @@ export async function moveModule(id: string, dir: -1 | 1): Promise<ActionResult>
 
 export async function saveModuleField(moduleId: string, id: string | null, fd: FormData): Promise<ActionResult> {
   try {
-    const ctx = await requireRole("ADMIN");
+    const ctx = await requireSuperadmin();
     const m = await ownModule(ctx.org.id, moduleId);
     const label = str(fd, "label");
     if (!label) return { ok: false, error: "Informe o nome do campo" };
@@ -170,7 +170,7 @@ export async function saveModuleField(moduleId: string, id: string | null, fd: F
 
 export async function deleteModuleField(moduleId: string, id: string): Promise<ActionResult> {
   try {
-    const ctx = await requireRole("ADMIN");
+    const ctx = await requireSuperadmin();
     const m = await ownModule(ctx.org.id, moduleId);
     const f = m.fields.find((x) => x.id === id);
     if (!f) return { ok: false, error: "Campo não encontrado" };
@@ -187,7 +187,7 @@ export async function deleteModuleField(moduleId: string, id: string): Promise<A
 
 export async function moveModuleField(moduleId: string, id: string, dir: -1 | 1): Promise<ActionResult> {
   try {
-    const ctx = await requireRole("ADMIN");
+    const ctx = await requireSuperadmin();
     const m = await ownModule(ctx.org.id, moduleId);
     const all = [...m.fields].sort((a, b) => a.position - b.position);
     const i = all.findIndex((f) => f.id === id);
@@ -207,7 +207,7 @@ export type StatusInput = { id?: string; name: string; color: string; isFinal: b
 
 export async function saveModuleStatuses(moduleId: string, statuses: StatusInput[]): Promise<ActionResult> {
   try {
-    const ctx = await requireRole("ADMIN");
+    const ctx = await requireSuperadmin();
     const m = await ownModule(ctx.org.id, moduleId);
     if (!statuses.length) return { ok: false, error: "O módulo precisa de ao menos um status" };
     if (statuses.some((s) => !s.name.trim())) return { ok: false, error: "Todos os status precisam de nome" };

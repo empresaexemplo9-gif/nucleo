@@ -13,6 +13,10 @@ export type OrgCtx = {
   org: { id: string; name: string; currency: string; locale: string; logoUrl: string | null; timezone: string };
   user: { id: string; name: string; email: string; avatarColor: string };
   role: "OWNER" | "ADMIN" | "MANAGER" | "SALES" | "VIEWER";
+  /** Superadmin da plataforma: único que edita a identidade visual e implanta módulos. */
+  superadmin: boolean;
+  /** Superadmin acessando uma empresa cliente da qual não faz parte. */
+  visiting: boolean;
   labels: Labels;
   settings: OrgSettings;
   members: Member[];
