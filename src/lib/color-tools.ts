@@ -99,13 +99,47 @@ export async function fileToLogoDataUrl(file: File, maxSide = 512): Promise<stri
   });
   if (file.type === "image/svg+xml" && raw.length < 6_000_000) return raw;
   const img = await loadImage(raw);
-  const ratio = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
+  // corta margens vazias (transparentes ou brancas) para o logotipo ocupar o espaço disponível
+  const box = contentBox(img);
+  const ratio = Math.min(1, maxSide / Math.max(box.w, box.h));
   const c = document.createElement("canvas");
-  c.width = Math.round(img.naturalWidth * ratio);
-  c.height = Math.round(img.naturalHeight * ratio);
-  c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
+  c.width = Math.max(1, Math.round(box.w * ratio));
+  c.height = Math.max(1, Math.round(box.h * ratio));
+  c.getContext("2d")!.drawImage(img, box.x, box.y, box.w, box.h, 0, 0, c.width, c.height);
   const png = c.toDataURL("image/png");
   return png.length < 7_500_000 ? png : c.toDataURL("image/webp", 0.92);
+}
+
+/** Área com conteúdo da imagem (ignora bordas transparentes ou quase brancas), com pequena folga. */
+function contentBox(img: HTMLImageElement) {
+  const W = img.naturalWidth, H = img.naturalHeight;
+  const full = { x: 0, y: 0, w: W, h: H };
+  const s = Math.min(1, 600 / Math.max(W, H));
+  const c = document.createElement("canvas");
+  c.width = Math.max(1, Math.round(W * s));
+  c.height = Math.max(1, Math.round(H * s));
+  const ctx = c.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return full;
+  ctx.drawImage(img, 0, 0, c.width, c.height);
+  const d = ctx.getImageData(0, 0, c.width, c.height).data;
+  let x0 = c.width, y0 = c.height, x1 = -1, y1 = -1;
+  for (let y = 0; y < c.height; y++)
+    for (let x = 0; x < c.width; x++) {
+      const i = (y * c.width + x) * 4;
+      const empty = d[i + 3]! < 16 || (d[i]! > 244 && d[i + 1]! > 244 && d[i + 2]! > 244);
+      if (empty) continue;
+      if (x < x0) x0 = x;
+      if (x > x1) x1 = x;
+      if (y < y0) y0 = y;
+      if (y > y1) y1 = y;
+    }
+  if (x1 < 0) return full;
+  const pad = Math.round(Math.max(x1 - x0, y1 - y0) * 0.03) + 1;
+  const bx = Math.max(0, x0 - pad), by = Math.max(0, y0 - pad);
+  const bw = Math.min(c.width, x1 + pad + 1) - bx, bh = Math.min(c.height, y1 + pad + 1) - by;
+  // só corta quando há margem de verdade (evita mexer em fotos e logotipos já justos)
+  if (bw * bh > c.width * c.height * 0.85) return full;
+  return { x: Math.round(bx / s), y: Math.round(by / s), w: Math.round(bw / s), h: Math.round(bh / s) };
 }
 
 export function loadImage(src: string) {

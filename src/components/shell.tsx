@@ -4,7 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Building2, CalendarCheck, FileSignature, FileText, Check, ChevronsUpDown, KanbanSquare, LogOut, Menu, Moon, Plus, Search, Sun, User, X } from "lucide-react";
 import { Avatar, Badge, Button, cn } from "./ui";
-import { BrandMark } from "./brand-mark";
+import { BrandLockup } from "./brand-lockup";
 import { DrapSignature } from "./drap-signature";
 import { useOrg } from "./org-context";
 import { ModuleIcon } from "./module-icon";
@@ -142,11 +142,7 @@ function Sidebar({ orgs, overdue, onClose }: { orgs: { id: string; name: string 
     <div className="flex h-full flex-col">
       <div className="relative border-b border-line px-4 py-4">
         <button onClick={() => setSwitcher((s) => !s)} className="flex w-full items-center gap-3 rounded-[10px] p-1 text-left transition hover:bg-tint">
-          <BrandMark logoUrl={org.logoUrl} name={org.name} />
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-[15px] font-semibold tracking-[-0.02em]">{org.name}</span>
-            <span className="block truncate font-mono text-[9.5px] uppercase tracking-[0.18em] text-muted">Gestão · CRM</span>
-          </span>
+          <BrandLockup logoUrl={org.logoUrl} name={org.name} />
           <ChevronsUpDown className="size-4 text-muted" />
         </button>
         <button onClick={onClose} className="absolute right-3 top-3 rounded-md p-1 text-muted lg:hidden" aria-label="Fechar menu">
