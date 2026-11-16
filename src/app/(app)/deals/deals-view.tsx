@@ -17,7 +17,7 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { AlertTriangle, ArrowRightLeft, Building2, CalendarClock, KanbanSquare, List, Plus, Search, ThumbsDown, ThumbsUp, Trash2, User } from "lucide-react";
+import { AlertTriangle, ArrowRightLeft, Building2, ListChecks, CalendarClock, KanbanSquare, List, Plus, Search, ThumbsDown, ThumbsUp, Trash2, User } from "lucide-react";
 import { Avatar, Badge, Button, Card, cn, EditorialTitle, EmptyState, Input, Select, Tabs } from "@/components/ui";
 import { TagList } from "@/components/pickers";
 import { useOrg } from "@/components/org-context";
@@ -42,6 +42,8 @@ export type BoardDeal = {
   stageChangedAt: string;
   /** Última transferência de atendimento (aviso no card por alguns dias). */
   transfer: { at: string; fromId: string | null; byId: string | null } | null;
+  /** Progresso do checklist do negócio (null quando não há itens). */
+  checklist: { done: number; total: number } | null;
   createdAt: string;
   contact: { id: string; name: string } | null;
   company: { id: string; name: string } | null;
@@ -243,8 +245,10 @@ function Board({ stages, allStages, deals: initial, pipelineId }: { stages: Stag
     const next = list[index]?.position;
     const position = prev == null && next == null ? 1000 : prev == null ? next! - 1000 : next == null ? prev + 1000 : (prev + next) / 2;
     if (deal.stageId === target && deal.position === position) return;
+    const before = deals;
     setDeals((ds) => ds.map((d) => (d.id === id ? { ...d, stageId: target, position, stageChangedAt: d.stageId !== target ? new Date().toISOString() : d.stageChangedAt } : d)));
-    run(() => moveDeal(id, target, position));
+    // movimento recusado (ex.: checklist obrigatório pendente): o card volta para onde estava
+    run(() => moveDeal(id, target, position), { onError: () => setDeals(before) });
   };
 
   return (
@@ -395,6 +399,17 @@ function DealCard({ deal, stage, dragging }: { deal: BoardDeal; stage?: StageDef
         <div className="mt-3 flex items-center justify-between gap-2 border-t border-dashed border-line pt-2.5">
           <span className="text-[15px] font-medium tracking-[-0.02em]">{fmt(deal.value)}</span>
           <span className="flex items-center gap-1">
+            {deal.checklist && (
+              <span
+                title={`Checklist: ${deal.checklist.done} de ${deal.checklist.total} concluídos`}
+                className={cn(
+                  "flex items-center gap-0.5 rounded-[5px] border px-1.5 py-0.5 font-mono text-[10px]",
+                  deal.checklist.done === deal.checklist.total ? "border-ok/35 text-ok" : "border-line text-fg-2",
+                )}
+              >
+                <ListChecks className="size-3" /> {deal.checklist.done}/{deal.checklist.total}
+              </span>
+            )}
             {rotting && (
               <span title={`Parado há ${days} dias nesta etapa`} className="flex items-center gap-0.5 rounded-[5px] border border-warn/35 px-1.5 py-0.5 font-mono text-[10px] text-warn">
                 <AlertTriangle className="size-3" /> {days}d

@@ -1,7 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 import type { Role } from "@prisma/client";
 import { db } from "./db";
@@ -95,6 +95,11 @@ export async function requireFinance() {
   const ctx = await requireContext();
   if (!canFinance(ctx.role, ctx.superadmin)) throw new Error("Somente o financeiro ou a administração pode fazer esta alteração.");
   return ctx;
+}
+
+/** Função do CRM fora do plano da empresa: a página responde como inexistente. */
+export function requireFeature(ctx: Ctx, key: keyof Ctx["settings"]["modules"]) {
+  if (!ctx.settings.modules[key]) notFound();
 }
 
 /** Identidade visual e módulos: só o superadmin da plataforma altera. */

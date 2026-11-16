@@ -5,6 +5,7 @@ import { requireRole } from "@/lib/auth";
 import { logEvent } from "@/lib/events";
 import { runAutomations } from "@/lib/automation";
 import { notify } from "@/lib/notify";
+import { applyStageChecklist, checklistBlock } from "@/lib/checklist";
 import { customFieldsOf, dateOf, fail, moneyOf, str, tagsOf } from "./helpers";
 import type { ActionResult } from "@/components/use-action";
 
@@ -87,6 +88,7 @@ export async function createDeal(fd: FormData): Promise<ActionResult> {
       },
     });
     await logEvent({ orgId: ctx.org.id, type: "DEAL_CREATED", userId: ctx.user.id, dealId: deal.id, contactId, companyId });
+    await applyStageChecklist(ctx.org.id, deal.id, stageId, ctx.user.id);
     // criado já em nome de outra pessoa: conta como transferência, com aviso
     const assignTo = str(fd, "ownerId");
     if (assignTo && assignTo !== ctx.user.id) await transferDeals(ctx, [{ id: deal.id, title, ownerId: ctx.user.id }], assignTo);
@@ -137,6 +139,12 @@ export async function moveDeal(id: string, stageId: string, position?: number): 
     if (!stage) return { ok: false, error: "Etapa inválida" };
     const changed = stage.id !== deal.stageId;
     const status = stage.type === "WON" ? "WON" : stage.type === "LOST" ? "LOST" : "OPEN";
+    // avançar (etapa seguinte ou ganho) respeita o checklist obrigatório da etapa atual
+    const forward = changed && (stage.type === "WON" || (stage.type === "OPEN" && stage.position > deal.stage.position));
+    if (forward) {
+      const blocked = await checklistBlock(deal);
+      if (blocked) return { ok: false, error: blocked };
+    }
     await db.deal.update({
       where: { id },
       data: {
@@ -154,6 +162,7 @@ export async function moveDeal(id: string, stageId: string, position?: number): 
         dealId: id,
         data: { from: deal.stage.name, to: stage.name },
       });
+      await applyStageChecklist(ctx.org.id, id, stageId, ctx.user.id);
       await runAutomations(ctx.org.id, "DEAL_STAGE_ENTERED", id, stageId);
     }
     revalidatePath("/", "layout");
@@ -168,6 +177,10 @@ export async function setDealStatus(id: string, status: "WON" | "LOST" | "OPEN",
     const ctx = await requireRole("SALES");
     const deal = await assertDeal(ctx.org.id, id);
     if (status === "LOST" && ctx.settings.requireLostReason && !lostReason) return { ok: false, error: "Informe o motivo da perda" };
+    if (status === "WON" && deal.stage.type === "OPEN") {
+      const blocked = await checklistBlock(deal);
+      if (blocked) return { ok: false, error: blocked };
+    }
     let stageId = deal.stageId;
     if (status === "OPEN" && deal.stage.type !== "OPEN") {
       const first = await db.stage.findFirst({ where: { pipelineId: deal.pipelineId, type: "OPEN" }, orderBy: { position: "desc" } });

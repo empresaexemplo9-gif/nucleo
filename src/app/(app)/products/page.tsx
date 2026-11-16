@@ -1,4 +1,4 @@
-import { requireContext } from "@/lib/auth";
+import { requireContext, requireFeature } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { productSales, stockPlan } from "@/lib/sales-analytics";
 import { ProductsView } from "./products-view";
@@ -9,6 +9,7 @@ const PERIODS: Record<string, number> = { "30": 30, "90": 90, "365": 365 };
 
 export default async function ProductsPage({ searchParams }: { searchParams: Promise<{ tab?: string; period?: string }> }) {
   const ctx = await requireContext();
+  requireFeature(ctx, "products");
   const sp = await searchParams;
   const tab = sp.tab === "stock" || sp.tab === "ranking" ? sp.tab : "catalog";
   const period = sp.period && sp.period in PERIODS ? sp.period : "90";

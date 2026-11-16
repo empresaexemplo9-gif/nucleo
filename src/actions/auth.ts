@@ -1,6 +1,4 @@
 "use server";
-import { packForSegment } from "@/lib/module-templates";
-import { installTemplate } from "@/lib/modules";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { db } from "@/lib/db";
@@ -74,8 +72,7 @@ export async function register(_: FormState, fd: FormData): Promise<FormState> {
     });
     await tx.membership.create({ data: { userId: user.id, orgId: org.id, role: "OWNER" } });
     await setupOrganization(tx, org.id);
-    // instala os módulos de controle interno do segmento escolhido
-    for (const k of packForSegment(str(fd, "segment")).modules) await installTemplate(tx, org.id, k);
+    // módulos de controle interno não são instalados no cadastro: são implantados pelo superadmin
     return { user, org };
   }, { timeout: 30000, maxWait: 10000 });
   await startSession(user.id, org.id);

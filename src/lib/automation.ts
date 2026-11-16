@@ -1,3 +1,4 @@
+import { resolveSettings } from "./labels";
 import { db } from "./db";
 import { logEvent } from "./events";
 
@@ -31,6 +32,9 @@ type Config = {
 /** Executa automações configuradas. Erros nunca interrompem a ação do usuário. */
 export async function runAutomations(orgId: string, trigger: AutomationTrigger, dealId: string, stageId?: string) {
   try {
+    // automações fora do plano não rodam
+    const org = await db.organization.findUnique({ where: { id: orgId }, select: { settings: true } });
+    if (!resolveSettings(org?.settings).modules.automations) return;
     const rules = await db.automation.findMany({
       where: { orgId, trigger, active: true, ...(trigger === "DEAL_STAGE_ENTERED" ? { stageId } : {}) },
     });
