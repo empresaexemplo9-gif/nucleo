@@ -8,13 +8,13 @@ type Item = { href: string; label: string; desc: string };
 
 export function SettingsNav() {
   const pathname = usePathname();
-  const { can, settings, superadmin } = useOrg();
+  const { can, settings, superadmin, canUsers } = useOrg();
   const groups: { title: string; items: (Item | false)[] }[] = [
     {
       title: "Empresa",
       items: [
         can("ADMIN") && (superadmin ? { href: "/settings", label: "Marca e geral", desc: "Temas, cores, logo, nomes" } : { href: "/settings", label: "Geral", desc: "Nomenclatura e preferências" }),
-        can("ADMIN") && { href: "/settings/users", label: "Usuários", desc: "Equipe e permissões" },
+        canUsers && { href: "/settings/users", label: "Usuários", desc: "Equipe e acessos" },
       ],
     },
     {

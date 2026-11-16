@@ -1,7 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requireRole } from "@/lib/auth";
+import { requireRole, requireFinance } from "@/lib/auth";
 import { logEvent } from "@/lib/events";
 import { customFieldsOf, dateOf, fail, moneyOf, numOr, str, tagsOf } from "./helpers";
 import type { ActionResult } from "@/components/use-action";
@@ -290,7 +290,7 @@ export async function deleteNote(id: string): Promise<ActionResult> {
 
 export async function saveProduct(id: string | null, fd: FormData): Promise<ActionResult> {
   try {
-    const ctx = await requireRole("MANAGER");
+    const ctx = await requireFinance();
     const data = {
       name: str(fd, "name") ?? "",
       sku: str(fd, "sku"),
@@ -318,7 +318,7 @@ export async function saveProduct(id: string | null, fd: FormData): Promise<Acti
 
 export async function deleteProduct(id: string): Promise<ActionResult> {
   try {
-    const ctx = await requireRole("MANAGER");
+    const ctx = await requireFinance();
     await db.product.deleteMany({ where: { id, orgId: ctx.org.id } });
     revalidatePath("/products");
     return { ok: true, message: "Produto excluído" };

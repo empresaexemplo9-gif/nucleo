@@ -17,7 +17,7 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { AlertTriangle, Building2, CalendarClock, KanbanSquare, List, Plus, Search, ThumbsDown, ThumbsUp, Trash2, User } from "lucide-react";
+import { AlertTriangle, ArrowRightLeft, Building2, CalendarClock, KanbanSquare, List, Plus, Search, ThumbsDown, ThumbsUp, Trash2, User } from "lucide-react";
 import { Avatar, Badge, Button, Card, cn, EditorialTitle, EmptyState, Input, Select, Tabs } from "@/components/ui";
 import { TagList } from "@/components/pickers";
 import { useOrg } from "@/components/org-context";
@@ -40,11 +40,15 @@ export type BoardDeal = {
   probability: number | null;
   expectedClose: string | null;
   stageChangedAt: string;
+  /** Última transferência de atendimento (aviso no card por alguns dias). */
+  transfer: { at: string; fromId: string | null; byId: string | null } | null;
   createdAt: string;
   contact: { id: string; name: string } | null;
   company: { id: string; name: string } | null;
   nextActivity: { title: string; type: string; dueAt: string | null } | null;
 };
+const TRANSFER_NOTICE_DAYS = 7;
+
 type StageDef = { id: string; name: string; color: string; probability: number; type: string; rottingDays: number | null };
 
 export function DealsView({
@@ -350,6 +354,11 @@ function DealCard({ deal, stage, dragging }: { deal: BoardDeal; stage?: StageDef
   const rotting = stage?.rottingDays != null && days > stage.rottingDays;
   const due = deal.nextActivity?.dueAt ? new Date(deal.nextActivity.dueAt) : null;
   const overdue = due && due < new Date();
+  // aviso de transferência: fica no card por 7 dias
+  const transfer = deal.transfer && daysSince(deal.transfer.at) <= TRANSFER_NOTICE_DAYS ? deal.transfer : null;
+  const fromName = transfer ? (member(transfer.fromId)?.name.split(" ")[0] ?? "sem responsável") : "";
+  const byName = transfer ? member(transfer.byId)?.name ?? "" : "";
+  const ago = transfer ? daysSince(transfer.at) : 0;
   return (
     <Link href={`/deals/${deal.id}`} draggable={false} onClick={(e) => dragging && e.preventDefault()} className="block">
       <div
@@ -359,6 +368,15 @@ function DealCard({ deal, stage, dragging }: { deal: BoardDeal; stage?: StageDef
         )}
       >
         <div className="absolute inset-y-0 left-0 w-[3px]" style={{ background: rotting ? "var(--warn)" : stage?.color ?? "var(--accent)" }} />
+        {transfer && (
+          <p
+            title={`Atendimento transferido de ${fromName}${byName ? ` por ${byName}` : ""}`}
+            className="-mx-3.5 -mt-3.5 mb-2.5 flex items-center gap-1.5 border-b border-[color-mix(in_oklab,var(--accent-2)_30%,transparent)] bg-[color-mix(in_oklab,var(--accent-2)_10%,transparent)] px-3.5 py-1.5 text-[11px] font-medium text-accent-2-text"
+          >
+            <ArrowRightLeft className="size-3 shrink-0" />
+            <span className="truncate">Transferido de {fromName} · {ago === 0 ? "hoje" : `há ${ago} d`}</span>
+          </p>
+        )}
         <div className="flex items-start justify-between gap-2">
           <p className="line-clamp-2 text-[13.5px] font-medium leading-snug tracking-[-0.01em] text-fg">{deal.title}</p>
           {owner && <Avatar name={owner.name} color={owner.avatarColor} size={24} ring />}
