@@ -18,16 +18,16 @@ export function PeriodSelect({ value, options }: { value: string; options: Recor
   );
 }
 
-export function HeroActions() {
+export function HeroActions({ compact }: { compact?: boolean } = {}) {
   const quick = useQuickCreate();
   const { labels, can } = useOrg();
   if (!can("SALES")) return null;
   return (
-    <div className="mt-8 flex flex-wrap items-center gap-3">
-      <Button size="lg" trail onClick={() => quick("deal")}>
+    <div className={compact ? "flex flex-wrap items-center gap-2" : "mt-8 flex flex-wrap items-center gap-3"}>
+      <Button size={compact ? "md" : "lg"} trail onClick={() => quick("deal")}>
         Novo {labels.deal.singular.toLowerCase()}
       </Button>
-      <Button size="lg" variant="secondary" trail={<CalendarPlus className="size-3.5" />} onClick={() => quick("activity")}>
+      <Button size={compact ? "md" : "lg"} variant="secondary" trail={<CalendarPlus className="size-3.5" />} onClick={() => quick("activity")}>
         Agendar {labels.activity.singular.toLowerCase()}
       </Button>
       <Link href="/deals" className="mono-label inline-flex items-center gap-1.5 px-2 text-[11px] text-fg-2 transition hover:text-fg">
