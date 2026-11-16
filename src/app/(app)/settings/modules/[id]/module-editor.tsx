@@ -11,8 +11,8 @@ import { FIELD_TYPES } from "@/lib/module-templates";
 import { IconColorPicker } from "../modules-gallery";
 
 const ROLES: [string, string][] = [
-  ["VIEWER", "Todos (inclui visualizadores)"],
-  ["SALES", "Usuários/Vendedores ou acima"],
+  ["VIEWER", "Todos (inclui visualização)"],
+  ["SALES", "Consultores, financeiro ou acima"],
   ["MANAGER", "Gestores ou acima"],
   ["ADMIN", "Somente administradores"],
 ];

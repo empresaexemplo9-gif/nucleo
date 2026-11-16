@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { logEvent } from "@/lib/events";
 import { runAutomations } from "@/lib/automation";
+import { notify } from "@/lib/notify";
 import { customFieldsOf, dateOf, fail, moneyOf, str, tagsOf } from "./helpers";
 import type { ActionResult } from "@/components/use-action";
 
@@ -11,6 +12,28 @@ async function assertDeal(orgId: string, id: string) {
   const deal = await db.deal.findFirst({ where: { id, orgId }, include: { stage: true } });
   if (!deal) throw new Error("Negócio não encontrado");
   return deal;
+}
+
+/**
+ * Transferência de atendimento: valida o novo responsável, registra quem transferiu e quando
+ * (aviso automático no card do funil) e avisa o novo e o antigo responsável.
+ */
+async function transferDeals(ctx: { org: { id: string }; user: { id: string; name: string } }, deals: { id: string; title: string; ownerId: string | null }[], toId: string | null) {
+  if (toId && !(await db.membership.findFirst({ where: { orgId: ctx.org.id, userId: toId, active: true } }))) throw new Error("Responsável inválido");
+  const moved = deals.filter((d) => d.ownerId !== toId);
+  if (!moved.length) return;
+  const now = new Date();
+  for (const d of moved) {
+    await db.deal.update({ where: { id: d.id }, data: { ownerId: toId, transferredAt: now, transferFromId: d.ownerId, transferById: ctx.user.id } });
+    await logEvent({ orgId: ctx.org.id, type: "DEAL_OWNER", userId: ctx.user.id, dealId: d.id });
+  }
+  const one = moved.length === 1 ? moved[0]! : null;
+  const href = one ? `/deals/${one.id}` : "/deals";
+  const what = one ? `“${one.title}”` : `${moved.length} negócios`;
+  // novo responsável recebe o atendimento; o anterior fica sabendo (sem avisar quem fez a ação)
+  await notify(ctx.org.id, [toId].filter((x) => x !== ctx.user.id), { type: "DEAL_TRANSFER", title: `Atendimento transferido para você: ${what}`, body: `Transferido por ${ctx.user.name}`, href });
+  const previous = [...new Set(moved.map((d) => d.ownerId))].filter((x) => x && x !== ctx.user.id && x !== toId);
+  await notify(ctx.org.id, previous, { type: "DEAL_TRANSFER", title: `Atendimento transferido: ${what}`, body: `Transferido por ${ctx.user.name}`, href });
 }
 
 export async function createDeal(fd: FormData): Promise<ActionResult> {
@@ -55,7 +78,7 @@ export async function createDeal(fd: FormData): Promise<ActionResult> {
         stageId,
         contactId,
         companyId,
-        ownerId: str(fd, "ownerId") ?? ctx.user.id,
+        ownerId: ctx.user.id,
         expectedClose: dateOf(fd, "expectedClose"),
         source: str(fd, "source"),
         tags: tagsOf(fd),
@@ -64,6 +87,9 @@ export async function createDeal(fd: FormData): Promise<ActionResult> {
       },
     });
     await logEvent({ orgId: ctx.org.id, type: "DEAL_CREATED", userId: ctx.user.id, dealId: deal.id, contactId, companyId });
+    // criado já em nome de outra pessoa: conta como transferência, com aviso
+    const assignTo = str(fd, "ownerId");
+    if (assignTo && assignTo !== ctx.user.id) await transferDeals(ctx, [{ id: deal.id, title, ownerId: ctx.user.id }], assignTo);
     await runAutomations(ctx.org.id, "DEAL_CREATED", deal.id);
     await runAutomations(ctx.org.id, "DEAL_STAGE_ENTERED", deal.id, stageId);
     revalidatePath("/", "layout");
@@ -86,7 +112,6 @@ export async function updateDeal(id: string, fd: FormData): Promise<ActionResult
         value: moneyOf(fd, "value"),
         contactId: str(fd, "contactId"),
         companyId: str(fd, "companyId"),
-        ownerId,
         expectedClose: dateOf(fd, "expectedClose"),
         source: str(fd, "source"),
         probability: prob ? Math.max(0, Math.min(100, Number(prob))) : null,
@@ -94,8 +119,8 @@ export async function updateDeal(id: string, fd: FormData): Promise<ActionResult
         customFields: { ...(deal.customFields as object), ...customFieldsOf(fd) },
       },
     });
-    if (ownerId !== deal.ownerId) await logEvent({ orgId: ctx.org.id, type: "DEAL_OWNER", userId: ctx.user.id, dealId: id });
-    else await logEvent({ orgId: ctx.org.id, type: "DEAL_UPDATED", userId: ctx.user.id, dealId: id });
+    await logEvent({ orgId: ctx.org.id, type: "DEAL_UPDATED", userId: ctx.user.id, dealId: id });
+    if ((ownerId ?? null) !== deal.ownerId) await transferDeals(ctx, [deal], ownerId ?? null);
     revalidatePath("/", "layout");
     return { ok: true, message: "Alterações salvas" };
   } catch (e) {
@@ -236,7 +261,7 @@ export async function bulkDeals(ids: string[], action: "delete" | "owner" | "sta
     const ctx = await requireRole(action === "delete" ? "MANAGER" : "SALES");
     const where = { id: { in: ids }, orgId: ctx.org.id };
     if (action === "delete") await db.deal.deleteMany({ where });
-    if (action === "owner") await db.deal.updateMany({ where, data: { ownerId: value || null } });
+    if (action === "owner") await transferDeals(ctx, await db.deal.findMany({ where, select: { id: true, title: true, ownerId: true } }), value || null);
     if (action === "stage" && value) for (const id of ids) await moveDeal(id, value);
     revalidatePath("/", "layout");
     return { ok: true, message: `${ids.length} registro(s) atualizado(s)` };

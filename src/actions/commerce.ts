@@ -2,7 +2,7 @@
 import { revalidatePath } from "next/cache";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
-import { requireRole } from "@/lib/auth";
+import { requireRole, requireFinance } from "@/lib/auth";
 import { logEvent } from "@/lib/events";
 import { code, INTERVALS, totals } from "@/lib/commerce";
 import { contractVars, newToken, nextNumber, sha256, storeFile } from "@/lib/commerce-server";
@@ -177,7 +177,7 @@ export async function deleteProposal(id: string): Promise<ActionResult> {
 
 export async function setOrderStatus(id: string, status: string): Promise<ActionResult> {
   try {
-    const ctx = await requireRole("SALES");
+    const ctx = await requireFinance();
     if (!["NEW", "PROCESSING", "FULFILLED", "CANCELED"].includes(status)) return { ok: false, error: "Status inválido" };
     const o = await db.order.findFirst({ where: { id, orgId: ctx.org.id }, include: { stockMoves: true } });
     if (!o) return { ok: false, error: "Pedido não encontrado" };
@@ -202,7 +202,7 @@ export async function setOrderStatus(id: string, status: string): Promise<Action
 
 export async function moveStock(productId: string, quantity: number, reason: "PURCHASE" | "ADJUST", note?: string): Promise<ActionResult> {
   try {
-    const ctx = await requireRole("MANAGER");
+    const ctx = await requireFinance();
     const q = Number(quantity);
     if (!Number.isFinite(q) || q === 0) return { ok: false, error: "Informe a quantidade" };
     const p = await db.product.findFirst({ where: { id: productId, orgId: ctx.org.id } });

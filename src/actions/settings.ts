@@ -4,7 +4,9 @@ import { revalidatePath } from "next/cache";
 import { randomBytes } from "crypto";
 import type { EntityType, FieldType, Role, StageType } from "@prisma/client";
 import { db } from "@/lib/db";
-import { checkPassword, hashPassword, requireContext, requireRole, requireSuperadmin } from "@/lib/auth";
+import { checkPassword, hashPassword, requireContext, requireRole, requireSuperadmin, requireUserManager } from "@/lib/auth";
+import { assignableRoles, roleLabel } from "@/lib/roles";
+import { isSuperadminEmail } from "@/lib/superadmin";
 import { slugify } from "@/lib/format";
 import { DEFAULT_LABELS, type Labels, type OrgSettings } from "@/lib/labels";
 import { RADII, SANS_FONTS, SERIF_FONTS, SURFACES } from "@/lib/theme-options";
@@ -321,13 +323,21 @@ export async function deleteTag(id: string): Promise<ActionResult> {
 
 /* ------------------------- Usuários ------------------------- */
 
+/** Mensagem de bloqueio quando o perfil está acima do que este acesso pode criar ou alterar. */
+function roleDenied(ctx: { role: Role; superadmin: boolean }, role: Role) {
+  if (ctx.superadmin || assignableRoles(ctx.role, ctx.superadmin).includes(role)) return null;
+  return `O perfil ${roleLabel(role)} é cadastrado pela DRAP. Peça à equipe da plataforma.`;
+}
+
 export async function inviteUser(fd: FormData): Promise<ActionResult & { link?: string }> {
   try {
-    const ctx = await requireRole("ADMIN");
+    const ctx = await requireUserManager();
     const email = str(fd, "email")?.toLowerCase();
     const role = (str(fd, "role") ?? "SALES") as Role;
     if (!email || !/^\S+@\S+\.\S+$/.test(email)) return { ok: false, error: "E-mail inválido" };
-    if (role === "OWNER" && ctx.role !== "OWNER") return { ok: false, error: "Apenas o proprietário pode convidar outro proprietário" };
+    const denied = roleDenied(ctx, role);
+    if (denied) return { ok: false, error: denied };
+    if (isSuperadminEmail(email)) return { ok: false, error: "Este e-mail não pode ser cadastrado." };
     const member = await db.membership.findFirst({ where: { orgId: ctx.org.id, user: { email }, active: true } });
     if (member) return { ok: false, error: "Este usuário já faz parte da equipe" };
     const token = randomBytes(24).toString("base64url");
@@ -341,8 +351,8 @@ export async function inviteUser(fd: FormData): Promise<ActionResult & { link?: 
 
 export async function revokeInvite(id: string): Promise<ActionResult> {
   try {
-    const ctx = await requireRole("ADMIN");
-    await db.invite.deleteMany({ where: { id, orgId: ctx.org.id } });
+    const ctx = await requireUserManager();
+    await db.invite.deleteMany({ where: { id, orgId: ctx.org.id, role: { in: assignableRoles(ctx.role, ctx.superadmin) } } });
     return done("Convite revogado");
   } catch (e) {
     return fail(e);
@@ -351,11 +361,13 @@ export async function revokeInvite(id: string): Promise<ActionResult> {
 
 export async function updateMember(id: string, data: { role?: Role; active?: boolean }): Promise<ActionResult> {
   try {
-    const ctx = await requireRole("ADMIN");
+    const ctx = await requireUserManager();
     const m = await db.membership.findFirst({ where: { id, orgId: ctx.org.id } });
     if (!m) return { ok: false, error: "Usuário não encontrado" };
     if (m.userId === ctx.user.id) return { ok: false, error: "Você não pode alterar o próprio acesso" };
-    if ((m.role === "OWNER" || data.role === "OWNER") && ctx.role !== "OWNER") return { ok: false, error: "Apenas o proprietário pode fazer isso" };
+    // só altera quem está abaixo na hierarquia, e só para perfis que pode criar
+    const denied = roleDenied(ctx, m.role) ?? (data.role ? roleDenied(ctx, data.role) : null);
+    if (denied) return { ok: false, error: denied };
     await db.membership.update({ where: { id }, data });
     return done("Usuário atualizado");
   } catch (e) {
@@ -365,14 +377,19 @@ export async function updateMember(id: string, data: { role?: Role; active?: boo
 
 export async function createUserDirect(fd: FormData): Promise<ActionResult> {
   try {
-    const ctx = await requireRole("ADMIN");
+    const ctx = await requireUserManager();
     const email = str(fd, "email")?.toLowerCase();
     const name = str(fd, "name");
     const password = str(fd, "password");
     const role = (str(fd, "role") ?? "SALES") as Role;
     if (!email || !name || !password) return { ok: false, error: "Preencha nome, e-mail e senha" };
     if (password.length < 8) return { ok: false, error: "Senha com no mínimo 8 caracteres" };
-    if (role === "OWNER" && ctx.role !== "OWNER") return { ok: false, error: "Sem permissão" };
+    const denied = roleDenied(ctx, role);
+    if (denied) return { ok: false, error: denied };
+    // a conta do superadmin da plataforma nunca é criada por uma empresa cliente
+    if (isSuperadminEmail(email)) return { ok: false, error: "Este e-mail não pode ser cadastrado." };
+    const current = await db.membership.findFirst({ where: { orgId: ctx.org.id, user: { email } } });
+    if (current && roleDenied(ctx, current.role)) return { ok: false, error: roleDenied(ctx, current.role)! };
     let user = await db.user.findUnique({ where: { email } });
     if (!user) user = await db.user.create({ data: { email, name, passwordHash: await hashPassword(password) } });
     await db.membership.upsert({

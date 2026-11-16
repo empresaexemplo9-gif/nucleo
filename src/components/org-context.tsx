@@ -2,6 +2,7 @@
 import { createContext, useContext } from "react";
 import type { Labels, OrgSettings } from "@/lib/labels";
 import { money, setTimeZone } from "@/lib/format";
+import { canFinance, canManageUsers, RANK, type Role } from "@/lib/roles";
 
 export type Member = { id: string; name: string; avatarColor: string };
 export type TagDef = { name: string; color: string };
@@ -12,7 +13,7 @@ export type PipelineDef = { id: string; name: string; isDefault: boolean; stages
 export type OrgCtx = {
   org: { id: string; name: string; currency: string; locale: string; logoUrl: string | null; timezone: string };
   user: { id: string; name: string; email: string; avatarColor: string };
-  role: "OWNER" | "ADMIN" | "MANAGER" | "SALES" | "VIEWER";
+  role: Role;
   /** Superadmin da plataforma: único que edita a identidade visual e implanta módulos. */
   superadmin: boolean;
   /** Superadmin acessando uma empresa cliente da qual não faz parte. */
@@ -38,11 +39,12 @@ export function useOrg() {
   const v = useContext(C);
   if (!v) throw new Error("OrgProvider ausente");
   const fmt = (n: unknown, compact = false) => money(n as number, v.org.currency, v.org.locale, compact);
-  const can = (min: OrgCtx["role"]) => {
-    const r = { VIEWER: 0, SALES: 1, MANAGER: 2, ADMIN: 3, OWNER: 4 };
-    return r[v.role] >= r[min];
-  };
+  const can = (min: OrgCtx["role"]) => RANK[v.role] >= RANK[min];
+  /** Pode criar e alterar acessos (superadmin, administradores e gestores). */
+  const canUsers = canManageUsers(v.role, v.superadmin);
+  /** Comanda a parte financeira (administradores e financeiro). */
+  const finance = canFinance(v.role, v.superadmin);
   const tagColor = (name: string) => v.tags.find((t) => t.name === name)?.color ?? "var(--text-mute)";
   const member = (id?: string | null) => v.members.find((m) => m.id === id);
-  return { ...v, fmt, can, tagColor, member };
+  return { ...v, fmt, can, canUsers, finance, tagColor, member };
 }

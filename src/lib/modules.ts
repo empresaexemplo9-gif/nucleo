@@ -5,6 +5,7 @@ import { db } from "./db";
 import { hasRole, type Ctx } from "./auth";
 import { slugify } from "./format";
 import { MODULE_TEMPLATES } from "./module-templates";
+import { canFinance, isFinanceModule } from "./roles";
 
 type Tx = Prisma.TransactionClient | typeof db;
 
@@ -43,7 +44,7 @@ export async function installTemplate(tx: Tx, orgId: string, templateKey: string
 /** Módulos visíveis para o usuário atual (ordenados). */
 export const visibleModules = cache(async (ctx: Ctx) => {
   const all = await db.customModule.findMany({ where: { orgId: ctx.org.id }, orderBy: { position: "asc" } });
-  return all.filter((m) => hasRole(ctx, m.minRoleView));
+  return all.filter((m) => canView(ctx, m));
 });
 
 export async function getModuleByKey(ctx: Ctx, key: string) {
@@ -51,11 +52,18 @@ export async function getModuleByKey(ctx: Ctx, key: string) {
     where: { orgId_key: { orgId: ctx.org.id, key } },
     include: { fields: { orderBy: { position: "asc" } }, statuses: { orderBy: { position: "asc" } } },
   });
-  if (!mod || !hasRole(ctx, mod.minRoleView)) return null;
+  if (!mod || !canView(ctx, mod)) return null;
   return mod;
 }
 
-export function canEditModule(ctx: Ctx, mod: { minRoleEdit: Role }) {
+/** Módulos financeiros ficam com a administração e o financeiro; os demais seguem o perfil mínimo. */
+function canView(ctx: Ctx, mod: { minRoleView: Role; templateKey?: string | null }) {
+  if (isFinanceModule(mod)) return canFinance(ctx.role, ctx.superadmin);
+  return hasRole(ctx, mod.minRoleView);
+}
+
+export function canEditModule(ctx: Ctx, mod: { minRoleEdit: Role; templateKey?: string | null }) {
+  if (isFinanceModule(mod)) return canFinance(ctx.role, ctx.superadmin);
   return hasRole(ctx, mod.minRoleEdit);
 }
 
