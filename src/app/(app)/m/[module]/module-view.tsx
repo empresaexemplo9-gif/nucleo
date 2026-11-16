@@ -72,7 +72,7 @@ export function ModuleView({
   filters: { q: string; status: string; who: string; scope: string };
   openNew: boolean;
 }) {
-  const { fmt, members, member, can } = useOrg();
+  const { fmt, members, member, superadmin } = useOrg();
   const set = useParamSetter();
   const router = useRouter();
   const pathname = usePathname();
@@ -105,7 +105,7 @@ export function ModuleView({
           <a href={`/api/export/module/${mod.key}`} download>
             <Button variant="secondary" trail={<Download className="size-3.5" />}>Exportar</Button>
           </a>
-          {can("ADMIN") && (
+          {superadmin && (
             <Link href={`/settings/modules/${mod.id}`}>
               <Button variant="secondary" trail={<Settings2 className="size-3.5" />}>Configurar</Button>
             </Link>

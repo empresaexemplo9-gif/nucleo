@@ -8,3 +8,10 @@ export async function guard(min: Role) {
   if (!hasRole(ctx, min)) redirect("/settings/profile");
   return ctx;
 }
+
+/** Páginas de implantação (identidade visual e módulos): só o superadmin da plataforma. */
+export async function superGuard() {
+  const ctx = await requireContext();
+  if (!ctx.superadmin) redirect(hasRole(ctx, "ADMIN") ? "/settings" : "/settings/profile");
+  return ctx;
+}

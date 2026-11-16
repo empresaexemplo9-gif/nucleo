@@ -1,12 +1,12 @@
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { guard } from "../../guard";
+import { superGuard } from "../../guard";
 import { ModuleEditor } from "./module-editor";
 
 export const metadata = { title: "Configurar módulo" };
 
 export default async function ModuleEditorPage({ params }: { params: Promise<{ id: string }> }) {
-  const ctx = await guard("ADMIN");
+  const ctx = await superGuard();
   const m = await db.customModule.findFirst({
     where: { id: (await params).id, orgId: ctx.org.id },
     include: { fields: { orderBy: { position: "asc" } }, statuses: { orderBy: { position: "asc" } }, _count: { select: { records: true } } },

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { randomBytes } from "crypto";
 import type { EntityType, FieldType, Role, StageType } from "@prisma/client";
 import { db } from "@/lib/db";
-import { checkPassword, hashPassword, requireContext, requireRole } from "@/lib/auth";
+import { checkPassword, hashPassword, requireContext, requireRole, requireSuperadmin } from "@/lib/auth";
 import { slugify } from "@/lib/format";
 import { DEFAULT_LABELS, type Labels, type OrgSettings } from "@/lib/labels";
 import { RADII, SANS_FONTS, SERIF_FONTS, SURFACES } from "@/lib/theme-options";
@@ -37,7 +37,7 @@ function parseJson(v: string | null | undefined): unknown {
 
 export async function updateBranding(fd: FormData): Promise<ActionResult> {
   try {
-    const ctx = await requireRole("ADMIN");
+    const ctx = await requireSuperadmin();
     const customDomain = str(fd, "customDomain")?.toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "") ?? null;
     if (customDomain) {
       const taken = await db.organization.findFirst({ where: { customDomain, NOT: { id: ctx.org.id } } });

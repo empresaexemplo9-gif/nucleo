@@ -8,12 +8,12 @@ type Item = { href: string; label: string; desc: string };
 
 export function SettingsNav() {
   const pathname = usePathname();
-  const { can, settings } = useOrg();
+  const { can, settings, superadmin } = useOrg();
   const groups: { title: string; items: (Item | false)[] }[] = [
     {
       title: "Empresa",
       items: [
-        can("ADMIN") && { href: "/settings", label: "Marca e geral", desc: "Logo, cores, nomes" },
+        can("ADMIN") && (superadmin ? { href: "/settings", label: "Marca e geral", desc: "Temas, cores, logo, nomes" } : { href: "/settings", label: "Geral", desc: "Nomenclatura e preferências" }),
         can("ADMIN") && { href: "/settings/users", label: "Usuários", desc: "Equipe e permissões" },
       ],
     },
@@ -30,7 +30,7 @@ export function SettingsNav() {
     },
     {
       title: "Controle interno",
-      items: [can("ADMIN") && { href: "/settings/modules", label: "Módulos", desc: "Ordens, estoque, frota…" }],
+      items: [superadmin && { href: "/settings/modules", label: "Módulos", desc: "Implantação · superadmin" }],
     },
     { title: "Pessoal", items: [{ href: "/settings/profile", label: "Meu perfil", desc: "Nome, senha, avatar" }] },
   ];
