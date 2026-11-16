@@ -33,7 +33,7 @@ export function AuthShell({
 
       <header className="glass-nav sticky top-0 z-10 border-b border-line">
         <div className="flex h-16 w-full items-center gap-3 px-4 lg:px-8">
-          <span className="flex max-w-xs min-w-0 flex-1 leading-tight">
+          <span className="flex min-w-0 max-w-[230px] flex-1 leading-tight">
             <BrandLockup logoUrl={brand.logoUrl} name={brand.name} />
           </span>
           <span className="mono-label ml-auto hidden items-center gap-2 text-[10px] text-muted sm:flex">

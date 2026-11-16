@@ -23,6 +23,8 @@ const done = (message = "Configurações salvas"): ActionResult => {
 function isValidLogo(v: string) {
   if (/^https:\/\/[^\s"'<>]+$/i.test(v)) return v.length <= 2000;
   if (/^\/api\/public\/logo\/[a-z0-9]+$/.test(v)) return true;
+  // logotipos oficiais de clientes guardados na plataforma (public/clientes)
+  if (/^\/clientes\/[a-z0-9-]+\/[a-z0-9-]+\.(svg|png|webp)$/.test(v)) return true;
   const m = /^data:image\/(png|jpeg|webp|svg\+xml);base64,([A-Za-z0-9+/=]+)$/.exec(v);
   return !!m && m[2]!.length <= 8_200_000;
 }

@@ -147,7 +147,8 @@ export function BrandStudio({ org, theme }: { org: Org; theme: BrandTheme }) {
     setCustom({});
     setPrimary(s.primary);
     setAccent(s.accent);
-    toast(`Tema “${s.name}” na prévia — salve para aplicar`);
+    if (s.logo) setLogo(s.logo);
+    toast(`Tema “${s.name}”${s.logo ? " e logotipo" : ""} na prévia — salve para aplicar`);
   };
   const activeStyle = useMemo(() => (spec ? presetStyle(spec, primary, accent) : null), [spec, primary, accent]);
   const setC = (patch: ThemeCustom) => setCustom((c) => ({ ...c, ...patch }));

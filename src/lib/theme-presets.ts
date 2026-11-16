@@ -38,6 +38,8 @@ export type ThemePreset = {
   line?: string;
   lineA?: number;
   bgImage?: string;
+  /** Logotipo oficial do cliente (arquivo em /public/clientes), aplicado junto com o tema. */
+  logo?: string;
   noise?: number;
   grid?: number;
 };
@@ -349,7 +351,7 @@ export const THEME_PRESETS: ThemePreset[] = [
   { key: "cliente-mc-company", name: "MC Company", group: "clientes", note: "Moda feminina: off-white quente, grafite, nude e serifa Prata (identidade do site da marca)",
     bg: "#faf8f6", card: "#ffffff", text: "#1e1a1b", primary: "#1e1a1b", accent: "#c6b6a9",
     nav: ["#ffffff", "#1e1a1b", "#c6b6a9", "#1e1a1b"], btn: ["#1e1a1b", "#ffffff"],
-    display: "Prata", body: "Manrope", head: { w: 400, track: "0" }, radius: 8, look: "flat", line: "#1e1a1b", lineA: 10 },
+    display: "Prata", body: "Manrope", head: { w: 400, track: "0" }, radius: 8, look: "flat", line: "#1e1a1b", lineA: 10, logo: "/clientes/mc-company/logo.svg" },
 ];
 
 /** Base neutra usada quando a empresa personaliza tudo sem partir de um tema pronto. */
