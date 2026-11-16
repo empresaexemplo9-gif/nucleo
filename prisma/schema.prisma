@@ -177,6 +177,10 @@ model Stage {
   type        StageType    @default(OPEN)
   /// Dias sem movimentação até o negócio ser considerado "parado"
   rottingDays Int?
+  /// Checklist padrão da etapa: itens criados no negócio quando ele entra na etapa
+  checklist         String[] @default([])
+  /// Exige o checklist da etapa concluído para o negócio avançar
+  checklistRequired Boolean  @default(false)
   pipeline    Pipeline     @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
   deals       Deal[]
   automations Automation[]
@@ -289,6 +293,7 @@ model Deal {
   notes          Note[]
   events         TimelineEvent[]
   proposals      Proposal[]
+  checklist      DealChecklistItem[]
   orders         Order[]
   contracts      Contract[]
 
@@ -770,6 +775,25 @@ model StoredFile {
   contracts Contract[]
 
   @@index([orgId])
+}
+
+/// Item de checklist de um negócio (vindo do padrão da etapa ou criado à mão)
+model DealChecklistItem {
+  id          String    @id @default(cuid())
+  orgId       String
+  dealId      String
+  title       String
+  done        Boolean   @default(false)
+  doneAt      DateTime?
+  doneById    String?
+  /// Etapa que originou o item (nulo = item avulso)
+  stageId     String?
+  position    Int       @default(0)
+  createdById String?
+  createdAt   DateTime  @default(now())
+  deal        Deal      @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  @@index([dealId])
 }
 
 model Notification {

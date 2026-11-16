@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
-import { ArrowDown, ArrowUp, Plus, Star, Trash2 } from "lucide-react";
-import { Badge, Button, Card, cn, Input } from "@/components/ui";
+import { ArrowDown, ArrowUp, ListChecks, Plus, Star, Trash2 } from "lucide-react";
+import { Badge, Button, Card, cn, Input, Textarea } from "@/components/ui";
 import { useAction } from "@/components/use-action";
 import { createPipeline, deletePipeline, saveStages, updatePipeline, type StageInput } from "@/actions/settings";
 
@@ -53,6 +53,7 @@ function StagesEditor({ pipeline }: { pipeline: P }) {
   const { run, pending } = useAction();
   const [name, setName] = useState(pipeline.name);
   const [stages, setStages] = useState<Stage[]>(pipeline.stages.map((s) => ({ ...s, key: s.id })));
+  const [openList, setOpenList] = useState<string | null>(null);
   const open = stages.filter((s) => s.type === "OPEN");
   const closed = stages.filter((s) => s.type !== "OPEN");
   const update = (key: string, patch: Partial<Stage>) => setStages((ss) => ss.map((s) => (s.key === key ? { ...s, ...patch } : s)));
@@ -83,7 +84,7 @@ function StagesEditor({ pipeline }: { pipeline: P }) {
         </Button>
       </div>
 
-      <div className="hidden grid-cols-[28px_1fr_70px_90px_110px_64px] gap-2 px-1 pb-1 text-[11px] font-medium uppercase tracking-wide text-muted sm:grid">
+      <div className="hidden grid-cols-[28px_1fr_70px_90px_110px_92px] gap-2 px-1 pb-1 text-[11px] font-medium uppercase tracking-wide text-muted sm:grid">
         <span />
         <span>Etapa</span>
         <span>Cor</span>
@@ -93,13 +94,24 @@ function StagesEditor({ pipeline }: { pipeline: P }) {
       </div>
       <div className="space-y-2">
         {open.map((s, i) => (
-          <div key={s.key} className="grid grid-cols-[28px_1fr_70px_90px_110px_64px] items-center gap-2 rounded-lg border border-line p-1.5">
+          <div key={s.key} className="rounded-lg border border-line p-1.5">
+          <div className="grid grid-cols-[28px_1fr_70px_90px_110px_92px] items-center gap-2">
             <span className="text-center text-xs font-semibold text-muted">{i + 1}</span>
             <Input value={s.name} onChange={(e) => update(s.key, { name: e.target.value })} />
             <input type="color" value={s.color} onChange={(e) => update(s.key, { color: e.target.value })} className="h-9 w-full cursor-pointer" />
             <Input type="number" min={0} max={100} value={s.probability} onChange={(e) => update(s.key, { probability: Number(e.target.value) })} />
             <Input type="number" min={0} value={s.rottingDays ?? ""} placeholder="—" onChange={(e) => update(s.key, { rottingDays: e.target.value ? Number(e.target.value) : null })} />
             <div className="flex">
+              <button
+                type="button"
+                onClick={() => setOpenList(openList === s.key ? null : s.key)}
+                className={`flex items-center gap-0.5 rounded p-1 text-[11px] font-medium hover:bg-surface-2 ${s.checklist?.length ? "text-accent-text" : "text-muted"}`}
+                aria-label="Checklist da etapa"
+                title="Checklist da etapa"
+              >
+                <ListChecks className="size-3.5" />
+                {s.checklist?.length ? s.checklist.length : ""}
+              </button>
               <button type="button" onClick={() => move(s.key, -1)} className="rounded p-1 text-muted hover:bg-surface-2" aria-label="Subir"><ArrowUp className="size-3.5" /></button>
               <button type="button" onClick={() => move(s.key, 1)} className="rounded p-1 text-muted hover:bg-surface-2" aria-label="Descer"><ArrowDown className="size-3.5" /></button>
               <button
@@ -114,6 +126,28 @@ function StagesEditor({ pipeline }: { pipeline: P }) {
                 <Trash2 className="size-3.5" />
               </button>
             </div>
+          </div>
+          {openList === s.key && (
+            <div className="mt-2 grid gap-3 border-t border-dashed border-line px-1 pb-1 pt-3 sm:grid-cols-[1fr_240px]">
+              <div>
+                <p className="mb-1 text-xs font-medium">Checklist da etapa “{s.name}”</p>
+                <Textarea
+                  rows={4}
+                  value={(s.checklist ?? []).join("\n")}
+                  onChange={(e) => update(s.key, { checklist: e.target.value.split("\n") })}
+                  placeholder={"Um item por linha, por exemplo:\nConfirmar dados do cliente\nEnviar apresentação\nAgendar reunião"}
+                />
+                <p className="mt-1 text-xs text-muted">Os itens entram automaticamente em cada negócio que chega a esta etapa.</p>
+              </div>
+              <label className="flex items-start gap-2 self-start rounded-lg border border-line p-3 text-sm">
+                <input type="checkbox" checked={!!s.checklistRequired} onChange={(e) => update(s.key, { checklistRequired: e.target.checked })} className="mt-0.5 size-4 accent-brand" />
+                <span>
+                  Obrigatório para avançar
+                  <span className="block text-xs text-muted">O negócio só vai para a próxima etapa (ou ganho) com estes itens concluídos.</span>
+                </span>
+              </label>
+            </div>
+          )}
           </div>
         ))}
       </div>
@@ -141,7 +175,17 @@ function StagesEditor({ pipeline }: { pipeline: P }) {
       </div>
 
       <div className="mt-5 flex justify-end">
-        <Button loading={pending} onClick={() => run(() => saveStages(pipeline.id, [...open, ...closed].map(({ key, deals, ...s }) => (void key, void deals, s))))}>
+        <Button
+          loading={pending}
+          onClick={() =>
+            run(() =>
+              saveStages(
+                pipeline.id,
+                [...open, ...closed].map(({ key, deals, ...s }) => (void key, void deals, { ...s, checklist: (s.checklist ?? []).map((t) => t.trim()).filter(Boolean) })),
+              ),
+            )
+          }
+        >
           Salvar etapas
         </Button>
       </div>

@@ -6,6 +6,7 @@ import type { EntityType, FieldType, Role, StageType } from "@prisma/client";
 import { db } from "@/lib/db";
 import { checkPassword, hashPassword, requireContext, requireRole, requireSuperadmin, requireUserManager } from "@/lib/auth";
 import { assignableRoles, roleLabel } from "@/lib/roles";
+import { cleanChecklist } from "@/lib/checklist";
 import { isSuperadminEmail } from "@/lib/superadmin";
 import { slugify } from "@/lib/format";
 import { DEFAULT_LABELS, type Labels, type OrgSettings } from "@/lib/labels";
@@ -111,12 +112,15 @@ export async function updateOrgSettings(fd: FormData): Promise<ActionResult> {
       visibility: str(fd, "visibility") === "OWN" ? "OWN" : "ALL",
       requireLostReason: fd.get("requireLostReason") === "on",
       weekStartsOn: str(fd, "weekStartsOn") === "0" ? 0 : 1,
-      modules: {
-        products: fd.get("mod_products") === "on",
-        goals: fd.get("mod_goals") === "on",
-        automations: fd.get("mod_automations") === "on",
-        companies: fd.get("mod_companies") === "on",
-      },
+      // funções do CRM fazem parte do plano: só o superadmin liga e desliga
+      modules: ctx.superadmin
+        ? {
+            products: fd.get("mod_products") === "on",
+            goals: fd.get("mod_goals") === "on",
+            automations: fd.get("mod_automations") === "on",
+            companies: fd.get("mod_companies") === "on",
+          }
+        : ctx.settings.modules,
     };
     await db.organization.update({ where: { id: ctx.org.id }, data: { settings: { ...(ctx.org.settings as object), ...s } } });
     return done();
@@ -179,7 +183,7 @@ export async function deletePipeline(id: string): Promise<ActionResult> {
   }
 }
 
-export type StageInput = { id?: string; name: string; color: string; probability: number; rottingDays: number | null; type: StageType };
+export type StageInput = { id?: string; name: string; color: string; probability: number; rottingDays: number | null; type: StageType; checklist?: string[]; checklistRequired?: boolean };
 
 /** Salva todas as etapas de um funil de uma vez (ordem = ordem do array). */
 export async function saveStages(pipelineId: string, stages: StageInput[]): Promise<ActionResult> {
@@ -201,6 +205,9 @@ export async function saveStages(pipelineId: string, stages: StageInput[]): Prom
           probability: Math.max(0, Math.min(100, Math.round(s.probability))),
           rottingDays: s.rottingDays || null,
           type: s.type,
+          // checklist só nas etapas abertas
+          checklist: s.type === "OPEN" ? cleanChecklist(s.checklist) : [],
+          checklistRequired: s.type === "OPEN" && !!s.checklistRequired && cleanChecklist(s.checklist).length > 0,
           position: s.type === "OPEN" ? i : s.type === "WON" ? 100 : 101,
         };
         if (s.id && p.stages.some((x) => x.id === s.id)) await tx.stage.update({ where: { id: s.id }, data });

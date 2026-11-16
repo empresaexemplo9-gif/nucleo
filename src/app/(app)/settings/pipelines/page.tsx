@@ -18,7 +18,7 @@ export default async function PipelinesPage() {
         name: p.name,
         isDefault: p.isDefault,
         deals: p._count.deals,
-        stages: p.stages.map((s) => ({ id: s.id, name: s.name, color: s.color, probability: s.probability, rottingDays: s.rottingDays, type: s.type, deals: s._count.deals })),
+        stages: p.stages.map((s) => ({ id: s.id, name: s.name, color: s.color, probability: s.probability, rottingDays: s.rottingDays, type: s.type, checklist: s.checklist, checklistRequired: s.checklistRequired, deals: s._count.deals })),
       }))}
     />
   );

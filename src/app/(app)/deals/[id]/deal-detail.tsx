@@ -13,6 +13,7 @@ import { useAction } from "@/components/use-action";
 import { addDealProduct, deleteDeal, moveDeal, removeDealProduct, setDealStatus } from "@/actions/deals";
 import { date, dateTime, daysSince } from "@/lib/format";
 import { LostReasonModal } from "../lost-reason-modal";
+import { DealChecklist, type ChecklistItem } from "./deal-checklist";
 
 type Deal = {
   id: string;
@@ -35,6 +36,8 @@ type Deal = {
   contact: { id: string; label: string; email: string | null; phone: string | null; whatsapp: string | null; position: string | null } | null;
   company: { id: string; label: string; city: string | null; website: string | null } | null;
   products: { id: string; name: string; quantity: number; price: number; discount: number }[];
+  checklist: ChecklistItem[];
+  checklistRequired: boolean;
 };
 
 export function DealDetail({
@@ -191,6 +194,8 @@ export function DealDetail({
 
       <div className="mt-4 grid gap-4 lg:grid-cols-[360px_1fr] 2xl:grid-cols-[440px_1fr]">
         <div className="space-y-4">
+          <DealChecklist dealId={deal.id} items={deal.checklist} stages={stages} currentStageId={deal.stageId} required={deal.checklistRequired} />
+
           <Card className="p-5">
             <CardHeader icon={<Info />} title="Detalhes" />
             <InfoRow label="Valor" value={fmt(deal.value)} />

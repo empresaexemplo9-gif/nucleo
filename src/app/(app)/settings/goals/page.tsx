@@ -1,3 +1,4 @@
+import { requireFeature } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { guard } from "../guard";
 import { GoalsManager } from "./goals-manager";
@@ -6,6 +7,7 @@ export const metadata = { title: "Metas" };
 
 export default async function GoalsPage() {
   const ctx = await guard("MANAGER");
+  requireFeature(ctx, "goals");
   const goals = await db.goal.findMany({ where: { orgId: ctx.org.id }, orderBy: [{ period: "desc" }], include: { user: true } });
   // progresso: receita ganha / negócios ganhos / atividades no mês
   const rows = await Promise.all(
