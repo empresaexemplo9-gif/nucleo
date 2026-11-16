@@ -3,8 +3,7 @@ import type { Metadata } from "next";
 import { getContext, requireContext } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { setTimeZone } from "@/lib/format";
-import { brandOverrideCss } from "@/lib/brand-colors";
-import { googleFontsHref, themeCss } from "@/lib/theme-options";
+import { brandStyle } from "@/lib/brand-style";
 import { canEditModule, visibleModules } from "@/lib/modules";
 import { OrgProvider } from "@/components/org-context";
 import { AppShell } from "@/components/shell";
@@ -22,15 +21,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const ctx = await requireContext();
   const orgId = ctx.org.id;
   setTimeZone(ctx.org.timezone);
-  const brandCss = brandOverrideCss(ctx.org.primaryColor, ctx.org.accentColor) + themeCss(ctx.settings.brand);
-  const fontsHref = googleFontsHref(ctx.settings.brand);
+  const { css: brandCss, fontsHref, mode: fixedMode } = brandStyle(ctx.org.primaryColor, ctx.org.accentColor, ctx.settings.brand);
   const [members, tags, fields, pipelines, lostReasons, myOrgs, overdue, modules] = await Promise.all([
     db.membership.findMany({ where: { orgId, active: true }, include: { user: true }, orderBy: { user: { name: "asc" } } }),
     db.tag.findMany({ where: { orgId }, orderBy: { name: "asc" } }),
     db.customField.findMany({ where: { orgId }, orderBy: { position: "asc" } }),
     db.pipeline.findMany({ where: { orgId }, orderBy: { position: "asc" }, include: { stages: { orderBy: { position: "asc" } } } }),
     db.lostReason.findMany({ where: { orgId }, orderBy: { label: "asc" } }),
-    db.membership.findMany({ where: { userId: ctx.user.id, active: true }, include: { org: true } }),
+    // superadmin vê todas as empresas clientes no seletor; os demais, só as próprias
+    ctx.superadmin
+      ? db.organization.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } })
+      : db.membership.findMany({ where: { userId: ctx.user.id, active: true }, include: { org: true } }).then((ms) => ms.map((m) => ({ id: m.org.id, name: m.org.name }))),
     db.activity.count({ where: { orgId, done: false, assigneeId: ctx.user.id, dueAt: { lt: new Date() } } }),
     visibleModules(ctx),
   ]);
@@ -41,6 +42,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         org: { id: orgId, name: ctx.org.name, currency: ctx.org.currency, locale: ctx.org.locale, logoUrl: ctx.org.logoUrl, timezone: ctx.org.timezone },
         user: ctx.user,
         role: ctx.role,
+        superadmin: ctx.superadmin,
+        visiting: ctx.visiting,
         labels: ctx.labels,
         settings: ctx.settings,
         members: members.map((m) => ({ id: m.user.id, name: m.user.name, avatarColor: m.user.avatarColor })),
@@ -58,7 +61,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     >
       {fontsHref && <link rel="stylesheet" href={fontsHref} precedence="default" />}
       {brandCss && <style>{brandCss}</style>}
-      <AppShell dark={(await cookies()).get("theme")?.value === "dark"} orgs={myOrgs.map((m) => ({ id: m.org.id, name: m.org.name }))} overdue={overdue}>
+      <AppShell fixedMode={fixedMode} dark={(await cookies()).get("theme")?.value === "dark"} orgs={myOrgs} overdue={overdue}>
         {children}
       </AppShell>
     </OrgProvider>

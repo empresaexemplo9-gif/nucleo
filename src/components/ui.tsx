@@ -29,7 +29,7 @@ export const Button = forwardRef<HTMLButtonElement, BtnProps>(function Button(
       ref={ref}
       disabled={disabled || loading}
       className={cn(
-        "relative inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-[10px] font-medium transition-all duration-300 ease-[var(--ease)] active:translate-y-px disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]",
+        "relative inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-[var(--radius-btn,10px)] font-medium transition-all duration-300 ease-[var(--ease)] active:translate-y-px disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]",
         size === "sm" && "h-8 px-2.5 text-xs",
         size === "md" && "h-10 px-4 text-sm",
         size === "lg" && "h-12 px-5 text-[15px]",
@@ -246,7 +246,7 @@ export function StatCard({
         {icon && <span className="flex size-7 shrink-0 items-center justify-center rounded-[var(--radius-sm)] border border-line bg-well [&>svg]:size-3.5" style={{ color: c }}>{icon}</span>}
       </div>
       <div className="relative mt-4 flex items-end justify-between gap-2">
-        <p className="min-w-0 truncate text-[30px] font-medium leading-none tracking-[-0.04em] text-fg">{value}</p>
+        <p className="stat-value min-w-0 truncate text-[30px] font-medium leading-none tracking-[-0.04em] text-fg">{value}</p>
         {spark && <div className="shrink-0">{spark}</div>}
       </div>
       <div className="relative mt-3 flex min-w-0 items-center gap-2 text-xs text-muted">

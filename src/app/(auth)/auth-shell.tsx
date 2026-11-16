@@ -1,6 +1,6 @@
-import { brandOverrideCss } from "@/lib/brand-colors";
-import { googleFontsHref, themeCss, type BrandTheme } from "@/lib/theme-options";
-import { BrandMark } from "@/components/brand-mark";
+import { brandStyle } from "@/lib/brand-style";
+import type { BrandTheme } from "@/lib/theme-options";
+import { BrandLockup } from "@/components/brand-lockup";
 import { Terminal } from "@/components/terminal";
 import { DrapSignature } from "@/components/drap-signature";
 
@@ -17,8 +17,7 @@ export function AuthShell({
   subtitle: string;
   children: React.ReactNode;
 }) {
-  const css = brandOverrideCss(brand.primaryColor, brand.accentColor) + themeCss(brand.theme ?? {});
-  const fontsHref = googleFontsHref(brand.theme ?? {});
+  const { css, fontsHref } = brandStyle(brand.primaryColor, brand.accentColor, brand.theme);
   return (
     <div className="relative min-h-screen">
       {fontsHref && <link rel="stylesheet" href={fontsHref} precedence="default" />}
@@ -34,11 +33,9 @@ export function AuthShell({
 
       <header className="glass-nav sticky top-0 z-10 border-b border-line">
         <div className="flex h-16 w-full items-center gap-3 px-4 lg:px-8">
-          <BrandMark logoUrl={brand.logoUrl} name={brand.name} />
-          <div className="leading-tight">
-            <p className="text-[15px] font-semibold tracking-[-0.02em]">{brand.name}</p>
-            <p className="font-mono text-[9.5px] uppercase tracking-[0.2em] text-muted">Gestão · CRM</p>
-          </div>
+          <span className="flex min-w-0 max-w-[230px] flex-1 leading-tight">
+            <BrandLockup logoUrl={brand.logoUrl} name={brand.name} />
+          </span>
           <span className="mono-label ml-auto hidden items-center gap-2 text-[10px] text-muted sm:flex">
             <span className="dot-ok" /> Todos os sistemas operacionais
           </span>

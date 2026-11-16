@@ -12,7 +12,8 @@ export default async function SettingsPage() {
   const orgView = { name: o.name, slug: o.slug, logoUrl: o.logoUrl, primaryColor: custom ? o.primaryColor : DRAP_PRIMARY, accentColor: custom ? o.accentColor : DRAP_SECONDARY, currency: o.currency, locale: o.locale, timezone: o.timezone, customDomain: o.customDomain };
   return (
     <div className="space-y-10">
-      <BrandStudio org={orgView} theme={ctx.settings.brand} />
+      {/* identidade visual, temas e dados da empresa: implantados pelo superadmin da plataforma */}
+      {ctx.superadmin && <BrandStudio org={orgView} theme={ctx.settings.brand} />}
       <BrandingForm org={orgView} labels={ctx.labels} settings={ctx.settings} />
     </div>
   );

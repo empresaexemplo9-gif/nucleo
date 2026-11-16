@@ -35,7 +35,7 @@ export type OrgSettings = {
   requireLostReason: boolean;
   weekStartsOn: 0 | 1;
   /** Personalização visual (whitelabel) */
-  brand: { font?: string; serifFont?: string; surface?: string; radius?: string };
+  brand: { font?: string; serifFont?: string; surface?: string; radius?: string; preset?: string; custom?: import("./theme-presets").ThemeCustom };
 };
 
 export const DEFAULT_SETTINGS: OrgSettings = {

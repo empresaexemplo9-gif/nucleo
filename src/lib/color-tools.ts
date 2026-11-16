@@ -99,13 +99,47 @@ export async function fileToLogoDataUrl(file: File, maxSide = 512): Promise<stri
   });
   if (file.type === "image/svg+xml" && raw.length < 6_000_000) return raw;
   const img = await loadImage(raw);
-  const ratio = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
+  // corta margens vazias (transparentes ou brancas) para o logotipo ocupar o espaço disponível
+  const box = contentBox(img);
+  const ratio = Math.min(1, maxSide / Math.max(box.w, box.h));
   const c = document.createElement("canvas");
-  c.width = Math.round(img.naturalWidth * ratio);
-  c.height = Math.round(img.naturalHeight * ratio);
-  c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
+  c.width = Math.max(1, Math.round(box.w * ratio));
+  c.height = Math.max(1, Math.round(box.h * ratio));
+  c.getContext("2d")!.drawImage(img, box.x, box.y, box.w, box.h, 0, 0, c.width, c.height);
   const png = c.toDataURL("image/png");
   return png.length < 7_500_000 ? png : c.toDataURL("image/webp", 0.92);
+}
+
+/** Área com conteúdo da imagem (ignora bordas transparentes ou quase brancas), com pequena folga. */
+function contentBox(img: HTMLImageElement) {
+  const W = img.naturalWidth, H = img.naturalHeight;
+  const full = { x: 0, y: 0, w: W, h: H };
+  const s = Math.min(1, 600 / Math.max(W, H));
+  const c = document.createElement("canvas");
+  c.width = Math.max(1, Math.round(W * s));
+  c.height = Math.max(1, Math.round(H * s));
+  const ctx = c.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return full;
+  ctx.drawImage(img, 0, 0, c.width, c.height);
+  const d = ctx.getImageData(0, 0, c.width, c.height).data;
+  let x0 = c.width, y0 = c.height, x1 = -1, y1 = -1;
+  for (let y = 0; y < c.height; y++)
+    for (let x = 0; x < c.width; x++) {
+      const i = (y * c.width + x) * 4;
+      const empty = d[i + 3]! < 16 || (d[i]! > 244 && d[i + 1]! > 244 && d[i + 2]! > 244);
+      if (empty) continue;
+      if (x < x0) x0 = x;
+      if (x > x1) x1 = x;
+      if (y < y0) y0 = y;
+      if (y > y1) y1 = y;
+    }
+  if (x1 < 0) return full;
+  const pad = Math.round(Math.max(x1 - x0, y1 - y0) * 0.03) + 1;
+  const bx = Math.max(0, x0 - pad), by = Math.max(0, y0 - pad);
+  const bw = Math.min(c.width, x1 + pad + 1) - bx, bh = Math.min(c.height, y1 + pad + 1) - by;
+  // só corta quando há margem de verdade (evita mexer em fotos e logotipos já justos)
+  if (bw * bh > c.width * c.height * 0.85) return full;
+  return { x: Math.round(bx / s), y: Math.round(by / s), w: Math.round(bw / s), h: Math.round(bh / s) };
 }
 
 export function loadImage(src: string) {
@@ -116,4 +150,64 @@ export function loadImage(src: string) {
     img.onerror = () => rej(new Error("Não foi possível ler a imagem"));
     img.src = src;
   });
+}
+
+export type Aesthetic = { bg: string; card: string; text: string; primary: string; accent: string; nav: [string, string, string, string]; btn: [string, string] };
+
+/**
+ * Lê a estética completa de uma imagem (identidade visual, tela, moodboard): fundo dominante,
+ * painéis, texto, cor do menu, cor principal e de destaque — ponderando a área que cada cor ocupa.
+ */
+export function extractAesthetic(img: HTMLImageElement): Aesthetic | null {
+  const size = 128;
+  const c = document.createElement("canvas");
+  const ratio = Math.min(size / (img.naturalWidth || size), size / (img.naturalHeight || size));
+  c.width = Math.max(1, Math.round((img.naturalWidth || size) * ratio));
+  c.height = Math.max(1, Math.round((img.naturalHeight || size) * ratio));
+  const ctx = c.getContext("2d", { willReadFrequently: true })!;
+  ctx.drawImage(img, 0, 0, c.width, c.height);
+  const data = ctx.getImageData(0, 0, c.width, c.height).data;
+  const buckets = new Map<number, { n: number; r: number; g: number; b: number }>();
+  let total = 0;
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3]! < 160) continue;
+    const [r, g, b] = [data[i]!, data[i + 1]!, data[i + 2]!];
+    const key = ((r >> 4) << 8) | ((g >> 4) << 4) | (b >> 4);
+    const e = buckets.get(key) ?? { n: 0, r: 0, g: 0, b: 0 };
+    e.n++; e.r += r; e.g += g; e.b += b;
+    buckets.set(key, e);
+    total++;
+  }
+  if (!total) return null;
+  const merged: { n: number; rgb: RGB }[] = [];
+  for (const e of [...buckets.values()].sort((a, b) => b.n - a.n)) {
+    const rgb: RGB = [e.r / e.n, e.g / e.n, e.b / e.n];
+    const near = merged.find((o) => Math.hypot(o.rgb[0] - rgb[0], o.rgb[1] - rgb[1], o.rgb[2] - rgb[2]) < 36);
+    if (near) near.n += e.n;
+    else if (merged.length < 40) merged.push({ n: e.n, rgb });
+  }
+  const cs = merged.sort((a, b) => b.n - a.n).map((m) => ({ h: toHex(m.rgb), share: m.n / total, hsl: rgbToHsl(m.rgb) }));
+  const on = (x: string) => (contrast("#ffffff", x) >= contrast("#0a0a0a", x) ? "#ffffff" : "#0a0a0a");
+  const hueDist = (a: number, b: number) => Math.min(Math.abs(a - b), 360 - Math.abs(a - b));
+
+  const top = cs[0]!.h;
+  const darkBg = on(top) === "#ffffff";
+  // fundo e painéis: as duas cores vizinhas de maior área; o painel é sempre a mais clara
+  const panel = cs.find((x) => x.h !== top && x.share > 0.06 && contrast(x.h, top) < 1.3)?.h;
+  const lighter = (a: string, b: string) => (contrast(a, "#000000") >= contrast(b, "#000000") ? [a, b] : [b, a]);
+  const [card, bg] = panel ? lighter(top, panel) : [mix(top, "#ffffff", darkBg ? 0.07 : 0.6), top];
+  const ink = cs.filter((x) => x.share > 0.004).sort((a, b) => contrast(b.h, bg) - contrast(a.h, bg))[0];
+  const text = ink && contrast(ink.h, bg) >= 7 ? ink.h : darkBg ? "#f4f4f2" : "#141414";
+  const navBg = cs.find((x) => x.h !== bg && x.share > 0.06 && contrast(x.h, bg) > 1.8)?.h ?? bg;
+  const vivid = cs.filter((x) => x.hsl[1] > 0.3 && x.hsl[2] > 0.15 && x.hsl[2] < 0.85 && x.h !== bg)
+    // cor de marca: saturada, presente e que se destaca do fundo (não um pastel de área grande)
+    .map((x) => ({ ...x, score: Math.sqrt(x.share) * x.hsl[1] * Math.min(contrast(x.h, bg), 4) }))
+    .sort((a, b) => b.score - a.score);
+  const free = vivid.filter((x) => x.h !== navBg);
+  const main = free[0] ?? vivid[0];
+  const primary = main?.h ?? text;
+  const second = main ? (free.find((x) => x.h !== primary && hueDist(x.hsl[0], main.hsl[0]) > 35) ?? vivid.find((x) => x.h !== primary)) : undefined;
+  const accent = second?.h ?? mix(primary, darkBg ? "#ffffff" : "#000000", 0.35);
+  const active = [accent, primary].find((x) => contrast(x, navBg) >= 1.6) ?? on(navBg);
+  return { bg, card, text, primary, accent, nav: [navBg, on(navBg), active, on(active)], btn: [primary, on(primary)] };
 }

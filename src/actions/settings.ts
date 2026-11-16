@@ -4,10 +4,11 @@ import { revalidatePath } from "next/cache";
 import { randomBytes } from "crypto";
 import type { EntityType, FieldType, Role, StageType } from "@prisma/client";
 import { db } from "@/lib/db";
-import { checkPassword, hashPassword, requireContext, requireRole } from "@/lib/auth";
+import { checkPassword, hashPassword, requireContext, requireRole, requireSuperadmin } from "@/lib/auth";
 import { slugify } from "@/lib/format";
 import { DEFAULT_LABELS, type Labels, type OrgSettings } from "@/lib/labels";
 import { RADII, SANS_FONTS, SERIF_FONTS, SURFACES } from "@/lib/theme-options";
+import { PRESET_KEYS, sanitizeCustom } from "@/lib/theme-presets";
 import { fail, moneyOf, numOr, str } from "./helpers";
 import type { ActionResult } from "@/components/use-action";
 
@@ -22,13 +23,23 @@ const done = (message = "Configurações salvas"): ActionResult => {
 function isValidLogo(v: string) {
   if (/^https:\/\/[^\s"'<>]+$/i.test(v)) return v.length <= 2000;
   if (/^\/api\/public\/logo\/[a-z0-9]+$/.test(v)) return true;
+  // logotipos oficiais de clientes guardados na plataforma (public/clientes)
+  if (/^\/clientes\/[a-z0-9-]+\/[a-z0-9-]+\.(svg|png|webp)$/.test(v)) return true;
   const m = /^data:image\/(png|jpeg|webp|svg\+xml);base64,([A-Za-z0-9+/=]+)$/.exec(v);
   return !!m && m[2]!.length <= 8_200_000;
 }
 
+function parseJson(v: string | null | undefined): unknown {
+  try {
+    return v ? JSON.parse(v) : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function updateBranding(fd: FormData): Promise<ActionResult> {
   try {
-    const ctx = await requireRole("ADMIN");
+    const ctx = await requireSuperadmin();
     const customDomain = str(fd, "customDomain")?.toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "") ?? null;
     if (customDomain) {
       const taken = await db.organization.findFirst({ where: { customDomain, NOT: { id: ctx.org.id } } });
@@ -52,6 +63,9 @@ export async function updateBranding(fd: FormData): Promise<ActionResult> {
       serifFont: pick("serifFont", SERIF_FONTS.map((f) => f.key)) ?? ctx.settings.brand.serifFont,
       surface: pick("surface", SURFACES.map((f) => f.key)) ?? ctx.settings.brand.surface,
       radius: pick("radius", RADII.map((f) => f.key)) ?? ctx.settings.brand.radius,
+      // enviado vazio = sem tema pronto (personalizado); ausente = mantém o atual
+      preset: fd.has("preset") ? pick("preset", PRESET_KEYS) : ctx.settings.brand.preset,
+      custom: fd.has("custom") ? sanitizeCustom(parseJson(str(fd, "custom"))) : ctx.settings.brand.custom,
     };
     await db.organization.update({
       where: { id: ctx.org.id },

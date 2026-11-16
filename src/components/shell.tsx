@@ -4,7 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Building2, CalendarCheck, FileSignature, FileText, Check, ChevronsUpDown, KanbanSquare, LogOut, Menu, Moon, Plus, Search, Sun, User, X } from "lucide-react";
 import { Avatar, Badge, Button, cn } from "./ui";
-import { BrandMark } from "./brand-mark";
+import { BrandLockup } from "./brand-lockup";
 import { DrapSignature } from "./drap-signature";
 import { useOrg } from "./org-context";
 import { ModuleIcon } from "./module-icon";
@@ -12,8 +12,19 @@ import { NotificationBell } from "./notification-bell";
 import { QuickCreateProvider, useQuickCreate } from "./quick-create";
 import { logout, setTheme, switchOrg } from "@/actions/auth";
 
-export function AppShell({ children, orgs, overdue, dark }: { children: React.ReactNode; orgs: { id: string; name: string }[]; overdue: number; dark: boolean }) {
+export function AppShell({ children, orgs, overdue, dark, fixedMode }: { children: React.ReactNode; orgs: { id: string; name: string }[]; overdue: number; dark: boolean; fixedMode?: "light" | "dark" | null }) {
   const [mobile, setMobile] = useState(false);
+  // Tema pronto fixa o modo: alinha a classe do documento e devolve a preferência do usuário ao sair.
+  useEffect(() => {
+    if (!fixedMode) return;
+    const root = document.documentElement;
+    const apply = (m: string) => {
+      root.classList.toggle("dark", m === "dark");
+      root.dataset.theme = m;
+    };
+    apply(fixedMode);
+    return () => apply(/(?:^|; )theme=dark/.test(document.cookie) ? "dark" : "light");
+  }, [fixedMode]);
   const pathname = usePathname();
   const [prevPath, setPrevPath] = useState(pathname);
   if (prevPath !== pathname) {
@@ -33,7 +44,7 @@ export function AppShell({ children, orgs, overdue, dark }: { children: React.Re
       <div className="relative flex min-h-screen">
         <aside
           className={cn(
-            "glass-nav fixed inset-y-0 left-0 z-40 w-[264px] shrink-0 border-r border-line transition-transform duration-300 ease-[var(--ease)] lg:sticky lg:top-0 lg:h-screen lg:translate-x-0",
+            "glass-nav nav-scope fixed inset-y-0 left-0 z-40 w-[264px] shrink-0 border-r border-line transition-transform duration-300 ease-[var(--ease)] lg:sticky lg:top-0 lg:h-screen lg:translate-x-0",
             mobile ? "translate-x-0 bg-[var(--menu-bg)] shadow-pop" : "-translate-x-full",
           )}
         >
@@ -41,13 +52,31 @@ export function AppShell({ children, orgs, overdue, dark }: { children: React.Re
         </aside>
         {mobile && <div className="fixed inset-0 z-30 bg-[color-mix(in_oklab,var(--bg)_60%,transparent)] backdrop-blur-sm lg:hidden" onClick={() => setMobile(false)} />}
         <div className="flex min-w-0 flex-1 flex-col">
-          <Topbar onMenu={() => setMobile(true)} initialDark={dark} />
+          <Topbar onMenu={() => setMobile(true)} initialDark={dark} fixedMode={!!fixedMode} />
+          <SuperadminBar />
           <main className="min-w-0 flex-1">{children}</main>
           <AppFooter />
         </div>
       </div>
       <CommandPalette />
     </QuickCreateProvider>
+  );
+}
+
+/** Faixa do superadmin: lembra em qual empresa cliente está e leva à implantação. */
+function SuperadminBar() {
+  const { superadmin, visiting, org } = useOrg();
+  if (!superadmin) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-line bg-[var(--chip-active-bg)] px-4 py-1.5 text-xs text-[var(--chip-active-fg)] lg:px-8">
+      <span className="mono-label text-[10px]">Superadmin</span>
+      <span className="min-w-0 flex-1 truncate">
+        {visiting ? "Acessando" : "Você está em"} <strong className="font-semibold">{org.name}</strong>
+        {visiting && " — você não faz parte da equipe desta empresa"}
+      </span>
+      <Link href="/settings" className="underline-offset-2 hover:underline">Identidade visual</Link>
+      <Link href="/settings/modules" className="underline-offset-2 hover:underline">Módulos</Link>
+    </div>
   );
 }
 
@@ -66,7 +95,7 @@ function AppFooter() {
 type NavItem = { href: string; label: string; badge?: number; dot?: string };
 
 function Sidebar({ orgs, overdue, onClose }: { orgs: { id: string; name: string }[]; overdue: number; onClose: () => void }) {
-  const { org, labels, settings, can, user, role, modules } = useOrg();
+  const { org, labels, settings, can, user, role, modules, superadmin } = useOrg();
   const pathname = usePathname();
   const quick = useQuickCreate();
   const [switcher, setSwitcher] = useState(false);
@@ -98,7 +127,7 @@ function Sidebar({ orgs, overdue, onClose }: { orgs: { id: string; name: string 
       ],
     },
     ...[...moduleGroups.entries()].map(([title, items]) => ({ title, items })),
-    ...(can("ADMIN") && !modules.length ? [{ title: "Controle interno", items: [{ href: "/settings/modules", label: "Ativar módulos" }] }] : []),
+    ...(superadmin && !modules.length ? [{ title: "Controle interno", items: [{ href: "/settings/modules", label: "Ativar módulos" }] }] : []),
     {
       title: "Análise",
       items: [{ href: "/reports", label: "Relatórios" }, can("MANAGER") && { href: "/settings", label: "Configurações" }],
@@ -113,19 +142,15 @@ function Sidebar({ orgs, overdue, onClose }: { orgs: { id: string; name: string 
     <div className="flex h-full flex-col">
       <div className="relative border-b border-line px-4 py-4">
         <button onClick={() => setSwitcher((s) => !s)} className="flex w-full items-center gap-3 rounded-[10px] p-1 text-left transition hover:bg-tint">
-          <BrandMark logoUrl={org.logoUrl} name={org.name} />
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-[15px] font-semibold tracking-[-0.02em]">{org.name}</span>
-            <span className="block truncate font-mono text-[9.5px] uppercase tracking-[0.18em] text-muted">Gestão · CRM</span>
-          </span>
+          <BrandLockup logoUrl={org.logoUrl} name={org.name} />
           <ChevronsUpDown className="size-4 text-muted" />
         </button>
         <button onClick={onClose} className="absolute right-3 top-3 rounded-md p-1 text-muted lg:hidden" aria-label="Fechar menu">
           <X className="size-4" />
         </button>
         {switcher && (
-          <div className="card-drap animate-in absolute left-4 right-4 top-full z-50 mt-1 p-1.5 shadow-pop">
-            <p className="eyebrow px-2 pb-1 pt-1 text-[10px]">Suas empresas</p>
+          <div className="card-drap theme-base animate-in absolute left-4 right-4 top-full z-50 mt-1 p-1.5 shadow-pop">
+            <p className="eyebrow px-2 pb-1 pt-1 text-[10px]">{superadmin ? `Empresas clientes · ${orgs.length}` : "Suas empresas"}</p>
             {orgs.map((o) => (
               <button
                 key={o.id}
@@ -169,13 +194,13 @@ function Sidebar({ orgs, overdue, onClose }: { orgs: { id: string; name: string 
                       href={it.href}
                       className={cn(
                         "group relative flex items-center gap-3 rounded-[var(--radius-sm)] px-2 py-2 text-sm transition duration-300",
-                        active ? "bg-[var(--surface-1)] text-fg shadow-[0_0_0_1px_var(--line),0_8px_20px_-14px_var(--shadow)]" : "text-fg-2 hover:bg-tint hover:text-fg",
+                        active ? "bg-[var(--nav-active-bg,var(--surface-1))] text-[var(--nav-active-fg,var(--text))] [box-shadow:var(--nav-active-shadow,0_0_0_1px_var(--line),0_8px_20px_-14px_var(--shadow))]" : "text-fg-2 hover:bg-tint hover:text-fg",
                       )}
                     >
-                      <span className={cn("w-5 font-mono text-[10.5px] tabular-nums", active ? "text-accent-text" : "text-muted")}>{String(n).padStart(2, "0")}</span>
+                      <span className={cn("w-5 font-mono text-[10.5px] tabular-nums", active ? "text-[var(--nav-active-num,var(--accent-text))]" : "text-muted")}>{String(n).padStart(2, "0")}</span>
                       <span className="flex-1 truncate">{it.label}</span>
                       {it.dot && !active && <span className="size-1.5 rounded-full opacity-70" style={{ background: it.dot }} />}
-                      {active && <span className="size-1.5 rounded-full bg-[var(--accent)]" />}
+                      {active && <span className="size-1.5 rounded-full bg-[var(--nav-active-num,var(--accent))]" />}
                       {!!it.badge && (
                         <span className="rounded-[6px] border border-[color-mix(in_oklab,var(--err)_40%,transparent)] bg-[color-mix(in_oklab,var(--err)_10%,transparent)] px-1.5 font-mono text-[10px] text-err">
                           {String(it.badge).padStart(2, "0")}
@@ -203,7 +228,7 @@ function Sidebar({ orgs, overdue, onClose }: { orgs: { id: string; name: string 
   );
 }
 
-function Topbar({ onMenu, initialDark }: { onMenu: () => void; initialDark: boolean }) {
+function Topbar({ onMenu, initialDark, fixedMode }: { onMenu: () => void; initialDark: boolean; fixedMode: boolean }) {
   const { user, labels, can, modules } = useOrg();
   const quick = useQuickCreate();
   const [menu, setMenu] = useState<"new" | "user" | null>(null);
@@ -242,7 +267,7 @@ function Topbar({ onMenu, initialDark }: { onMenu: () => void; initialDark: bool
         <span className="mono-label hidden items-center gap-2 text-[10px] text-muted xl:flex">
           <span className="dot-ok" /> Todos os sistemas operacionais
         </span>
-        <div className="flex items-center rounded-full border border-line-strong bg-surface p-0.5" role="group" aria-label="Tema">
+        {!fixedMode && <div className="flex items-center rounded-full border border-line-strong bg-surface p-0.5" role="group" aria-label="Tema">
           <button
             onClick={() => applyTheme(false)}
             aria-label="Tema claro"
@@ -259,7 +284,7 @@ function Topbar({ onMenu, initialDark }: { onMenu: () => void; initialDark: bool
           >
             <Moon className="size-3.5" />
           </button>
-        </div>
+        </div>}
         <NotificationBell />
         {can("SALES") && (
           <div className="relative">
