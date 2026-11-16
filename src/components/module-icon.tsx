@@ -1,6 +1,6 @@
 import {
   Boxes, Briefcase, Building, CalendarClock, Car, ClipboardList, FileCheck, FileSignature, FileText, Folder, FolderKanban, GraduationCap,
-  HardHat, Hammer, HeartPulse, IdCard, Landmark, LifeBuoy, Package, PawPrint, Receipt, Scale, ShieldCheck, ShoppingCart, Sprout, Stethoscope,
+  HardHat, Hammer, HeartPulse, IdCard, Landmark, LifeBuoy, Megaphone, Package, PawPrint, Receipt, Repeat, Scale, Shirt, ShieldCheck, ShoppingBag, ShoppingCart, Sprout, Stethoscope,
   Store, Tag, Tractor, Truck, Users, Utensils, Wallet, Warehouse, Wrench, type LucideIcon,
 } from "lucide-react";
 
@@ -12,6 +12,7 @@ export const MODULE_ICONS: Record<string, LucideIcon> = {
   truck: Truck, car: Car, tractor: Tractor, sprout: Sprout, "paw-print": PawPrint, stethoscope: Stethoscope, "heart-pulse": HeartPulse,
   "graduation-cap": GraduationCap, "id-card": IdCard, users: Users, briefcase: Briefcase, building: Building, "calendar-clock": CalendarClock,
   "shield-check": ShieldCheck, tag: Tag, utensils: Utensils,
+  shirt: Shirt, "shopping-bag": ShoppingBag, repeat: Repeat, megaphone: Megaphone,
 };
 
 export function ModuleIcon({ name, className }: { name: string; className?: string }) {

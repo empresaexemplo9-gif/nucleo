@@ -24,6 +24,13 @@ export type ModuleTemplate = {
 };
 
 const PRIO = ["Baixa", "Média", "Alta", "Urgente"];
+/** Listas usadas pelos modelos de loja de roupas e acessórios. */
+const MODA_CATEGORIAS = ["Blusas e camisas", "Vestidos", "Calças e shorts", "Saias", "Conjuntos", "Moda praia", "Lingerie", "Casacos", "Calçados", "Bolsas", "Bijuterias e semijoias", "Acessórios"];
+const MODA_COLECOES = ["Primavera-Verão", "Outono-Inverno", "Atemporal / básicos", "Cápsula / edição limitada", "Outlet"];
+const MODA_TAMANHOS = ["PP", "P", "M", "G", "GG", "XG", "34", "36", "38", "40", "42", "44", "46", "Único"];
+const MODA_CANAIS = ["Site", "Instagram", "WhatsApp", "TikTok", "Marketplace", "Loja física"];
+const MODA_PAGAMENTOS = ["Pix", "Cartão de crédito", "Cartão de débito", "Boleto", "Link de pagamento", "Dinheiro", "Crediário / carnê", "Vale-troca"];
+
 const C = { mute: "#7d828c", blue: "#3c78c0", deep: "#2d63a3", gold: "#b48a4f", bronze: "#8a672f", ok: "#17905f", err: "#cf3a56", warn: "#b7791f" };
 
 export const MODULE_TEMPLATES: ModuleTemplate[] = [
@@ -243,6 +250,137 @@ export const MODULE_TEMPLATES: ModuleTemplate[] = [
     ],
     statuses: [{ name: "Inicial", color: C.mute }, { name: "Em andamento", color: C.blue }, { name: "Recurso", color: C.warn }, { name: "Encerrado", color: C.ok, final: true }],
   },
+  /* ------------------- Loja de roupas e acessórios (e-commerce) ------------------- */
+  {
+    key: "moda-estoque", name: "Estoque de moda", singular: "Peça", prefix: "SKU", icon: "shirt", color: C.bronze,
+    description: "Estoque por grade: peça, tamanho, cor e coleção, com custo, preço, mínimo e onde está guardada.",
+    fields: [
+      { key: "sku", label: "Código / SKU", type: "TEXT", list: true },
+      { key: "categoria", label: "Categoria", type: "SELECT", options: MODA_CATEGORIAS, list: true },
+      { key: "colecao", label: "Coleção", type: "SELECT", options: MODA_COLECOES, list: true },
+      { key: "tamanho", label: "Tamanho", type: "SELECT", options: MODA_TAMANHOS, list: true },
+      { key: "cor", label: "Cor", type: "TEXT", list: true },
+      { key: "quantidade", label: "Quantidade em estoque", type: "NUMBER", required: true, list: true },
+      { key: "minimo", label: "Estoque mínimo", type: "NUMBER" },
+      { key: "custo", label: "Custo unitário", type: "CURRENCY" },
+      { key: "preco", label: "Preço de venda", type: "CURRENCY", list: true, amount: true },
+      { key: "local", label: "Onde está", type: "SELECT", options: ["Loja física", "Depósito", "Centro de distribuição", "Em trânsito"] },
+      { key: "fornecedor", label: "Confecção / fornecedor", type: "COMPANY" },
+      { key: "foto", label: "Foto do produto (link)", type: "URL" },
+    ],
+    statuses: [
+      { name: "Disponível", color: C.ok },
+      { name: "Estoque baixo", color: C.warn },
+      { name: "Esgotado", color: C.err },
+      { name: "Aguardando reposição", color: C.blue },
+      { name: "Fora de linha", color: C.mute, final: true },
+    ],
+  },
+  {
+    key: "pedidos-loja", name: "Pedidos da loja", singular: "Pedido", prefix: "PED", icon: "shopping-bag", color: C.gold,
+    description: "Vendas do site, Instagram, WhatsApp, marketplaces e loja física, com forma de pagamento, parcelas e status do pedido.",
+    fields: [
+      { key: "cliente", label: "Cliente", type: "CONTACT", list: true },
+      { key: "canal", label: "Canal de venda", type: "SELECT", options: MODA_CANAIS, list: true },
+      { key: "pagamento", label: "Forma de pagamento", type: "SELECT", options: MODA_PAGAMENTOS, required: true, list: true },
+      { key: "parcelas", label: "Parcelas", type: "SELECT", options: ["À vista", "2x", "3x", "4x", "5x", "6x", "10x", "12x"] },
+      { key: "total", label: "Valor total", type: "CURRENCY", required: true, list: true, amount: true },
+      { key: "frete", label: "Frete cobrado", type: "CURRENCY" },
+      { key: "cupom", label: "Cupom / desconto", type: "TEXT" },
+      { key: "itens", label: "Itens (peça · tamanho · cor · qtd.)", type: "TEXTAREA" },
+      { key: "envio_ate", label: "Enviar até", type: "DATE", list: true, due: true },
+      { key: "observacoes", label: "Observações", type: "TEXTAREA" },
+    ],
+    statuses: [
+      { name: "Aguardando pagamento", color: C.warn },
+      { name: "Pago", color: C.blue },
+      { name: "Em separação", color: C.gold },
+      { name: "Enviado", color: C.deep },
+      { name: "Entregue", color: C.ok, final: true },
+      { name: "Cancelado", color: C.err, final: true },
+    ],
+  },
+  {
+    key: "envios", name: "Envios e entregas", singular: "Envio", prefix: "ENV", icon: "truck", color: C.deep,
+    description: "Postagens e entregas: transportadora, código de rastreio, frete pago e prazo prometido ao cliente.",
+    fields: [
+      { key: "pedido", label: "Nº do pedido", type: "TEXT", list: true },
+      { key: "cliente", label: "Cliente", type: "CONTACT", list: true },
+      { key: "modalidade", label: "Modalidade", type: "SELECT", options: ["Correios PAC", "Correios SEDEX", "Transportadora", "Motoboy", "Entrega própria", "Retirada na loja"], list: true },
+      { key: "rastreio", label: "Código de rastreio", type: "TEXT", list: true },
+      { key: "cep", label: "CEP / cidade", type: "TEXT" },
+      { key: "custo_frete", label: "Custo do frete", type: "CURRENCY", amount: true },
+      { key: "prazo", label: "Prazo de entrega", type: "DATE", list: true, due: true },
+    ],
+    statuses: [
+      { name: "A enviar", color: C.warn },
+      { name: "Postado", color: C.blue },
+      { name: "Em trânsito", color: C.deep },
+      { name: "Entregue", color: C.ok, final: true },
+      { name: "Devolvido ao remetente", color: C.err, final: true },
+    ],
+  },
+  {
+    key: "trocas", name: "Trocas e devoluções", singular: "Troca", prefix: "TRC", icon: "repeat", color: C.warn,
+    description: "Trocas de tamanho e cor, devoluções e arrependimento de compra online (7 dias), com prazo e reembolso.",
+    fields: [
+      { key: "cliente", label: "Cliente", type: "CONTACT", list: true },
+      { key: "pedido", label: "Nº do pedido", type: "TEXT", list: true },
+      { key: "tipo", label: "Tipo", type: "SELECT", options: ["Troca", "Devolução com reembolso", "Vale-troca / crédito"], required: true, list: true },
+      { key: "motivo", label: "Motivo", type: "SELECT", options: ["Tamanho", "Cor / modelo", "Defeito", "Arrependimento (7 dias)", "Avaria no transporte", "Produto errado"], list: true },
+      { key: "peca", label: "Peça (tamanho · cor)", type: "TEXT" },
+      { key: "valor", label: "Valor a reembolsar / crédito", type: "CURRENCY", list: true, amount: true },
+      { key: "prazo", label: "Prazo para resolver", type: "DATE", list: true, due: true },
+      { key: "observacoes", label: "Observações", type: "TEXTAREA" },
+    ],
+    statuses: [
+      { name: "Solicitada", color: C.warn },
+      { name: "Aguardando a peça", color: C.blue },
+      { name: "Peça recebida", color: C.gold },
+      { name: "Concluída", color: C.ok, final: true },
+      { name: "Recusada", color: C.err, final: true },
+    ],
+  },
+  {
+    key: "compras-moda", name: "Compras e coleções", singular: "Compra", prefix: "CMP", icon: "package", color: C.blue,
+    description: "Pedidos às confecções e fornecedores por coleção: peças, grade, valor, forma de pagamento e previsão de chegada.",
+    fields: [
+      { key: "fornecedor", label: "Confecção / fornecedor", type: "COMPANY", list: true },
+      { key: "colecao", label: "Coleção", type: "SELECT", options: MODA_COLECOES, list: true },
+      { key: "pecas", label: "Quantidade de peças", type: "NUMBER", list: true },
+      { key: "grade", label: "Itens e grade (peça · tamanhos · cores)", type: "TEXTAREA" },
+      { key: "valor", label: "Valor da compra", type: "CURRENCY", list: true, amount: true },
+      { key: "pagamento", label: "Forma de pagamento", type: "SELECT", options: ["Pix", "Boleto", "Boleto parcelado", "Cartão de crédito", "Transferência", "Consignado"] },
+      { key: "chegada", label: "Previsão de chegada", type: "DATE", list: true, due: true },
+    ],
+    statuses: [
+      { name: "Orçamento", color: C.mute },
+      { name: "Pedido feito", color: C.blue },
+      { name: "Em produção", color: C.gold },
+      { name: "Recebido", color: C.ok, final: true },
+      { name: "Cancelado", color: C.err, final: true },
+    ],
+  },
+  {
+    key: "campanhas", name: "Campanhas e cupons", singular: "Campanha", prefix: "CAMP", icon: "megaphone", color: C.err,
+    description: "Lançamentos, promoções e cupons por canal (Instagram, WhatsApp, e-mail, influenciadores), com investimento e período.",
+    fields: [
+      { key: "canal", label: "Canal", type: "SELECT", options: ["Instagram", "TikTok", "WhatsApp", "E-mail", "Site", "Influenciador", "Loja física"], list: true },
+      { key: "cupom", label: "Cupom", type: "TEXT", list: true },
+      { key: "desconto", label: "Desconto (%)", type: "NUMBER", list: true },
+      { key: "colecao", label: "Coleção", type: "SELECT", options: MODA_COLECOES },
+      { key: "inicio", label: "Início", type: "DATE" },
+      { key: "fim", label: "Término", type: "DATE", list: true, due: true },
+      { key: "investimento", label: "Investimento", type: "CURRENCY", list: true, amount: true },
+      { key: "resultado", label: "Resultado (vendas, alcance)", type: "TEXTAREA" },
+    ],
+    statuses: [
+      { name: "Planejada", color: C.mute },
+      { name: "Ativa", color: C.ok },
+      { name: "Pausada", color: C.warn },
+      { name: "Encerrada", color: C.blue, final: true },
+    ],
+  },
 ];
 
 /** Pacotes por segmento (chaves de MODULE_TEMPLATES). */
@@ -253,6 +391,7 @@ export const SEGMENT_PACKS: { key: string; label: string; modules: string[] }[] 
   { key: "saude", label: "Saúde e clínicas", modules: ["atendimentos", "estoque", "documentos", "financeiro"] },
   { key: "educacao", label: "Educação", modules: ["matriculas", "colaboradores", "chamados", "financeiro"] },
   { key: "juridico", label: "Jurídico", modules: ["processos", "contratos", "documentos", "financeiro"] },
+  { key: "moda", label: "Loja de roupas e acessórios", modules: ["moda-estoque", "pedidos-loja", "envios", "trocas", "compras-moda", "campanhas", "financeiro"] },
   { key: "varejo", label: "Varejo e comércio", modules: ["estoque", "compras", "colaboradores", "financeiro"] },
   { key: "industria", label: "Indústria", modules: ["manutencoes", "estoque", "compras", "patrimonio", "frota"] },
   { key: "tecnologia", label: "Tecnologia e SaaS", modules: ["projetos", "chamados", "contratos", "financeiro"] },
@@ -268,6 +407,7 @@ export function packForSegment(segment?: string | null) {
   if (/sa[uú]de|cl[ií]nic/.test(s)) return pick("saude");
   if (/educa|escola/.test(s)) return pick("educacao");
   if (/jur[ií]d|advoc/.test(s)) return pick("juridico");
+  if (/roupa|moda|vestu[aá]rio|acess[oó]rio|boutique|confec|cal[cç]ado|bijuter/.test(s)) return pick("moda");
   if (/varejo|com[eé]rcio|loja/.test(s)) return pick("varejo");
   if (/ind[uú]str/.test(s)) return pick("industria");
   if (/software|saas|tecnolog/.test(s)) return pick("tecnologia");
