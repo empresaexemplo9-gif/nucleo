@@ -21,6 +21,14 @@ A única referência à desenvolvedora é a assinatura **"Desenvolvido por DRAP"
 **Produtividade**
 - Atividades (ligação, reunião, tarefa, e-mail, prazo, almoço, WhatsApp) em lista agrupada por dia ou **calendário mensal**, com atrasadas destacadas
 - **Automações** “quando… então…”: ao criar, mudar de etapa, ganhar ou perder → criar atividade, etiqueta, responsável, nota ou ciclo de vida
+- **Lembretes e follow-ups agendados**: compromisso se aproximando, proposta sem resposta, negócio parado, vencimento de registros dos módulos e aniversário → WhatsApp ao cliente, aviso à equipe, atividade ou nota
+
+**WhatsApp (API oficial da Meta)**
+- Cada empresa conecta o próprio número em *Configurações → WhatsApp* (credenciais cifradas no banco)
+- Mensagens automáticas com variáveis (`{nome}`, `{negocio}`, `{data}`, `{link}`…), atraso configurável, cancelamento se o cliente responder ou o negócio sair da etapa, horário comercial e descadastro pelo cliente (**SAIR**)
+- **Chatbot**: menu de respostas prontas ou assistente com IA (Claude) que usa as informações da empresa; transfere para a equipe e avisa o responsável
+- **Caixa de conversas** (`/whatsapp`): histórico, resposta manual, status de entrega/leitura e mensagens agendadas
+- Números desconhecidos viram leads automaticamente
 - **Metas** mensais (receita, negócios ganhos, atividades) por empresa ou vendedor
 
 **Gestão**
@@ -52,11 +60,17 @@ Next.js 16 (App Router, Server Actions) · React 19 · Tailwind CSS 4 · Prisma 
    - `AUTH_SECRET` — uma chave longa e aleatória (`openssl rand -base64 32`)
    - `NEXT_PUBLIC_APP_NAME` — nome neutro exibido no login quando nenhuma empresa é identificada (opcional, padrão "Gestão & CRM")
    - `ALLOW_SIGNUP` — `false` para impedir que qualquer pessoa crie empresas (opcional)
+   - `CRON_SECRET` — protege o agendador de lembretes e follow-ups (`openssl rand -hex 32`)
+   - `ANTHROPIC_API_KEY` — só se for oferecer o chatbot com IA (opcional)
 4. Faça o deploy. O build executa `prisma db push`, criando as tabelas automaticamente.
 5. Acesse `/register` e crie a primeira empresa — funil, etapas e motivos de perda já vêm configurados.
 
 > Usando outro Postgres (Supabase, RDS…)? Defina `DATABASE_URL` e `DATABASE_URL_UNPOOLED` (pode ser a mesma URL).
 > Se o projeto já tiver outro banco conectado, defina `CRM_DATABASE_URL` (e opcionalmente `CRM_DATABASE_URL_UNPOOLED`): elas têm prioridade sobre `DATABASE_URL`.
+
+**Agendador (lembretes, follow-ups e mensagens agendadas):** `vercel.json` chama `/api/cron/automations` uma vez por dia, que é o limite do plano Hobby da Vercel. No plano Pro, troque o `schedule` para `*/5 * * * *`; no Hobby, aponte um agendador externo (cron-job.org, GitHub Actions…) para a mesma URL a cada 5 minutos, enviando o cabeçalho `Authorization: Bearer <CRON_SECRET>`. Como complemento, a fila também é processada enquanto alguém usa o sistema.
+
+**WhatsApp:** o webhook a cadastrar no app da Meta é `https://<seu-domínio>/api/public/whatsapp/webhook`; o token de verificação aparece em *Configurações → WhatsApp* depois de conectar. Fora da janela de 24h desde a última mensagem do cliente, a Meta só aceita **modelos aprovados** — informe o nome do modelo na automação.
 
 **Domínio por cliente (whitelabel):** adicione o domínio do cliente em *Settings → Domains* da Vercel e informe o mesmo domínio em *Configurações → Marca* dentro da empresa do cliente.
 
@@ -80,7 +94,9 @@ prisma/seed.ts              dados de demonstração
 src/actions/                Server Actions (negócios, CRM, configurações, autenticação)
 src/app/(auth)/             login, cadastro e convites (com a marca da empresa)
 src/app/(app)/              painel, negócios, contatos, empresas, atividades, produtos, relatórios, configurações
-src/app/api/                busca rápida, exportação CSV, health check, logout
+src/app/api/                busca rápida, exportação CSV, health check, logout, cron e webhook do WhatsApp
+src/lib/whatsapp/           cliente da API da Meta, fila de envio, chatbot e assistente com IA
+src/lib/scheduler.ts        gatilhos agendados (lembretes e follow-ups)
 src/components/             UI, formulários, Kanban, linha do tempo, gráficos
 src/lib/                    auth, permissões, rótulos, automações, métricas, formatação
 src/proxy.ts                proteção de rotas

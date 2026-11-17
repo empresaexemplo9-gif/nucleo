@@ -86,7 +86,8 @@ export function BrandingForm({
                   ["mod_companies", "Empresas (B2B)", "Cadastro de empresas clientes", settings.modules.companies],
                   ["mod_products", "Produtos e serviços", "Catálogo, preços e estoque", settings.modules.products],
                   ["mod_goals", "Metas", "Metas de receita da equipe", settings.modules.goals],
-                  ["mod_automations", "Automações", "Regras automáticas no funil", settings.modules.automations],
+                  ["mod_automations", "Automações", "Regras automáticas, lembretes e follow-ups", settings.modules.automations],
+                  ["mod_aiBot", "Chatbot com IA", "Assistente inteligente no WhatsApp", settings.modules.aiBot],
                 ] as const
               ).map(([n, l, d, v]) => (
                 <label key={n} className={`flex items-start gap-2 rounded-lg border border-line px-3 py-2.5 text-sm ${superadmin ? "" : "opacity-70"}`}>

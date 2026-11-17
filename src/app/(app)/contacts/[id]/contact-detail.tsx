@@ -13,6 +13,7 @@ import { RelatedDeals, type RelatedDeal } from "@/components/related-deals";
 import { useOrg } from "@/components/org-context";
 import { useAction } from "@/components/use-action";
 import { deleteContacts } from "@/actions/crm";
+import { openWhatsappConversation } from "@/actions/whatsapp";
 import { LIFECYCLES } from "@/lib/defaults";
 import { date } from "@/lib/format";
 
@@ -61,6 +62,11 @@ export function ContactDetail({
           )}
           {wa && (
             <a href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer"><Button variant="secondary"><MessageCircle className="size-4 text-ok" /> WhatsApp</Button></a>
+          )}
+          {wa && can("SALES") && (
+            <Button variant="secondary" onClick={() => run(() => openWhatsappConversation(contact.id), { onSuccess: (r) => router.push(`/whatsapp?c=${r.id}`) })}>
+              <MessageCircle className="size-4" /> Conversar
+            </Button>
           )}
           {can("SALES") && <Button variant="secondary" onClick={() => setEditing(true)}><Pencil className="size-4" /> Editar</Button>}
           {can("MANAGER") && (
