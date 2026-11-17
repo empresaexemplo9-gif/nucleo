@@ -14,7 +14,7 @@ const FREE_WINDOW = DAY - 10 * 60_000;
 
 export const OUTSIDE_WINDOW_HELP = "Fora da janela de 24h: o cliente não escreveu nas últimas 24 horas. Informe um modelo aprovado na Meta para enviar.";
 
-export type Guard = { stageId?: string; stopOnReply?: boolean; activityId?: string; activityDueAt?: string };
+export type Guard = { stageId?: string; stopOnReply?: boolean; activityId?: string; activityDueAt?: string; recordId?: string; recordDueAt?: string };
 
 export function getAccount(orgId: string) {
   return db.whatsappAccount.findUnique({ where: { orgId } });
@@ -121,6 +121,12 @@ export async function dispatchMessage(id: string): Promise<{ id: string; status:
         if (act.dueAt && act.dueAt < now) return await finish(id, "CANCELED", "Cancelada: o compromisso já passou.");
         // lembrete que só caberia depois do compromisso sai agora mesmo
         if (act.dueAt && when >= act.dueAt) when = now;
+      }
+      if (guard.recordId) {
+        const rec = await db.moduleRecord.findUnique({ where: { id: guard.recordId }, select: { closedAt: true, dueAt: true, status: { select: { isFinal: true } } } });
+        if (!rec || rec.closedAt || rec.status?.isFinal) return await finish(id, "CANCELED", "Cancelada: o registro foi concluído ou excluído.");
+        if (guard.recordDueAt && rec.dueAt?.toISOString() !== guard.recordDueAt) return await finish(id, "CANCELED", "Cancelada: a data do registro mudou.");
+        if (guard.recordDueAt && rec.dueAt && rec.dueAt > now && when >= rec.dueAt) when = now;
       }
       if (when > now) return await finish(id, "SCHEDULED", null, { scheduledAt: when });
     }

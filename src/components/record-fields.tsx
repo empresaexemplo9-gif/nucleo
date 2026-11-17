@@ -13,7 +13,7 @@ export function RecordFieldInput({ f, value, refs }: { f: MField; value: unknown
   const name = `f_${f.key}`;
   const sv = value == null ? "" : Array.isArray(value) ? "" : String(value);
   const label = f.label + (f.required ? " *" : "");
-  const wide = f.type === "TEXTAREA" || f.type === "MULTISELECT";
+  const wide = f.type === "TEXTAREA" || f.type === "MULTISELECT" || f.type === "CHECKLIST";
   let input: React.ReactNode;
   switch (f.type) {
     case "TEXTAREA":
@@ -28,6 +28,38 @@ export function RecordFieldInput({ f, value, refs }: { f: MField; value: unknown
     case "DATE":
       input = <Input name={name} type="date" defaultValue={sv} required={f.required} />;
       break;
+    case "DATETIME":
+      input = <Input name={name} type="datetime-local" defaultValue={sv} required={f.required} />;
+      break;
+    case "FORMULA":
+      input = (
+        <div className="flex h-10 items-center justify-between gap-2 rounded-[var(--radius-sm)] border border-dashed border-line px-3 text-sm text-fg-2">
+          {value == null ? <span className="text-muted">calculado ao salvar</span> : <RecordFieldValue f={f} value={value} refs={refs} />}
+          <span className="font-mono text-[10px] text-muted" title={f.options[0]}>ƒ automático</span>
+        </div>
+      );
+      break;
+    case "RECORD":
+      input = f.options[0]?.startsWith("tpl:") ? (
+        <p className="rounded-[var(--radius-sm)] border border-dashed border-line p-2.5 text-xs text-muted">Instale o módulo vinculado para usar este campo.</p>
+      ) : (
+        <EntityPicker type="record" module={f.options[0]} name={name} defaultValue={sv ? { id: sv, label: refs[sv] ?? "—" } : null} />
+      );
+      break;
+    case "CHECKLIST": {
+      const arr = Array.isArray(value) ? (value as string[]) : [];
+      input = (
+        <div className="space-y-1.5 rounded-[var(--radius-sm)] border border-line-strong bg-[var(--field-bg)] p-2.5">
+          <input type="hidden" name={name} value="" />
+          {f.options.map((o) => (
+            <label key={o} className="flex items-start gap-2 text-sm">
+              <input type="checkbox" name={name} value={o} defaultChecked={arr.includes(o)} className="mt-0.5 accent-[var(--accent)]" /> {o}
+            </label>
+          ))}
+        </div>
+      );
+      break;
+    }
     case "SELECT":
       input = (
         <Select name={name} defaultValue={sv} required={f.required}>
@@ -90,6 +122,27 @@ export function RecordFieldValue({ f, value, refs, plain }: { f: MField; value: 
       return <span className="tabular-nums">{Number(value).toLocaleString("pt-BR")}</span>;
     case "DATE":
       return <span className="whitespace-nowrap">{date(String(value) + "T12:00:00")}</span>;
+    case "DATETIME":
+      return <span className="whitespace-nowrap">{String(value).replace(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}:\d{2})$/, "$3/$2/$1 · $4")}</span>;
+    case "CHECKLIST": {
+      const done = (value as string[]).length;
+      const total = f.options.length || done;
+      return (
+        <span className="inline-flex items-center gap-1.5 whitespace-nowrap tabular-nums">
+          <span className="h-1.5 w-12 overflow-hidden rounded-full bg-tint"><span className="block h-full rounded-full bg-[var(--ok)]" style={{ width: `${Math.round((done / Math.max(1, total)) * 100)}%` }} /></span>
+          {done}/{total}
+        </span>
+      );
+    }
+    case "FORMULA": {
+      const n = Number(value);
+      if (f.options[1] === "CURRENCY") return <span className="tabular-nums">{fmt(n)}</span>;
+      if (f.options[1] === "PERCENT") return <span className="tabular-nums">{n.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%</span>;
+      return <span className="tabular-nums">{n.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}</span>;
+    }
+    case "RECORD":
+      if (plain || !f.options[0] || f.options[0].startsWith("tpl:")) return <>{refs[String(value)] ?? "—"}</>;
+      return <Link href={`/m/${f.options[0]}/${value}`} className="hover:text-accent-text">{refs[String(value)] ?? "—"}</Link>;
     case "BOOLEAN":
       return <span>{value ? "Sim" : "Não"}</span>;
     case "MULTISELECT":

@@ -1,13 +1,13 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
-import { ArrowDown, ArrowLeft, ArrowUp, ExternalLink, GitBranch, ListChecks, Pencil, Plus, Settings2, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, ExternalLink, GitBranch, ListChecks, Pencil, Plus, RefreshCw, Settings2, Trash2, X } from "lucide-react";
 import { Badge, Button, Card, CardHeader, EmptyState, Field, Input, Modal, Select, Textarea } from "@/components/ui";
 import { ModuleIcon } from "@/components/module-icon";
 import type { MField } from "@/components/record-fields";
 import { useAction } from "@/components/use-action";
-import { deleteModuleField, moveModuleField, saveModuleField, saveModuleStatuses, updateModule, type StatusInput } from "@/actions/modules";
-import { FIELD_TYPES } from "@/lib/module-templates";
+import { deleteModuleField, moveModuleField, saveModuleField, saveModuleStatuses, syncModuleTemplate, updateModule, type StatusInput } from "@/actions/modules";
+import { DATE_TYPES, FIELD_TYPES } from "@/lib/module-templates";
 import { IconColorPicker } from "../modules-gallery";
 
 const ROLES: [string, string][] = [
@@ -31,12 +31,14 @@ type Mod = {
   minRoleEdit: string;
   dueFieldKey: string | null;
   amountFieldKey: string | null;
+  recurrenceFieldKey: string | null;
+  templateKey: string | null;
   records: number;
   fields: MField[];
   statuses: (StatusInput & { id: string })[];
 };
 
-export function ModuleEditor({ mod }: { mod: Mod }) {
+export function ModuleEditor({ mod, others }: { mod: Mod; others: { key: string; name: string }[] }) {
   const { run, pending } = useAction();
   const [icon, setIcon] = useState(mod.icon);
   const [color, setColor] = useState(mod.color);
@@ -51,9 +53,16 @@ export function ModuleEditor({ mod }: { mod: Mod }) {
         <Link href="/settings/modules" className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm text-muted transition hover:bg-surface hover:text-fg">
           <ArrowLeft className="size-4" /> Módulos
         </Link>
-        <Link href={`/m/${mod.key}`}>
-          <Button variant="secondary" size="sm" trail={<ExternalLink className="size-3.5" />}>Abrir {mod.name}</Button>
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          {mod.templateKey && (
+            <Button variant="secondary" size="sm" loading={pending} onClick={() => run(() => syncModuleTemplate(mod.id))} title="Adiciona campos, status e opções novas do modelo, sem apagar nada do que foi personalizado">
+              <RefreshCw className="size-3.5" /> Atualizar do modelo
+            </Button>
+          )}
+          <Link href={`/m/${mod.key}`}>
+            <Button variant="secondary" size="sm" trail={<ExternalLink className="size-3.5" />}>Abrir {mod.name}</Button>
+          </Link>
+        </div>
       </div>
 
       {/* Geral */}
@@ -82,7 +91,7 @@ export function ModuleEditor({ mod }: { mod: Mod }) {
             <Field label="Grupo no menu" hint="Módulos do mesmo grupo aparecem juntos"><Input name="group" defaultValue={mod.group} /></Field>
           </div>
           <Field label="Descrição"><Textarea name="description" rows={2} defaultValue={mod.description ?? ""} /></Field>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
             <Field label="Quem pode ver">
               <Select name="minRoleView" defaultValue={mod.minRoleView}>{ROLES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</Select>
             </Field>
@@ -92,13 +101,19 @@ export function ModuleEditor({ mod }: { mod: Mod }) {
             <Field label="Campo de prazo" hint="Usado em vencidos e alertas">
               <Select name="dueFieldKey" defaultValue={mod.dueFieldKey ?? ""}>
                 <option value="">Nenhum</option>
-                {mod.fields.filter((f) => f.type === "DATE").map((f) => <option key={f.id} value={f.key}>{f.label}</option>)}
+                {mod.fields.filter((f) => DATE_TYPES.includes(f.type)).map((f) => <option key={f.id} value={f.key}>{f.label}</option>)}
               </Select>
             </Field>
             <Field label="Campo de valor" hint="Somado nos indicadores">
               <Select name="amountFieldKey" defaultValue={mod.amountFieldKey ?? ""}>
                 <option value="">Nenhum</option>
-                {mod.fields.filter((f) => f.type === "CURRENCY" || f.type === "NUMBER").map((f) => <option key={f.id} value={f.key}>{f.label}</option>)}
+                {mod.fields.filter((f) => f.type === "CURRENCY" || f.type === "NUMBER" || f.type === "FORMULA").map((f) => <option key={f.id} value={f.key}>{f.label}</option>)}
+              </Select>
+            </Field>
+            <Field label="Repetição" hint="Lista com Mensal, Anual… Ao concluir, gera o próximo registro">
+              <Select name="recurrenceFieldKey" defaultValue={mod.recurrenceFieldKey ?? ""}>
+                <option value="">Não repete</option>
+                {mod.fields.filter((f) => f.type === "SELECT").map((f) => <option key={f.id} value={f.key}>{f.label}</option>)}
               </Select>
             </Field>
           </div>
@@ -125,13 +140,15 @@ export function ModuleEditor({ mod }: { mod: Mod }) {
                   </p>
                   <p className="truncate text-xs text-muted">
                     {FIELD_TYPES[f.type] ?? f.type}
-                    {f.options.length > 0 && ` · ${f.options.join(", ")}`}
+                    {f.type === "RECORD" ? ` · ${others.find((o) => o.key === f.options[0])?.name ?? "módulo não instalado"}` : f.type === "FORMULA" ? ` · ${f.options[0]}` : f.options.length > 0 && ` · ${f.options.join(", ")}`}
+                    <span className="ml-1 font-mono text-[10px]">{`{${f.key}}`}</span>
                   </p>
                 </div>
                 <div className="hidden gap-1 sm:flex">
                   {f.showInList && <Badge>na lista</Badge>}
                   {f.key === mod.dueFieldKey && <Badge color="var(--warn)">prazo</Badge>}
                   {f.key === mod.amountFieldKey && <Badge color="var(--ok)">valor</Badge>}
+                  {f.key === mod.recurrenceFieldKey && <Badge color="var(--accent-2)">repetição</Badge>}
                 </div>
                 <div className="flex">
                   <Button size="icon" variant="ghost" disabled={i === 0} onClick={() => run(() => moveModuleField(mod.id, f.id, -1))} aria-label="Subir"><ArrowUp className="size-3.5" /></Button>
@@ -188,14 +205,41 @@ export function ModuleEditor({ mod }: { mod: Mod }) {
               {Object.entries(FIELD_TYPES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </Select>
           </Field>
-          {(type === "SELECT" || type === "MULTISELECT") && (
-            <Field label="Opções" hint="Uma por linha">
-              <Textarea name="options" defaultValue={cur?.options.join("\n")} required />
+          {(type === "SELECT" || type === "MULTISELECT" || type === "CHECKLIST") && (
+            <Field label={type === "CHECKLIST" ? "Itens do checklist" : "Opções"} hint="Uma por linha">
+              <Textarea name="options" rows={type === "CHECKLIST" ? 6 : 4} defaultValue={cur?.type === type ? cur.options.join("\n") : ""} required />
             </Field>
           )}
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" name="required" defaultChecked={cur?.required} className="accent-[var(--accent)]" /> Preenchimento obrigatório
-          </label>
+          {type === "RECORD" && (
+            <Field label="Módulo vinculado" hint="Ex.: a visita aponta para um imóvel; a matrícula, para uma turma. O registro escolhido mostra os vínculos na ficha.">
+              <Select name="target" defaultValue={cur?.type === "RECORD" ? cur.options[0] : ""} required>
+                <option value="">Selecione…</option>
+                {others.map((o) => <option key={o.key} value={o.key}>{o.name}</option>)}
+              </Select>
+            </Field>
+          )}
+          {type === "FORMULA" && (
+            <>
+              <Field label="Fórmula" hint="Use {chave} dos campos e + - * / % ( ). Funções: min, max, arred, abs (argumentos separados por ;). Datas viram dias: {fim}-{inicio}.">
+                <Input name="formula" required defaultValue={cur?.type === "FORMULA" ? cur.options[0] : ""} placeholder="Ex.: ({preco}-{custo})/{preco}*100" className="font-mono" />
+              </Field>
+              <div className="flex flex-wrap gap-1 text-[11px]">
+                {mod.fields.filter((f) => f.id !== cur?.id).map((f) => <code key={f.id} className="rounded bg-tint px-1" title={f.label}>{`{${f.key}}`}</code>)}
+              </div>
+              <Field label="Formato do resultado">
+                <Select name="format" defaultValue={cur?.type === "FORMULA" ? cur.options[1] : "NUMBER"}>
+                  <option value="NUMBER">Número</option>
+                  <option value="CURRENCY">Valor (moeda)</option>
+                  <option value="PERCENT">Percentual (%)</option>
+                </Select>
+              </Field>
+            </>
+          )}
+          {type !== "FORMULA" && (
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" name="required" defaultChecked={cur?.required} className="accent-[var(--accent)]" /> Preenchimento obrigatório
+            </label>
+          )}
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" name="showInList" defaultChecked={cur ? cur.showInList : true} className="accent-[var(--accent)]" /> Exibir como coluna na lista e no quadro
           </label>

@@ -21,3 +21,24 @@ export function nextSendTime(d: Date, timeZone: string, start: number, end: numb
   const hours = (start - z.hour + 24) % 24 || 24;
   return new Date(d.getTime() + hours * 3_600_000 - z.minute * 60_000);
 }
+
+/** Converte data e hora locais ("AAAA-MM-DDTHH:MM") de um fuso para o instante UTC. */
+export function localToUtc(local: string, timeZone: string) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(local);
+  if (!m) return null;
+  const [y, mo, d, h, mi] = m.slice(1).map(Number) as [number, number, number, number, number];
+  const wanted = Date.UTC(y, mo - 1, d, h, mi);
+  let t = wanted;
+  // duas passadas acertam também os dias de mudança de horário de verão
+  for (let i = 0; i < 2; i++) {
+    const z = zoned(new Date(t), timeZone);
+    t += wanted - Date.UTC(z.year, z.month - 1, z.day, z.hour, z.minute);
+  }
+  return new Date(t);
+}
+
+/** Instante UTC → "AAAA-MM-DDTHH:MM" no fuso informado (valor de input datetime-local). */
+export function utcToLocal(d: Date, timeZone: string) {
+  const z = zoned(d, timeZone);
+  return `${z.key}T${String(z.hour).padStart(2, "0")}:${String(z.minute).padStart(2, "0")}`;
+}

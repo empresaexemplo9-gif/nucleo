@@ -426,12 +426,15 @@ export async function saveAutomation(id: string | null, fd: FormData): Promise<A
     if (trigger === "DEAL_STAGE_ENTERED" && !stageId) return { ok: false, error: "Selecione a etapa" };
     if (stageId && !(await db.stage.findFirst({ where: { id: stageId, pipeline: { orgId: ctx.org.id } }, select: { id: true } }))) return { ok: false, error: "Etapa inválida" };
     if (action === "SEND_WHATSAPP" && !str(fd, "message")) return { ok: false, error: "Escreva a mensagem do WhatsApp" };
+    if (trigger === "RECORD_STATUS" && (!str(fd, "moduleKey") || !str(fd, "statusName"))) return { ok: false, error: "Escolha o módulo e o status" };
     const one = <T extends string>(k: string, allowed: readonly T[], d: T) => (allowed.includes(str(fd, k) as T) ? (str(fd, k) as T) : d);
     const config: AutomationConfig = {
       days: Math.min(365, Math.max(trigger === "RECORD_DUE" ? 0 : 1, numOr(fd, "days", 1))),
       hoursBefore: Math.min(168, Math.max(1, numOr(fd, "hoursBefore", 24))),
       reminderType: str(fd, "reminderType") ?? "ANY",
       moduleKey: str(fd, "moduleKey") ?? "",
+      statusName: str(fd, "statusName") ?? "",
+      dueUnit: one("dueUnit", ["DAY", "HOUR"] as const, "DAY"),
       when: one("when", ["BEFORE", "ON", "AFTER"] as const, "BEFORE"),
       activityType: str(fd, "activityType") ?? "TASK",
       title: str(fd, "title") ?? undefined,

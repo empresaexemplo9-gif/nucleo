@@ -97,6 +97,7 @@ export function ModulesGallery({ installed, segment }: { installed: Installed[];
                   {p.key === suggested.key && <Badge color="var(--accent)">Sugerido</Badge>}
                 </div>
                 <p className="mt-1 text-xs text-muted">{p.modules.map((k) => MODULE_TEMPLATES.find((t) => t.key === k)?.name).join(" · ")}</p>
+                {p.ref && <p className="mono-label mt-1 text-[10px] text-muted">referência: {p.ref}</p>}
                 <Button size="sm" variant="soft" className="mt-2" disabled={!missing.length || pending} onClick={() => install(missing)}>
                   {missing.length ? `Instalar ${missing.length} módulo(s)` : "Tudo instalado"}
                 </Button>
@@ -139,6 +140,13 @@ export function ModulesGallery({ installed, segment }: { installed: Installed[];
                       {s.name}
                     </span>
                   ))}
+                </div>
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {t.fields.some((f) => f.type === "DATETIME") && <span className="rounded-[5px] bg-tint px-1.5 py-0.5 text-[10px] text-fg-2">agenda</span>}
+                  {t.fields.some((f) => f.type === "CHECKLIST") && <span className="rounded-[5px] bg-tint px-1.5 py-0.5 text-[10px] text-fg-2">checklist</span>}
+                  {t.fields.some((f) => f.type === "FORMULA") && <span className="rounded-[5px] bg-tint px-1.5 py-0.5 text-[10px] text-fg-2">cálculos</span>}
+                  {t.fields.some((f) => f.recur) && <span className="rounded-[5px] bg-tint px-1.5 py-0.5 text-[10px] text-fg-2">repetição</span>}
+                  {t.fields.some((f) => f.type === "RECORD") && <span className="rounded-[5px] bg-tint px-1.5 py-0.5 text-[10px] text-fg-2">vínculos</span>}
                 </div>
                 <p className="mono-label mt-3 text-[10px] text-muted">{t.fields.length} campos · {t.prefix}{inst && " · já instalado"}</p>
               </button>

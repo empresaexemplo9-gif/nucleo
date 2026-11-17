@@ -3,7 +3,7 @@ import type { Automation } from "@prisma/client";
 import { db } from "./db";
 import { money } from "./format";
 import { resolveSettings } from "./labels";
-import { baseUrl, executeRule, fmtDate, ORG_SELECT, type Target } from "./automation";
+import { baseUrl, executeRule, fmtDate, ORG_SELECT, recordVars, type Target } from "./automation";
 import { TRIGGERS, type AutomationConfig, type AutomationTrigger } from "./automation-defs";
 import { dispatchDue } from "./whatsapp/service";
 import { dayKeyOffset, zoned } from "./zoned";
@@ -76,26 +76,40 @@ async function scan(org: Org, rule: Automation, now: Date) {
       break;
     }
     case "RECORD_DUE": {
+      // contato só é obrigatório para mensagens ao cliente; avisos à equipe e atividades valem para qualquer registro
+      const needsContact = rule.action === "SEND_WHATSAPP";
+      const openRecord = { orgId, closedAt: null, ...(needsContact ? { contactId: { not: null } } : {}), OR: [{ statusId: null }, { status: { isFinal: false } }], ...(c.moduleKey ? { module: { key: c.moduleKey } } : {}) };
+      if (c.dueUnit === "HOUR") {
+        // horários marcados (consultas, visitas, aulas, audiências): X horas antes
+        const hours = Math.min(168, Math.max(1, Number(c.hoursBefore ?? 24)));
+        const list = await db.moduleRecord.findMany({ where: { ...openRecord, dueAt: { gt: now, lte: new Date(now.getTime() + hours * HOUR) } }, select: { id: true, dueAt: true }, take: 300 });
+        for (const r of list) {
+          const info = await recordVars(org, r.id);
+          if (!info) continue;
+          fired += await once(org, rule, `${r.id}:${r.dueAt!.toISOString()}`, {
+            contactId: info.r.contactId, companyId: info.r.companyId, recordId: r.id, ownerId: info.r.assigneeId, href: info.href, vars: info.vars,
+            guard: { recordId: r.id, recordDueAt: r.dueAt!.toISOString() },
+          });
+        }
+        break;
+      }
       if (zoned(now, org.timezone).hour < MORNING) break;
       const n = Math.max(0, Number(c.days ?? 0));
       const offset = c.when === "BEFORE" ? n : c.when === "AFTER" ? -n : 0;
       const dayKey = dayKeyOffset(now, org.timezone, offset);
       const center = now.getTime() + offset * DAY;
       const list = await db.moduleRecord.findMany({
-        where: {
-          orgId, closedAt: null, contactId: { not: null },
-          dueAt: { gte: new Date(center - 2 * DAY), lte: new Date(center + 2 * DAY) },
-          OR: [{ statusId: null }, { status: { isFinal: false } }],
-          ...(c.moduleKey ? { module: { key: c.moduleKey } } : {}),
-        },
-        include: { module: { select: { key: true } } },
+        where: { ...openRecord, dueAt: { gte: new Date(center - 2 * DAY), lte: new Date(center + 2 * DAY) } },
+        select: { id: true, dueAt: true },
         take: 300,
       });
       for (const r of list) {
         if (zoned(r.dueAt!, org.timezone).key !== dayKey) continue;
+        const info = await recordVars(org, r.id);
+        if (!info) continue;
         fired += await once(org, rule, `${r.id}:${dayKey}`, {
-          contactId: r.contactId, companyId: r.companyId, recordId: r.id, ownerId: r.assigneeId, href: `/m/${r.module.key}/${r.id}`,
-          vars: { titulo: r.title, valor: r.amount != null ? money(r.amount, org.currency, org.locale) : "", ...fmtDate(r.dueAt!, org) },
+          contactId: info.r.contactId, companyId: info.r.companyId, recordId: r.id, ownerId: info.r.assigneeId, href: info.href, vars: info.vars,
+          guard: { recordId: r.id, recordDueAt: r.dueAt!.toISOString() },
         });
       }
       break;

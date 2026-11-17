@@ -14,8 +14,11 @@ export function EntityPicker({
   placeholder = "Buscar…",
   onChange,
   allowCreateName,
+  module,
 }: {
-  type: "contact" | "company" | "deal" | "product";
+  type: "contact" | "company" | "deal" | "product" | "record";
+  /** type="record": chave do módulo cujos registros podem ser escolhidos */
+  module?: string;
   name: string;
   defaultValue?: Option | null;
   placeholder?: string;
@@ -33,11 +36,11 @@ export function EntityPicker({
   useEffect(() => {
     if (!open) return;
     const t = setTimeout(async () => {
-      const r = await fetch(`/api/lookup?type=${type}&q=${encodeURIComponent(q)}`);
+      const r = await fetch(`/api/lookup?type=${type}&q=${encodeURIComponent(q)}${module ? `&module=${encodeURIComponent(module)}` : ""}`);
       if (r.ok) setItems(await r.json());
     }, 150);
     return () => clearTimeout(t);
-  }, [q, open, type]);
+  }, [q, open, type, module]);
 
   useEffect(() => {
     const h = (e: MouseEvent) => ref.current && !ref.current.contains(e.target as Node) && setOpen(false);

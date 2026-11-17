@@ -135,6 +135,68 @@ export async function executeRule(org: OrgInfo, rule: Automation, t: Target) {
     await logEvent({ orgId, type: "AUTOMATION", dealId: t.dealId, contactId: t.dealId ? null : t.contactId, recordId: t.recordId, data: { name: rule.name } });
 }
 
+/** Variáveis de um registro de módulo: título, código, status, prazo, valor e cada campo pela chave ({rastreio}, {placa}…). */
+export async function recordVars(org: OrgInfo, recordId: string) {
+  const r = await db.moduleRecord.findUnique({ where: { id: recordId }, include: { status: true, module: { include: { fields: true } } } });
+  if (!r) return null;
+  const data = (r.data ?? {}) as Record<string, unknown>;
+  const refIds = r.module.fields.filter((f) => ["CONTACT", "COMPANY", "RECORD"].includes(f.type)).map((f) => data[f.key]).filter((v): v is string => typeof v === "string");
+  const [contacts, companies, records] = refIds.length
+    ? await Promise.all([
+        db.contact.findMany({ where: { id: { in: refIds }, orgId: org.id }, select: { id: true, name: true } }),
+        db.company.findMany({ where: { id: { in: refIds }, orgId: org.id }, select: { id: true, name: true } }),
+        db.moduleRecord.findMany({ where: { id: { in: refIds }, orgId: org.id }, select: { id: true, title: true } }),
+      ])
+    : [[], [], []];
+  const names = Object.fromEntries([...contacts, ...companies, ...records.map((x) => ({ id: x.id, name: x.title }))].map((x) => [x.id, x.name]));
+  const vars: Record<string, string> = {
+    titulo: r.title,
+    codigo: `${r.module.prefix}-${String(r.number).padStart(4, "0")}`,
+    status: r.status?.name ?? "",
+    valor: r.amount != null ? money(r.amount, org.currency, org.locale) : "",
+    ...(r.dueAt ? fmtDate(r.dueAt, org) : {}),
+  };
+  for (const f of r.module.fields) {
+    const v = data[f.key];
+    if (v == null || v === "" || f.key in vars) continue;
+    if (f.type === "CURRENCY") vars[f.key] = money(Number(v), org.currency, org.locale);
+    else if (f.type === "DATE") vars[f.key] = String(v).split("-").reverse().join("/");
+    else if (f.type === "DATETIME") vars[f.key] = String(v).replace(/^(\d{4})-(\d{2})-(\d{2})T/, "$3/$2/$1 às ");
+    else if (f.type === "BOOLEAN") vars[f.key] = v ? "sim" : "não";
+    else if (Array.isArray(v)) vars[f.key] = v.join(", ");
+    else if (["CONTACT", "COMPANY", "RECORD"].includes(f.type)) vars[f.key] = names[String(v)] ?? "";
+    else if (f.type === "FORMULA" && f.options[1] === "CURRENCY") vars[f.key] = money(Number(v), org.currency, org.locale);
+    else if (f.type === "FORMULA" && f.options[1] === "PERCENT") vars[f.key] = `${Number(v).toLocaleString(org.locale)}%`;
+    else vars[f.key] = String(v);
+  }
+  return { r, vars, href: `/m/${r.module.key}/${r.id}` };
+}
+
+/** Executa as automações de um evento de módulo (registro criado ou mudança de status). */
+export async function runRecordAutomations(orgId: string, trigger: "RECORD_CREATED" | "RECORD_STATUS", recordId: string) {
+  try {
+    const org = await db.organization.findUnique({ where: { id: orgId }, select: ORG_SELECT });
+    if (!org || !resolveSettings(org.settings).modules.automations) return;
+    const rules = await db.automation.findMany({ where: { orgId, trigger, active: true } });
+    if (!rules.length) return;
+    const info = await recordVars(org, recordId);
+    if (!info) return;
+    const { r, vars, href } = info;
+    for (const rule of rules) {
+      const c = (rule.config ?? {}) as AutomationConfig;
+      if (c.moduleKey && c.moduleKey !== r.module.key) continue;
+      if (trigger === "RECORD_STATUS" && c.statusName && c.statusName.toLowerCase() !== (r.status?.name ?? "").toLowerCase()) continue;
+      try {
+        await executeRule(org, rule, { contactId: r.contactId, companyId: r.companyId, recordId: r.id, ownerId: r.assigneeId, href, vars });
+      } catch (e) {
+        console.error(`Falha na automação "${rule.name}"`, e);
+      }
+    }
+  } catch (e) {
+    console.error("Falha ao executar automação de módulo", e);
+  }
+}
+
 export const ORG_SELECT = { id: true, name: true, currency: true, locale: true, timezone: true, customDomain: true, settings: true } as const;
 
 /** Executa as automações de um evento do funil. Erros nunca interrompem a ação do usuário. */

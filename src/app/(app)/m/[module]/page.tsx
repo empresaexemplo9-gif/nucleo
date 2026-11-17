@@ -1,6 +1,9 @@
 import { notFound } from "next/navigation";
 import type { Prisma } from "@prisma/client";
-import { requireContext } from "@/lib/auth";
+import { hasRole, requireContext } from "@/lib/auth";
+import { formSettings } from "@/lib/module-public";
+import { baseUrl } from "@/lib/automation";
+import { headers } from "next/headers";
 import { db } from "@/lib/db";
 import { canEditModule, getModuleByKey, recordScope } from "@/lib/modules";
 import { resolveRefs } from "@/lib/module-data";
@@ -19,13 +22,18 @@ export default async function ModulePage({
   searchParams,
 }: {
   params: Promise<{ module: string }>;
-  searchParams: Promise<{ q?: string; status?: string; who?: string; view?: string; page?: string; scope?: string; new?: string }>;
+  searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const ctx = await requireContext();
   const mod = await getModuleByKey(ctx, (await params).module);
   if (!mod) notFound();
   const sp = await searchParams;
-  const view = sp.view === "board" ? "board" : "list";
+  const hasDue = !!mod.dueFieldKey;
+  const view = sp.view === "board" ? "board" : sp.view === "calendar" && hasDue ? "calendar" : "list";
+  const month = /^\d{4}-\d{2}$/.test(sp.month ?? "") ? sp.month! : new Date().toISOString().slice(0, 7);
+  const [my, mm] = month.split("-").map(Number) as [number, number];
+  const monthFrom = new Date(Date.UTC(my, mm - 1, 1) - 7 * 86400000);
+  const monthTo = new Date(Date.UTC(my, mm, 1) + 7 * 86400000);
   const page = Math.max(1, Number(sp.page) || 1);
   const scopeOpen = sp.scope !== "all";
   const finals = mod.statuses.filter((s) => s.isFinal).map((s) => s.id);
@@ -36,6 +44,7 @@ export default async function ModulePage({
   const openWhere: Prisma.ModuleRecordWhereInput = { ...base, OR: [{ statusId: null }, { statusId: { notIn: finals } }] };
   const where: Prisma.ModuleRecordWhereInput = {
     ...base,
+    ...(view === "calendar" ? { dueAt: { gte: monthFrom, lt: monthTo } } : {}),
     ...(sp.status ? { statusId: sp.status } : view === "list" && scopeOpen ? { OR: [{ statusId: null }, { statusId: { notIn: finals } }] } : {}),
     ...(sp.who ? { assigneeId: sp.who === "me" ? ctx.user.id : sp.who } : {}),
     ...(sp.q
@@ -56,9 +65,9 @@ export default async function ModulePage({
     db.moduleRecord.count({ where }),
     db.moduleRecord.findMany({
       where,
-      orderBy: view === "board" ? [{ position: "asc" }] : [{ updatedAt: "desc" }],
-      skip: view === "board" ? 0 : (page - 1) * PAGE,
-      take: view === "board" ? 500 : PAGE,
+      orderBy: view === "board" ? [{ position: "asc" }] : view === "calendar" ? [{ dueAt: "asc" }] : [{ updatedAt: "desc" }],
+      skip: view === "list" ? (page - 1) * PAGE : 0,
+      take: view === "list" ? PAGE : 800,
       include: { status: true },
     }),
     db.moduleRecord.count({ where: openWhere }),
@@ -67,7 +76,16 @@ export default async function ModulePage({
     db.moduleRecord.aggregate({ where: openWhere, _sum: { amount: true } }),
     db.moduleRecord.count({ where: base }),
   ]);
-  const refs = await resolveRefs(ctx.org.id, mod.fields, records.map((r) => (r.data ?? {}) as Record<string, unknown>));
+  // ?new=1&f_<campo>=<valor>: formulário de criação já preenchido (ex.: nova visita a partir do imóvel)
+  const prefill: Record<string, unknown> = {};
+  for (const f of mod.fields) {
+    const v = sp[`f_${f.key}`];
+    if (v) prefill[f.key] = v;
+  }
+  const refs = await resolveRefs(ctx.org.id, mod.fields, [...records.map((r) => (r.data ?? {}) as Record<string, unknown>), prefill]);
+  const isAdmin = hasRole(ctx, "ADMIN");
+  const h = await headers();
+  const origin = baseUrl(ctx.org) || `${h.get("x-forwarded-proto") ?? "https"}://${h.get("x-forwarded-host") ?? h.get("host")}`;
 
   const rows: RecordRow[] = records.map((r) => ({
     id: r.id,
@@ -83,7 +101,7 @@ export default async function ModulePage({
 
   return (
     <ModuleView
-      key={mod.id + view + (sp.new ?? "")}
+      key={mod.id + view + (sp.new ?? "") + month}
       mod={{
         id: mod.id,
         key: mod.key,
@@ -95,8 +113,10 @@ export default async function ModulePage({
         prefix: mod.prefix,
         dueFieldKey: mod.dueFieldKey,
         amountFieldKey: mod.amountFieldKey,
+        recurrenceFieldKey: mod.recurrenceFieldKey,
         canEdit: canEditModule(ctx, mod),
-        fields: mod.fields.map((f) => ({ id: f.id, key: f.key, label: f.label, type: f.type, options: f.options, required: f.required, showInList: f.showInList })),
+        // vínculo com módulo ainda não instalado fica oculto até a instalação
+        fields: mod.fields.filter((f) => !(f.type === "RECORD" && (f.options[0] ?? "").startsWith("tpl:"))).map((f) => ({ id: f.id, key: f.key, label: f.label, type: f.type, options: f.options, required: f.required, showInList: f.showInList })),
         statuses: mod.statuses.map((s) => ({ id: s.id, name: s.name, color: s.color, isFinal: s.isFinal })),
       }}
       rows={rows}
@@ -108,6 +128,18 @@ export default async function ModulePage({
       stats={{ open: openCount, overdue, dueSoon, openSum: Number(openSum._sum.amount ?? 0), all: allCount }}
       filters={{ q: sp.q ?? "", status: sp.status ?? "", who: sp.who ?? "", scope: sp.scope ?? "" }}
       openNew={sp.new === "1"}
+      prefill={prefill}
+      month={month}
+      share={
+        isAdmin
+          ? {
+              formUrl: mod.formToken ? `${origin}/f/${mod.formToken}` : null,
+              feedUrl: mod.feedToken ? `${origin}/api/public/feed/${mod.feedToken}` : null,
+              feedAvailable: mod.templateKey === "imoveis",
+              form: formSettings(mod.settings),
+            }
+          : null
+      }
     />
   );
 }

@@ -20,14 +20,21 @@ const TEMPLATES: (Omit<A, "id" | "active"> & { icon: "wa" | "bell" | "zap" })[] 
   { icon: "wa", name: "Mensagem ao fechar negócio", trigger: "DEAL_WON", stageId: null, action: "SEND_WHATSAPP", config: { delayValue: 0, delayUnit: "MIN", message: "{nome}, seja bem-vindo(a) à {empresa}! 🎉 Em breve entraremos em contato com os próximos passos." } },
   { icon: "wa", name: "Lembrete de vencimento", trigger: "RECORD_DUE", stageId: null, action: "SEND_WHATSAPP", config: { when: "BEFORE", days: 1, message: "Olá, {nome}! Lembrete da {empresa}: {titulo} vence em {data}." } },
   { icon: "wa", name: "Parabéns pelo aniversário", trigger: "CONTACT_BIRTHDAY", stageId: null, action: "SEND_WHATSAPP", config: { message: "Feliz aniversário, {nome}! 🎂 A equipe da {empresa} deseja um dia incrível para você." } },
+  { icon: "wa", name: "Confirmação de agendamento (24h antes)", trigger: "RECORD_DUE", stageId: null, action: "SEND_WHATSAPP", config: { dueUnit: "HOUR", hoursBefore: 24, message: "Olá, {nome}! Confirmando seu horário na {empresa}: {data} às {hora}. Responda *SIM* para confirmar ou nos avise se precisar remarcar." } },
+  { icon: "wa", name: "Pesquisa de satisfação ao concluir", trigger: "RECORD_STATUS", stageId: null, action: "SEND_WHATSAPP", config: { statusName: "Concluída", message: "Olá, {nome}! O serviço {codigo} foi concluído. De 0 a 10, quanto você recomendaria a {empresa}? Sua opinião nos ajuda muito. 🙏" } },
+  { icon: "bell", name: "Avisar a equipe sobre novo registro", trigger: "RECORD_CREATED", stageId: null, action: "NOTIFY_TEAM", config: { notifyTo: "BOTH", title: "Novo registro: {codigo} · {titulo}" } },
   { icon: "bell", name: "Avisar sobre negócio parado", trigger: "DEAL_STALE", stageId: null, action: "NOTIFY_TEAM", config: { days: 7, notifyTo: "BOTH", title: "Negócio parado há 7 dias: {negocio}", note: "Retome o contato com {nome_completo}." } },
   { icon: "zap", name: "Follow-up após proposta", trigger: "DEAL_STAGE_ENTERED", stageId: null, action: "CREATE_ACTIVITY", config: { activityType: "CALL", title: "Follow-up da proposta: {negocio}", daysOffset: 2 } },
 ];
 
 const s = (v: unknown, d = "") => (v == null || v === "" ? d : String(v));
 
-export function AutomationsManager({ automations, whatsapp }: { automations: A[]; whatsapp: boolean }) {
-  const { pipelines, tags, modules } = useOrg();
+type ModOpt = { key: string; name: string; statuses: string[]; fields: string[]; hasTime: boolean };
+
+export function AutomationsManager({ automations, whatsapp, modules }: { automations: A[]; whatsapp: boolean; modules: ModOpt[] }) {
+  const { pipelines, tags } = useOrg();
+  const [modKey, setModKey] = useState("");
+  const [dueUnit, setDueUnit] = useState("DAY");
   const { run, pending } = useAction();
   const [edit, setEdit] = useState<Partial<A> | null>(null);
   const [trigger, setTrigger] = useState("DEAL_CREATED");
@@ -36,6 +43,8 @@ export function AutomationsManager({ automations, whatsapp }: { automations: A[]
   const stages = pipelines.flatMap((p) => p.stages.filter((st) => st.type === "OPEN").map((st) => ({ ...st, pipeline: p.name })));
   const stageName = (id: string | null) => stages.find((st) => st.id === id)?.name;
   const open = (a: Partial<A>) => {
+    setModKey(String(a.config?.moduleKey ?? ""));
+    setDueUnit(String(a.config?.dueUnit ?? (a.trigger === "RECORD_DUE" && modules.find((m) => m.key === a.config?.moduleKey)?.hasTime ? "HOUR" : "DAY")));
     setTrigger(a.trigger ?? "DEAL_CREATED");
     setAction(a.action ?? "SEND_WHATSAPP");
     setEdit(a);
@@ -46,6 +55,13 @@ export function AutomationsManager({ automations, whatsapp }: { automations: A[]
     if (!actionsFor(t).includes(action as never)) setAction(actionsFor(t)[0]!);
   };
   const c = edit?.config ?? {};
+  const mod = modules.find((m) => m.key === modKey);
+  const moduleSelect = (anyLabel: string, required = false) => (
+    <Select name="moduleKey" value={modKey} onChange={(e) => setModKey(e.target.value)} required={required}>
+      <option value="">{anyLabel}</option>
+      {modules.map((m) => <option key={m.key} value={m.key}>{m.name}</option>)}
+    </Select>
+  );
   const scheduled = TRIGGERS[trigger as AutomationTrigger]?.scheduled;
   const groups = [...new Set(Object.values(TRIGGERS).map((t) => t.group))];
   const usesWhatsapp = automations.some((a) => a.action === "SEND_WHATSAPP");
@@ -155,19 +171,43 @@ export function AutomationsManager({ automations, whatsapp }: { automations: A[]
               )}
               {trigger === "RECORD_DUE" && (
                 <>
-                  <Select name="moduleKey" defaultValue={s(c.moduleKey)}>
-                    <option value="">Qualquer módulo com data de vencimento</option>
-                    {modules.map((m) => <option key={m.key} value={m.key}>{m.name}</option>)}
-                  </Select>
-                  <div className="flex items-center gap-2">
-                    <Input name="days" type="number" min={0} max={365} defaultValue={s(c.days, "1")} className="w-20" /> dia(s)
-                    <Select name="when" defaultValue={s(c.when, "BEFORE")} className="w-auto">
-                      <option value="BEFORE">antes da data</option>
-                      <option value="ON">— no próprio dia</option>
-                      <option value="AFTER">depois da data (em atraso)</option>
+                  {moduleSelect("Qualquer módulo com data")}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Select name="dueUnit" value={dueUnit} onChange={(e) => setDueUnit(e.target.value)} className="w-auto">
+                      <option value="DAY">Por dia (vencimentos)</option>
+                      <option value="HOUR">Por hora (horários marcados)</option>
                     </Select>
                   </div>
-                  <p className="text-xs text-muted">Considera registros em aberto com contato vinculado. Dispara uma vez por registro, pela manhã.</p>
+                  {dueUnit === "HOUR" ? (
+                    <div className="flex items-center gap-2">
+                      <Input name="hoursBefore" type="number" min={1} max={168} defaultValue={s(c.hoursBefore, "24")} className="w-20" /> hora(s) antes do horário marcado
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Input name="days" type="number" min={0} max={365} defaultValue={s(c.days, "1")} className="w-20" /> dia(s)
+                      <Select name="when" defaultValue={s(c.when, "BEFORE")} className="w-auto">
+                        <option value="BEFORE">antes da data</option>
+                        <option value="ON">— no próprio dia</option>
+                        <option value="AFTER">depois da data (em atraso)</option>
+                      </Select>
+                    </div>
+                  )}
+                  <p className="text-xs text-muted">
+                    {dueUnit === "HOUR" ? "Ideal para consultas, visitas, aulas e audiências. Se o horário mudar ou o registro for concluído, o lembrete é cancelado." : "Considera registros em aberto com contato vinculado. Dispara uma vez por registro, pela manhã."}
+                    {mod && <> Variáveis deste módulo: {mod.fields.map((k) => <code key={k} className="mr-1 rounded bg-tint px-1">{`{${k}}`}</code>)}</>}
+                  </p>
+                </>
+              )}
+              {(trigger === "RECORD_CREATED" || trigger === "RECORD_STATUS") && (
+                <>
+                  {moduleSelect(trigger === "RECORD_STATUS" ? "Selecione o módulo…" : "Qualquer módulo", trigger === "RECORD_STATUS")}
+                  {trigger === "RECORD_STATUS" && (
+                    <Select name="statusName" defaultValue={s(c.statusName)} required key={modKey}>
+                      <option value="">Selecione o status…</option>
+                      {(mod?.statuses ?? []).map((st) => <option key={st} value={st}>{st}</option>)}
+                    </Select>
+                  )}
+                  {mod && <p className="text-xs text-muted">Variáveis deste módulo: {[...mod.fields, "codigo", "status"].map((k) => <code key={k} className="mr-1 rounded bg-tint px-1">{`{${k}}`}</code>)}</p>}
                 </>
               )}
               {trigger === "CONTACT_BIRTHDAY" && <p className="text-xs text-muted">Dispara uma vez por ano, na manhã do aniversário cadastrado no contato.</p>}

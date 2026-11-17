@@ -7,6 +7,13 @@ import { afterAcceptance, maybeCompleteContract } from "@/lib/commerce-server";
 import { managers, notify } from "@/lib/notify";
 import type { ActionResult } from "@/components/use-action";
 import { fail, str } from "./helpers";
+import type { Prisma } from "@prisma/client";
+import { formSettings, PUBLIC_TYPES } from "@/lib/module-public";
+import { applyFormulas } from "@/lib/module-logic";
+import { normalizePhone } from "@/lib/whatsapp/phone";
+import { findContactByPhone } from "@/lib/whatsapp/service";
+import { runRecordAutomations } from "@/lib/automation";
+import { localToUtc } from "@/lib/zoned";
 
 async function client() {
   const h = await headers();
@@ -100,6 +107,94 @@ export async function signContract(
         href: `/contracts/${c.id}`,
       });
     return { ok: true, message: "Contrato assinado com sucesso!" };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+/* ------------------------------ Formulário público de módulo ------------------------------ */
+
+/**
+ * Envio do formulário público de um módulo (pedido, agendamento, pré-matrícula, solicitação de serviço…).
+ * Cadastra ou reaproveita o contato pelo WhatsApp/e-mail, cria o registro e avisa a equipe.
+ */
+export async function submitModuleForm(token: string, fd: FormData): Promise<ActionResult> {
+  try {
+    if (str(fd, "website")) return { ok: true }; // armadilha para robôs: campo invisível preenchido
+    const mod = await db.customModule.findUnique({ where: { formToken: token }, include: { fields: { orderBy: { position: "asc" } }, statuses: { orderBy: { position: "asc" } }, org: { select: { timezone: true } } } });
+    if (!mod) return { ok: false, error: "Formulário indisponível" };
+    const name = str(fd, "__name");
+    const phone = str(fd, "__phone");
+    const email = str(fd, "__email")?.toLowerCase() ?? null;
+    if (!name || name.length < 2) return { ok: false, error: "Informe seu nome" };
+    if (!phone && !email) return { ok: false, error: "Informe seu WhatsApp ou e-mail para retornarmos" };
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ok: false, error: "E-mail inválido" };
+    const wa = normalizePhone(phone);
+    if (phone && !wa) return { ok: false, error: "WhatsApp inválido: informe DDD e número" };
+
+    const { ip, userAgent } = await client();
+    // limite simples por endereço: até 5 envios a cada 10 minutos neste formulário
+    if (ip) {
+      const recent = await db.timelineEvent.count({ where: { orgId: mod.orgId, type: "RECORD_CREATED", createdAt: { gt: new Date(Date.now() - 600_000) }, data: { path: ["formIp"], equals: ip } } });
+      if (recent >= 5) return { ok: false, error: "Muitos envios em pouco tempo. Tente novamente em alguns minutos." };
+    }
+
+    const allowed = new Set(formSettings(mod.settings).fields);
+    const data: Record<string, unknown> = {};
+    for (const f of mod.fields) {
+      if (!allowed.has(f.key) || !PUBLIC_TYPES.includes(f.type)) continue;
+      const key = `f_${f.key}`;
+      let v: unknown = null;
+      const s = str(fd, key)?.slice(0, 4000) ?? null;
+      if (f.type === "MULTISELECT") v = fd.getAll(key).map(String).filter((x) => f.options.includes(x));
+      else if (f.type === "SELECT") v = s && f.options.includes(s) ? s : null;
+      else if (f.type === "NUMBER" || f.type === "CURRENCY") v = s == null ? null : Number(s.replace(/\./g, "").replace(",", "."));
+      else if (f.type === "BOOLEAN") v = s === "sim" ? true : s === "não" ? false : null;
+      else if (f.type === "DATE") v = s && /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null;
+      else if (f.type === "DATETIME") v = s && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(s) ? s : null;
+      else v = s;
+      if (typeof v === "number" && !Number.isFinite(v)) v = null;
+      if (f.required && (v == null || v === "" || (Array.isArray(v) && !v.length))) return { ok: false, error: `Preencha o campo "${f.label}"` };
+      data[f.key] = v;
+    }
+
+    // contato: reaproveita pelo WhatsApp ou e-mail; senão, cadastra como lead
+    let contactId = wa ? ((await findContactByPhone(mod.orgId, wa))?.id ?? null) : null;
+    if (!contactId && email) contactId = (await db.contact.findFirst({ where: { orgId: mod.orgId, email: { equals: email, mode: "insensitive" } }, select: { id: true } }))?.id ?? null;
+    if (!contactId) {
+      const c = await db.contact.create({ data: { orgId: mod.orgId, name: name.slice(0, 120), whatsapp: wa, email, source: `Formulário · ${mod.name}`.slice(0, 60), lifecycle: "lead" } });
+      contactId = c.id;
+      await logEvent({ orgId: mod.orgId, type: "CONTACT_CREATED", contactId, data: { name: `via formulário de ${mod.name.toLowerCase()}` } });
+    }
+    const contactField = mod.fields.find((f) => f.type === "CONTACT");
+    if (contactField) data[contactField.key] = contactId;
+    applyFormulas(mod.fields, data);
+    const dueField = mod.fields.find((f) => f.key === mod.dueFieldKey);
+    const dueRaw = dueField ? data[dueField.key] : null;
+    const amountRaw = mod.amountFieldKey ? data[mod.amountFieldKey] : null;
+    const first = mod.statuses.find((s) => !s.isFinal) ?? mod.statuses[0];
+
+    const rec = await db.$transaction(async (tx) => {
+      const { sequence } = await tx.customModule.update({ where: { id: mod.id }, data: { sequence: { increment: 1 } } });
+      return tx.moduleRecord.create({
+        data: {
+          orgId: mod.orgId,
+          moduleId: mod.id,
+          number: sequence,
+          title: `${mod.singular} · ${name}`.slice(0, 160),
+          statusId: first?.id ?? null,
+          contactId,
+          position: Date.now(),
+          data: { ...data, __origem: "Formulário público" } as Prisma.InputJsonObject,
+          dueAt: typeof dueRaw === "string" ? (dueField!.type === "DATETIME" ? localToUtc(dueRaw, mod.org.timezone) : new Date(`${dueRaw}T12:00:00`)) : null,
+          amount: typeof amountRaw === "number" ? amountRaw : null,
+        },
+      });
+    });
+    await logEvent({ orgId: mod.orgId, type: "RECORD_CREATED", recordId: rec.id, contactId, data: { name: `${mod.singular} pelo formulário público`, formIp: ip, ua: userAgent } });
+    await notify(mod.orgId, await managers(mod.orgId), { type: "FORM", title: `Novo(a) ${mod.singular.toLowerCase()} pelo formulário: ${name}`, body: [wa, email].filter(Boolean).join(" · "), href: `/m/${mod.key}/${rec.id}` });
+    await runRecordAutomations(mod.orgId, "RECORD_CREATED", rec.id);
+    return { ok: true, message: formSettings(mod.settings).success || "Recebemos seu envio! Em breve entraremos em contato." };
   } catch (e) {
     return fail(e);
   }

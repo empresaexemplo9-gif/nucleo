@@ -10,7 +10,7 @@ import type { ModInfo } from "./module-view";
 export type RecordValues = { id: string; title: string; statusId: string | null; assigneeId: string | null; data: Record<string, unknown> };
 
 /** Formulário de criação/edição de registro de módulo. */
-export function RecordForm({ mod, record, refs, onDone }: { mod: ModInfo; record?: RecordValues; refs: Refs; onDone: (id?: string) => void }) {
+export function RecordForm({ mod, record, refs, onDone, prefill }: { mod: ModInfo; record?: RecordValues; refs: Refs; onDone: (id?: string) => void; prefill?: Record<string, unknown> }) {
   const { user } = useOrg();
   const { run, pending } = useAction();
   return (
@@ -42,7 +42,7 @@ export function RecordForm({ mod, record, refs, onDone }: { mod: ModInfo; record
       {mod.fields.length > 0 && (
         <div className="grid gap-3 sm:grid-cols-2">
           {mod.fields.map((f) => (
-            <RecordFieldInput key={f.id} f={f} value={record?.data[f.key]} refs={refs} />
+            <RecordFieldInput key={f.id} f={f} value={record ? record.data[f.key] : prefill?.[f.key]} refs={refs} />
           ))}
         </div>
       )}

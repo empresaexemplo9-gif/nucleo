@@ -12,8 +12,10 @@ export default async function ModuleEditorPage({ params }: { params: Promise<{ i
     include: { fields: { orderBy: { position: "asc" } }, statuses: { orderBy: { position: "asc" } }, _count: { select: { records: true } } },
   });
   if (!m) notFound();
+  const others = await db.customModule.findMany({ where: { orgId: ctx.org.id, id: { not: m.id } }, orderBy: { position: "asc" }, select: { key: true, name: true } });
   return (
     <ModuleEditor
+      others={others}
       key={m.statuses.map((s) => s.id + s.name + s.color + s.isFinal).join("|")}
       mod={{
         id: m.id,
@@ -29,6 +31,8 @@ export default async function ModuleEditorPage({ params }: { params: Promise<{ i
         minRoleEdit: m.minRoleEdit,
         dueFieldKey: m.dueFieldKey,
         amountFieldKey: m.amountFieldKey,
+        recurrenceFieldKey: m.recurrenceFieldKey,
+        templateKey: m.templateKey,
         records: m._count.records,
         fields: m.fields.map((f) => ({ id: f.id, key: f.key, label: f.label, type: f.type, options: f.options, required: f.required, showInList: f.showInList })),
         statuses: m.statuses.map((s) => ({ id: s.id, name: s.name, color: s.color, isFinal: s.isFinal })),

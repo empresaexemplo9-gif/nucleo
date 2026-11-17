@@ -35,6 +35,29 @@ A única referência à desenvolvedora é a assinatura **"Desenvolvido por DRAP"
 - Painel com pipeline, previsão ponderada, conversão, ticket médio, ciclo de venda, meta, ranking e negócios parados
 - Relatórios: funil de conversão, receita 12 meses, desempenho por vendedor, motivos de perda, origens, atividades e previsão de fechamento
 
+**Controle interno por segmento (Configurações → Módulos)**
+- Módulos com campos livres, fluxo de status, lista, quadro Kanban e **agenda mensal** (filtrável por profissional/responsável)
+- Tipos de campo: texto, número, moeda, data, **data e hora** (com bloqueio de horário duplicado por responsável), listas, **checklist**, **cálculo automático** (fórmulas com `{campos}`, `min`, `max`, `arred`, `abs`) e **vínculo entre módulos** (a ficha mostra os registros vinculados e cria um novo já ligado)
+- **Repetição**: ao concluir uma mensalidade, manutenção, renovação ou aluguel, o próximo é criado com o prazo avançado
+- **Fotos e anexos** em cada registro (a primeira imagem é a capa)
+- **Formulário público** por módulo (pedido, agendamento, pré-matrícula, chamado): cria o registro, cadastra o contato e avisa a equipe
+- Automações de módulo: registro criado, mudou de status e lembrete X dias ou **X horas** antes do horário marcado, com os campos do registro como variáveis (`{rastreio}`, `{placa}`…)
+- **Feed XML (VRSync)** do módulo de imóveis para ZAP Imóveis, VivaReal e OLX
+- “Atualizar do modelo” leva as novidades dos modelos para módulos já instalados, sem apagar personalizações
+
+| Pacote | Módulos | Referências de mercado |
+|---|---|---|
+| Serviços e assistência técnica | OS (agenda do técnico, checklist, peças, total calculado, aceite, nota), equipamentos dos clientes, manutenções preventivas/PMOC com repetição, chamados, contratos | Auvo, Field Control |
+| Imobiliária | Imóveis (fotos, características, valor do m², exclusividade, publicação em portais), visitas, propostas com documentação e comissão, contratos de locação com repasse, aluguéis a receber | Jetimob, Kenlo, Vista |
+| Construção e obras | Obras (orçado x realizado, custo/m², avanço), diário de obra (RDO), medições com retenção | Sienge, Obra Prima |
+| Saúde e clínicas | Agenda por profissional (convênio, guia, retorno), prontuário eletrônico restrito à equipe, pacotes de sessões | iClinic, Feegow |
+| Beleza e estética | Agenda do salão com comissão, pacotes, cobranças recorrentes | Trinks, Avec |
+| Academias e estúdios | Alunos e planos, avaliações físicas (IMC, RCQ, massa magra), fichas de treino, mensalidades | Tecnofit, EVO |
+| Educação | Turmas com vagas livres, matrículas (captação, documentos, bolsa), mensalidades, ocorrências | Sponte, Proesc |
+| Jurídico | Processos (CNJ, fase, êxito), prazos e audiências, andamentos/publicações, honorários, horas | Astrea, ADVBOX, Projuris |
+| Corretora de seguros | Apólices (vigência, prêmio, comissão), sinistros | Segfy, Agger |
+| Agência, SaaS, consultoria, agro, indústria, varejo e moda | Jobs, assinaturas (MRR/ARR, saúde), implantações, timesheet, aplicações por talhão, ordens de produção, estoque com margem e reposição | Operand, Aegro |
+
 **Whitelabel e personalização (Configurações → Marca e geral)**
 - Estúdio de marca: envio do logotipo/identidade oficial com extração automática da paleta
 - Personalização livre: cores (com aviso de contraste), tom de fundo, cantos, fonte principal e de destaque

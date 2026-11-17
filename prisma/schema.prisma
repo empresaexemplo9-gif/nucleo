@@ -494,28 +494,35 @@ model Goal {
 
 /// Módulo de controle interno criado pela empresa (ordens de serviço, estoque, chamados…)
 model CustomModule {
-  id             String         @id @default(cuid())
-  orgId          String
-  key            String
-  name           String
-  singular       String
-  description    String?
-  icon           String         @default("folder")
-  color          String         @default("#b48a4f")
-  prefix         String         @default("REG")
-  sequence       Int            @default(0)
-  position       Int            @default(0)
-  group          String         @default("Controle interno")
-  minRoleView    Role           @default(VIEWER)
-  minRoleEdit    Role           @default(SALES)
-  dueFieldKey    String?
-  amountFieldKey String?
-  templateKey    String?
-  createdAt      DateTime       @default(now())
-  org            Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  fields         ModuleField[]
-  statuses       ModuleStatus[]
-  records        ModuleRecord[]
+  id                 String         @id @default(cuid())
+  orgId              String
+  key                String
+  name               String
+  singular           String
+  description        String?
+  icon               String         @default("folder")
+  color              String         @default("#b48a4f")
+  prefix             String         @default("REG")
+  sequence           Int            @default(0)
+  position           Int            @default(0)
+  group              String         @default("Controle interno")
+  minRoleView        Role           @default(VIEWER)
+  minRoleEdit        Role           @default(SALES)
+  dueFieldKey        String?
+  amountFieldKey     String?
+  templateKey        String?
+  /// Campo de lista que define a repetição (Mensal, Anual…): ao concluir, gera o próximo registro
+  recurrenceFieldKey String?
+  /// Formulário público (/f/<token>) e feed para portais (/api/public/feed/<token>)
+  formToken          String?        @unique
+  feedToken          String?        @unique
+  /// Textos do formulário público e outras preferências do módulo
+  settings           Json           @default("{}")
+  createdAt          DateTime       @default(now())
+  org                Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  fields             ModuleField[]
+  statuses           ModuleStatus[]
+  records            ModuleRecord[]
 
   @@unique([orgId, key])
 }
@@ -525,7 +532,8 @@ model ModuleField {
   moduleId   String
   key        String
   label      String
-  /// TEXT, TEXTAREA, NUMBER, CURRENCY, DATE, SELECT, MULTISELECT, BOOLEAN, URL, EMAIL, PHONE, CONTACT, COMPANY
+  /// TEXT, TEXTAREA, NUMBER, CURRENCY, DATE, DATETIME, SELECT, MULTISELECT, CHECKLIST, BOOLEAN, URL, EMAIL, PHONE,
+  /// CONTACT, COMPANY, RECORD (options[0] = chave do módulo vinculado), FORMULA (options[0] = expressão, options[1] = formato)
   type       String       @default("TEXT")
   options    String[]     @default([])
   required   Boolean      @default(false)
@@ -575,6 +583,7 @@ model ModuleRecord {
   activities  Activity[]
   notes       Note[]
   events      TimelineEvent[]
+  files       StoredFile[]
 
   @@unique([moduleId, number])
   @@index([orgId, moduleId, statusId])
@@ -787,12 +796,18 @@ model StoredFile {
   mime      String
   size      Int
   data      Bytes
+  /// Anexo de um registro de módulo (fotos, documentos)
+  recordId  String?
+  /// Posição na galeria do registro (a primeira imagem é a capa)
+  position  Int                @default(0)
   createdAt DateTime           @default(now())
   org       Organization       @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  record    ModuleRecord?      @relation(fields: [recordId], references: [id], onDelete: Cascade)
   templates ContractTemplate[]
   contracts Contract[]
 
   @@index([orgId])
+  @@index([recordId])
 }
 
 /// Item de checklist de um negócio (vindo do padrão da etapa ou criado à mão)
