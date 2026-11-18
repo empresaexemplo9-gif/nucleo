@@ -7,7 +7,7 @@ import { initials } from "@/lib/format";
 export function BrandMark({ logoUrl, name, size = 34 }: { logoUrl?: string | null; name: string; size?: number }) {
   if (logoUrl) {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={logoUrl} alt={name} style={{ width: size, height: size }} className="shrink-0 rounded-[var(--radius-sm)] border border-line bg-[var(--surface-1)] object-contain p-0.5" />;
+    return <img src={logoUrl} alt={name} style={{ width: size, height: size }} className="shrink-0 rounded-[var(--radius-sm)] object-contain" />;
   }
   return (
     <span
