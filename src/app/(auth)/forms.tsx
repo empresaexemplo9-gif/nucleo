@@ -4,6 +4,11 @@ import { useActionState } from "react";
 import { acceptInvite, login, register } from "@/actions/auth";
 import { Button, Field, Input, Select } from "@/components/ui";
 
+function NoticeBox({ notice }: { notice?: string }) {
+  if (!notice) return null;
+  return <div className="animate-in rounded-[var(--radius-sm)] border border-[color-mix(in_oklab,var(--ok)_40%,transparent)] bg-[color-mix(in_oklab,var(--ok)_8%,transparent)] px-3 py-2.5 text-sm text-fg">{notice}</div>;
+}
+
 function ErrorBox({ error }: { error?: string }) {
   if (!error) return null;
   return <div className="animate-in rounded-[var(--radius-sm)] border border-[color-mix(in_oklab,var(--err)_40%,transparent)] bg-[color-mix(in_oklab,var(--err)_8%,transparent)] px-3 py-2.5 text-sm text-err">{error}</div>;
@@ -22,6 +27,7 @@ export function LoginForm({ next, org, allowSignup }: { next?: string; org?: str
         <Input name="password" type="password" autoComplete="current-password" required placeholder="••••••••" className="h-11" />
       </Field>
       <ErrorBox error={state?.error} />
+      <NoticeBox notice={state?.notice} />
       <Button size="lg" trail className="w-full justify-between" loading={pending}>Entrar</Button>
       {allowSignup && (
         <p className="text-center text-sm text-muted">
@@ -35,7 +41,7 @@ export function LoginForm({ next, org, allowSignup }: { next?: string; org?: str
   );
 }
 
-const SEGMENTS = ["Serviços / Assistência técnica", "Software / SaaS", "Construção / Arquitetura", "Imobiliária", "Agronegócio", "Indústria", "Varejo / Comércio", "Moda / Roupas e acessórios", "Saúde / Clínicas", "Beleza / Estética", "Academia / Estúdio fitness", "Educação", "Jurídico / Advocacia", "Agência / Marketing", "Consultoria", "Corretora de seguros", "Outro"];
+const SEGMENTS = ["Serviços / Assistência técnica", "Software / SaaS", "Construção / Arquitetura", "Imobiliária", "Câmbio / Moedas estrangeiras", "Agronegócio", "Indústria", "Varejo / Comércio", "Moda / Roupas e acessórios", "Saúde / Clínicas", "Beleza / Estética", "Academia / Estúdio fitness", "Educação", "Jurídico / Advocacia", "Agência / Marketing", "Consultoria", "Corretora de seguros", "Outro"];
 
 export function RegisterForm() {
   const [state, action, pending] = useActionState(register, undefined);
@@ -67,6 +73,7 @@ export function RegisterForm() {
         <Input name="password" type="password" required minLength={8} autoComplete="new-password" />
       </Field>
       <ErrorBox error={state?.error} />
+      <NoticeBox notice={state?.notice} />
       <Button size="lg" trail className="w-full justify-between" loading={pending}>Criar minha conta</Button>
       <p className="text-center text-sm text-muted">
         Já tem conta?{" "}
@@ -95,6 +102,7 @@ export function InviteForm({ token, email, existing }: { token: string; email: s
         <Input name="password" type="password" required minLength={8} />
       </Field>
       <ErrorBox error={state?.error} />
+      <NoticeBox notice={state?.notice} />
       <Button size="lg" trail className="w-full justify-between" loading={pending}>Aceitar convite</Button>
     </form>
   );

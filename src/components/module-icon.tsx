@@ -3,6 +3,7 @@ import {
   HardHat, Hammer, HeartPulse, IdCard, Landmark, LifeBuoy, Megaphone, Package, PawPrint, Receipt, Repeat, Scale, Shirt, ShieldCheck, ShoppingBag, ShoppingCart, Sprout, Stethoscope,
   Store, Tag, Tractor, Truck, Users, Utensils, Wallet, Warehouse, Wrench, House, KeyRound, CalendarCheck, Scissors, Dumbbell, Activity,
   NotebookPen, Gavel, Timer, Factory, Cog, Ruler, Umbrella, FileWarning, PenTool, Rocket, BookOpen, Handshake, Layers, Heart, Gem, BellRing, Sparkles, Ribbon, type LucideIcon,
+  Coins, Banknote, ArrowLeftRight, UserCheck, ShieldAlert,
 } from "lucide-react";
 
 /** Ícones disponíveis para módulos personalizados. */
@@ -18,6 +19,7 @@ export const MODULE_ICONS: Record<string, LucideIcon> = {
   "notebook-pen": NotebookPen, gavel: Gavel, timer: Timer, factory: Factory, cog: Cog, ruler: Ruler, umbrella: Umbrella,
   "file-warning": FileWarning, "pen-tool": PenTool, rocket: Rocket, "book-open": BookOpen, handshake: Handshake, layers: Layers,
   heart: Heart, gem: Gem, "bell-ring": BellRing, sparkles: Sparkles, ribbon: Ribbon,
+  coins: Coins, banknote: Banknote, "arrow-left-right": ArrowLeftRight, "user-check": UserCheck, "shield-alert": ShieldAlert,
 };
 
 export function ModuleIcon({ name, className }: { name: string; className?: string }) {

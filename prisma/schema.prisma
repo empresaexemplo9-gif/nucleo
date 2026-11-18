@@ -140,6 +140,8 @@ model Membership {
   orgId     String
   role      Role         @default(SALES)
   active    Boolean      @default(true)
+  /// Pedido de acesso pelo cadastro (mesmo nome de empresa), aguardando a administração
+  requestedAt DateTime?
   createdAt DateTime     @default(now())
   user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)

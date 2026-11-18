@@ -384,6 +384,26 @@ export async function updateMember(id: string, data: { role?: Role; active?: boo
   }
 }
 
+/** Pedido de acesso feito pelo cadastro: aprovar (com o perfil escolhido) ou recusar. */
+export async function answerAccessRequest(id: string, approve: boolean, role?: Role): Promise<ActionResult> {
+  try {
+    const ctx = await requireUserManager();
+    const m = await db.membership.findFirst({ where: { id, orgId: ctx.org.id, requestedAt: { not: null }, active: false } });
+    if (!m) return { ok: false, error: "Pedido não encontrado ou já respondido" };
+    if (!approve) {
+      await db.membership.delete({ where: { id } });
+      return done("Pedido recusado");
+    }
+    const r = role ?? "VIEWER";
+    const denied = roleDenied(ctx, r);
+    if (denied) return { ok: false, error: denied };
+    await db.membership.update({ where: { id }, data: { active: true, role: r, requestedAt: null } });
+    return done("Acesso aprovado");
+  } catch (e) {
+    return fail(e);
+  }
+}
+
 export async function createUserDirect(fd: FormData): Promise<ActionResult> {
   try {
     const ctx = await requireUserManager();

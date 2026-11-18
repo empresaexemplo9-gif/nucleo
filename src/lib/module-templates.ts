@@ -58,6 +58,10 @@ const M = { grafite: "#3a3536", nude: "#c4a28f", rose: "#b9727e", terracota: "#b
 
 const C = { mute: "#7d828c", blue: "#3c78c0", deep: "#2d63a3", gold: "#b48a4f", bronze: "#8a672f", ok: "#17905f", err: "#cf3a56", warn: "#b7791f" };
 
+/** Câmbio: moedas mais negociadas no varejo brasileiro e paleta do segmento. */
+const CB_MOEDAS = ["USD · Dólar americano", "EUR · Euro", "GBP · Libra esterlina", "CAD · Dólar canadense", "AUD · Dólar australiano", "CHF · Franco suíço", "JPY · Iene", "ARS · Peso argentino", "CLP · Peso chileno", "UYU · Peso uruguaio", "MXN · Peso mexicano", "COP · Peso colombiano", "PEN · Sol peruano", "CNY · Yuan", "NZD · Dólar neozelandês", "ZAR · Rand", "AED · Dirham", "Outra"];
+const CB = { verde: "#17805a", azul: "#2d63a3", petroleo: "#1f5f6b", ouro: "#a8874f", ambar: "#b7791f", vermelho: "#c2384f", cinza: "#7d828c" };
+
 export const MODULE_TEMPLATES: ModuleTemplate[] = [
   /* ------------------- Serviços, assistência técnica e manutenção (ref.: Auvo, Field Control) ------------------- */
   {
@@ -1222,6 +1226,190 @@ export const MODULE_TEMPLATES: ModuleTemplate[] = [
       { name: "Encerrada", color: M.jeans, final: true },
     ],
   },
+
+  /* ------------- Câmbio: casas de câmbio, correspondentes cambiais e agências de turismo com câmbio ------------- */
+  {
+    key: "cambio-moedas", name: "Moedas e cotações", singular: "Moeda", prefix: "MOE", icon: "coins", color: CB.verde, group: "Câmbio",
+    description: "Catálogo de moedas: cotação de compra e venda, spread, numerário em espécie por moeda, mínimo de caixa e reposição.",
+    stock: { qty: "estoque", min: "minimo", ok: "Disponível", low: "Numerário baixo", out: "Sem numerário" },
+    kpis: [
+      { label: "Numerário em reais", field: "valor_estoque", agg: "sum", format: "CURRENCY", scope: "open", hint: "espécie em caixa a preço de compra" },
+      { label: "Spread médio", field: "spread", agg: "avg", format: "PERCENT", scope: "open", hint: "venda sobre compra" },
+      { label: "Moedas operadas", agg: "count", format: "NUMBER", scope: "open" },
+    ],
+    fields: [
+      { key: "moeda", label: "Moeda", type: "SELECT", options: CB_MOEDAS, list: true, required: true },
+      { key: "taxa_compra", label: "Cotação de compra (R$ por unidade)", type: "NUMBER", list: true },
+      { key: "taxa_venda", label: "Cotação de venda (R$ por unidade)", type: "NUMBER", list: true },
+      { key: "spread", label: "Spread", type: "FORMULA", formula: "({taxa_venda}-{taxa_compra})/{taxa_compra}*100", format: "PERCENT", list: true },
+      { key: "referencia", label: "Cotação de referência (PTAX / atacado)", type: "NUMBER" },
+      { key: "atualizada", label: "Cotação atualizada em", type: "DATETIME", list: true },
+      { key: "estoque", label: "Numerário em espécie (unidades)", type: "NUMBER", list: true },
+      { key: "minimo", label: "Mínimo em caixa", type: "NUMBER" },
+      { key: "valor_estoque", label: "Numerário em reais", type: "FORMULA", formula: "{estoque}*{taxa_compra}", format: "CURRENCY", amount: true },
+      { key: "repor", label: "Quantidade a repor", type: "FORMULA", formula: "max({minimo}-{estoque}; 0)", format: "NUMBER" },
+      { key: "cedulas", label: "Cédulas disponíveis", type: "MULTISELECT", options: ["1", "2", "5", "10", "20", "50", "100", "200", "500", "1000"] },
+      { key: "cartao", label: "Disponível em cartão pré-pago", type: "BOOLEAN" },
+      { key: "remessa", label: "Disponível para remessa internacional", type: "BOOLEAN" },
+      { key: "fornecedor", label: "Banco / fornecedor de numerário", type: "COMPANY" },
+      { key: "obs", label: "Observações", type: "TEXTAREA" },
+    ],
+    statuses: [
+      { name: "Disponível", color: CB.verde },
+      { name: "Numerário baixo", color: CB.ambar },
+      { name: "Sem numerário", color: CB.vermelho },
+      { name: "Sob encomenda", color: CB.azul },
+      { name: "Suspensa", color: CB.cinza, final: true },
+    ],
+  },
+  {
+    key: "cambio-operacoes", name: "Operações de câmbio", singular: "Operação", prefix: "OP", icon: "arrow-left-right", color: CB.azul, group: "Câmbio",
+    description: "Boleta de cada operação: compra e venda de espécie, cartão pré-pago e remessas. Taxa, IOF, tarifa e VET calculados, finalidade, pagamento, entrega e checklist de conformidade.",
+    kpis: [
+      { label: "Volume em reais", field: "valor_reais", agg: "sum", format: "CURRENCY", scope: "all", hint: "todas as operações" },
+      { label: "Receita de tarifas", field: "tarifa", agg: "sum", format: "CURRENCY", scope: "all" },
+      { label: "IOF", field: "iof_valor", agg: "sum", format: "CURRENCY", scope: "all" },
+      { label: "Ticket médio", field: "valor_total", agg: "avg", format: "CURRENCY", scope: "all" },
+    ],
+    fields: [
+      { key: "cliente", label: "Cliente", type: "CONTACT", list: true, required: true },
+      { key: "tipo", label: "Tipo de operação", type: "SELECT", options: ["Venda de moeda ao cliente (espécie)", "Compra de moeda do cliente (espécie)", "Recarga de cartão pré-pago", "Remessa internacional enviada", "Remessa internacional recebida", "Ordem de pagamento / transferência"], list: true, required: true },
+      { key: "moeda", label: "Moeda", type: "RECORD", target: "cambio-moedas", list: true },
+      { key: "quantidade", label: "Valor em moeda estrangeira", type: "NUMBER", list: true },
+      { key: "taxa", label: "Taxa aplicada (R$ por unidade)", type: "NUMBER" },
+      { key: "valor_reais", label: "Valor em reais", type: "FORMULA", formula: "{quantidade}*{taxa}", format: "CURRENCY" },
+      { key: "iof", label: "Alíquota de IOF (%)", type: "NUMBER" },
+      { key: "iof_valor", label: "IOF", type: "FORMULA", formula: "arred({valor_reais}*{iof}/100; 2)", format: "CURRENCY" },
+      { key: "tarifa", label: "Tarifa / taxa de serviço", type: "CURRENCY" },
+      { key: "valor_total", label: "Total para o cliente", type: "FORMULA", formula: "{valor_reais}+{iof_valor}+{tarifa}", format: "CURRENCY", list: true, amount: true },
+      { key: "vet", label: "VET (valor efetivo total por unidade)", type: "FORMULA", formula: "arred({valor_total}/{quantidade}; 4)", format: "NUMBER" },
+      { key: "finalidade", label: "Finalidade", type: "SELECT", options: ["Turismo", "Estudos no exterior", "Tratamento de saúde", "Manutenção de residente no exterior", "Viagem a negócios", "Pagamento de serviços / importação", "Investimento", "Presente / doação", "Recebimento do exterior", "Outros"], list: true },
+      { key: "destino", label: "País de destino / origem", type: "TEXT" },
+      { key: "data_viagem", label: "Data da viagem", type: "DATE" },
+      { key: "pagamento", label: "Forma de pagamento", type: "SELECT", options: ["Pix", "TED", "Dinheiro (reais)", "Cartão de débito", "Boleto"] },
+      { key: "entrega", label: "Entrega", type: "SELECT", options: ["Retirada na loja", "Delivery", "Cartão pré-pago", "Crédito em conta no exterior", "Crédito em conta no Brasil"] },
+      { key: "entrega_em", label: "Entrega / liquidação em", type: "DATETIME", list: true, due: true },
+      { key: "endereco_entrega", label: "Endereço de entrega", type: "TEXT" },
+      { key: "contrato", label: "Nº do contrato / boleta", type: "TEXT", list: true },
+      { key: "beneficiario", label: "Beneficiário no exterior (remessa)", type: "TEXTAREA" },
+      { key: "conformidade", label: "Conformidade da operação", type: "CHECKLIST", options: ["Cadastro KYC aprovado e dentro da validade", "Documento original com foto conferido", "Consulta a listas restritivas e sanções", "Declaração de PEP colhida", "Finalidade e origem dos recursos informadas", "Valor compatível com a renda / capacidade financeira", "VET e tarifas informados ao cliente antes do fechamento", "Contrato / boleta assinado", "Operação registrada no sistema do banco parceiro"] },
+      { key: "obs", label: "Observações", type: "TEXTAREA" },
+    ],
+    statuses: [
+      { name: "Cotação enviada", color: CB.cinza },
+      { name: "Aguardando documentos", color: CB.ambar },
+      { name: "Aguardando pagamento", color: CB.ambar },
+      { name: "Pago · em separação", color: CB.azul },
+      { name: "Pronta para entrega", color: CB.azul },
+      { name: "Liquidada", color: CB.verde, final: true },
+      { name: "Cancelada", color: CB.vermelho, final: true },
+    ],
+  },
+  {
+    key: "cambio-kyc", name: "Cadastro KYC", singular: "Cadastro", prefix: "KYC", icon: "user-check", color: CB.petroleo, group: "Câmbio",
+    description: "Conheça seu cliente: documentos, PEP, renda e origem dos recursos, nível de risco, limite e revisão periódica do cadastro.",
+    fields: [
+      { key: "cliente", label: "Cliente", type: "CONTACT", list: true, required: true },
+      { key: "pessoa", label: "Tipo", type: "SELECT", options: ["Pessoa física", "Pessoa jurídica", "Estrangeiro não residente"], list: true },
+      { key: "documento", label: "CPF / CNPJ", type: "TEXT", list: true },
+      { key: "doc_tipo", label: "Documento de identificação", type: "SELECT", options: ["RG", "CNH", "Passaporte", "RNE / CRNM", "Contrato social"] },
+      { key: "doc_numero", label: "Número do documento", type: "TEXT" },
+      { key: "doc_validade", label: "Validade do documento", type: "DATE" },
+      { key: "nascimento", label: "Data de nascimento / fundação", type: "DATE" },
+      { key: "nacionalidade", label: "Nacionalidade", type: "TEXT" },
+      { key: "profissao", label: "Profissão / atividade", type: "TEXT" },
+      { key: "renda", label: "Renda mensal / faturamento", type: "CURRENCY" },
+      { key: "patrimonio", label: "Patrimônio declarado", type: "CURRENCY" },
+      { key: "origem", label: "Origem dos recursos", type: "SELECT", options: ["Salário / pró-labore", "Aposentadoria", "Lucros e dividendos", "Venda de bens", "Herança / doação", "Poupança / investimentos", "Faturamento da empresa", "Outros"] },
+      { key: "pep", label: "Pessoa exposta politicamente (PEP)", type: "SELECT", options: ["Não", "Sim", "Relacionado / colaborador próximo de PEP"], list: true },
+      { key: "risco", label: "Nível de risco", type: "SELECT", options: ["Baixo", "Médio", "Alto"], list: true },
+      { key: "limite", label: "Limite de operações no ano (R$)", type: "CURRENCY" },
+      { key: "revisao", label: "Próxima revisão do cadastro", type: "DATE", list: true, due: true },
+      { key: "periodicidade", label: "Revisão", type: "SELECT", options: ["Anual", "Semestral", "Trimestral"], recur: true },
+      { key: "documentos", label: "Documentação", type: "CHECKLIST", options: ["Documento oficial com foto", "Comprovante de residência recente", "Selfie / prova de vida", "Comprovante de renda ou faturamento", "Declaração de PEP assinada", "Consulta a listas restritivas (ONU, OFAC, CSNU)", "Ficha cadastral assinada", "Contrato social e documentos dos sócios (PJ)"] },
+      { key: "obs", label: "Observações da análise", type: "TEXTAREA" },
+    ],
+    statuses: [
+      { name: "Pendente de documentos", color: CB.ambar },
+      { name: "Em análise", color: CB.azul },
+      { name: "Aprovado", color: CB.verde },
+      { name: "Revisão necessária", color: CB.ambar },
+      { name: "Reprovado", color: CB.vermelho, final: true },
+    ],
+  },
+  {
+    key: "cambio-alertas", name: "Alertas de cotação", singular: "Alerta", prefix: "ALT", icon: "bell-ring", color: CB.ambar, group: "Câmbio",
+    description: "Clientes esperando a moeda chegar a uma taxa ou com viagem marcada: avise na hora certa e converta em operação.",
+    kpis: [
+      { label: "Demanda em espera", field: "valor_estimado", agg: "sum", format: "CURRENCY", scope: "open", hint: "em reais" },
+      { label: "Clientes aguardando", agg: "count", format: "NUMBER", scope: "open" },
+    ],
+    fields: [
+      { key: "cliente", label: "Cliente", type: "CONTACT", list: true, required: true },
+      { key: "moeda", label: "Moeda", type: "RECORD", target: "cambio-moedas", list: true },
+      { key: "quantidade", label: "Quantidade desejada", type: "NUMBER", list: true },
+      { key: "taxa_alvo", label: "Taxa desejada (R$)", type: "NUMBER", list: true },
+      { key: "valor_estimado", label: "Valor estimado", type: "FORMULA", formula: "{quantidade}*{taxa_alvo}", format: "CURRENCY", amount: true },
+      { key: "viagem", label: "Data da viagem / limite", type: "DATE", list: true, due: true },
+      { key: "canal", label: "Avisar por", type: "SELECT", options: ["WhatsApp", "Telefone", "E-mail"] },
+      { key: "obs", label: "Observações", type: "TEXTAREA" },
+    ],
+    statuses: [
+      { name: "Aguardando taxa", color: CB.ambar },
+      { name: "Cliente avisado", color: CB.azul },
+      { name: "Convertido em operação", color: CB.verde, final: true },
+      { name: "Expirado / desistiu", color: CB.cinza, final: true },
+    ],
+  },
+  {
+    key: "cambio-caixa", name: "Caixa e numerário", singular: "Movimento", prefix: "CX", icon: "banknote", color: CB.ouro, group: "Câmbio",
+    description: "Abertura e fechamento de caixa por moeda, suprimentos de numerário, recolhimentos, sangrias e diferenças, com conferência dupla.",
+    kpis: [
+      { label: "Movimentos em aberto", agg: "count", format: "NUMBER", scope: "open" },
+      { label: "Movimentado em reais", field: "valor_reais", agg: "sum", format: "CURRENCY", scope: "all" },
+    ],
+    fields: [
+      { key: "data", label: "Data e hora", type: "DATETIME", list: true, required: true },
+      { key: "tipo", label: "Movimento", type: "SELECT", options: ["Abertura de caixa", "Fechamento de caixa", "Suprimento de numerário", "Recolhimento ao banco / transportadora", "Sangria", "Ajuste de diferença"], list: true },
+      { key: "moeda", label: "Moeda", type: "RECORD", target: "cambio-moedas", list: true },
+      { key: "quantidade", label: "Quantidade (moeda)", type: "NUMBER", list: true },
+      { key: "taxa", label: "Taxa de referência", type: "NUMBER" },
+      { key: "valor_reais", label: "Valor em reais", type: "FORMULA", formula: "{quantidade}*{taxa}", format: "CURRENCY", amount: true },
+      { key: "contado", label: "Valor contado (moeda)", type: "NUMBER" },
+      { key: "diferenca", label: "Diferença", type: "FORMULA", formula: "{contado}-{quantidade}", format: "NUMBER", list: true },
+      { key: "conferente", label: "Conferido por", type: "TEXT" },
+      { key: "conferencia", label: "Conferência", type: "CHECKLIST", options: ["Contagem feita por duas pessoas", "Cédulas verificadas (falsificação e estado)", "Lacres e malotes conferidos", "Registro assinado"] },
+      { key: "obs", label: "Observações", type: "TEXTAREA" },
+    ],
+    statuses: [
+      { name: "Aberto", color: CB.azul },
+      { name: "Com diferença", color: CB.vermelho },
+      { name: "Conferido", color: CB.verde, final: true },
+    ],
+  },
+  {
+    key: "cambio-pld", name: "PLD e COAF", singular: "Ocorrência", prefix: "PLD", icon: "shield-alert", color: CB.vermelho, group: "Câmbio",
+    minRoleView: "MANAGER", minRoleEdit: "MANAGER",
+    description: "Prevenção à lavagem de dinheiro: alertas de operações atípicas, análise, decisão fundamentada e prazo de comunicação ao COAF. Visível só para a gestão.",
+    fields: [
+      { key: "cliente", label: "Cliente", type: "CONTACT", list: true },
+      { key: "operacao", label: "Operação relacionada", type: "RECORD", target: "cambio-operacoes" },
+      { key: "alerta", label: "Tipo de alerta", type: "SELECT", options: ["Fracionamento para evitar identificação", "Valor incompatível com renda ou patrimônio", "Cliente PEP", "Recusa ou inconsistência nas informações", "Pagamento elevado em espécie", "Operação em nome de terceiros", "Cliente em lista restritiva", "Frequência atípica de operações", "Outros"], list: true },
+      { key: "detectado", label: "Detectado em", type: "DATE", list: true },
+      { key: "prazo", label: "Prazo para decisão / comunicação", type: "DATE", list: true, due: true },
+      { key: "valor", label: "Valor envolvido", type: "CURRENCY", amount: true },
+      { key: "descricao", label: "Descrição da ocorrência", type: "TEXTAREA" },
+      { key: "analise", label: "Análise e fundamentação da decisão", type: "TEXTAREA" },
+      { key: "protocolo", label: "Protocolo no Siscoaf", type: "TEXT" },
+      { key: "responsavel", label: "Responsável pela análise", type: "TEXT" },
+    ],
+    statuses: [
+      { name: "Em análise", color: CB.ambar },
+      { name: "Aguardando informações", color: CB.azul },
+      { name: "Comunicado ao COAF", color: CB.vermelho, final: true },
+      { name: "Arquivado com justificativa", color: CB.cinza, final: true },
+    ],
+  },
 ];
 
 /** Pacotes por segmento (chaves de MODULE_TEMPLATES). A ordem respeita os vínculos (ex.: imóveis antes de visitas). */
@@ -1236,6 +1424,7 @@ export const SEGMENT_PACKS: { key: string; label: string; modules: string[]; ref
   { key: "educacao", label: "Educação", ref: "Sponte, Proesc", modules: ["turmas", "matriculas", "mensalidades", "ocorrencias", "colaboradores", "financeiro"] },
   { key: "juridico", label: "Jurídico", ref: "Astrea, ADVBOX, Projuris", modules: ["processos", "prazos-juridicos", "andamentos", "honorarios", "timesheet", "documentos", "financeiro"] },
   { key: "moda", label: "Loja de roupas e acessórios", ref: "Linx, Dapic, Nuvemshop, Shopify", modules: ["moda-estoque", "pedidos-loja", "clientela", "malinhas", "lista-espera", "trocas", "envios", "compras-moda", "campanhas", "financeiro"] },
+  { key: "cambio", label: "Câmbio e moedas estrangeiras", ref: "casas de câmbio e correspondentes cambiais", modules: ["cambio-moedas", "cambio-operacoes", "cambio-kyc", "cambio-alertas", "cambio-caixa", "cambio-pld", "financeiro"] },
   { key: "varejo", label: "Varejo e comércio", modules: ["estoque", "pedidos-loja", "compras", "campanhas", "colaboradores", "financeiro"] },
   { key: "industria", label: "Indústria", modules: ["ordens-producao", "manutencoes", "estoque", "compras", "patrimonio", "frota"] },
   { key: "seguros", label: "Corretora de seguros", ref: "Segfy, Agger", modules: ["apolices", "sinistros", "documentos", "financeiro"] },
@@ -1249,6 +1438,7 @@ export const SEGMENT_PACKS: { key: string; label: string; modules: string[]; ref
 export function packForSegment(segment?: string | null) {
   const s = (segment ?? "").toLowerCase();
   const pick = (k: string) => SEGMENT_PACKS.find((p) => p.key === k)!;
+  if (/c[aâ]mbio|moedas? estrangeira|remessa|forex|exchange/.test(s)) return pick("cambio");
   if (/imobili|corretor de im|im[oó]ve/.test(s)) return pick("imobiliaria");
   if (/constru|arquit|engenh|obra/.test(s)) return pick("construcao");
   if (/agro|fazend|pecu/.test(s)) return pick("agro");
