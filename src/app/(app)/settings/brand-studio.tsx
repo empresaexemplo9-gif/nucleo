@@ -190,7 +190,7 @@ export function BrandStudio({ org, theme }: { org: Org; theme: BrandTheme }) {
     setAccent(t.accent);
     return true;
   }
-  async function useLogoColors(src = logo, silent = false) {
+  async function applyLogoColors(src = logo, silent = false) {
     try {
       if (!applyLogoTheme(extractPalette(await loadImage(src), 8))) return toast("Não encontramos cores marcantes no logotipo", "error");
       toast(silent ? "Logotipo e cores aplicados na prévia — salve para manter" : "Cores do logotipo aplicadas em toda a página — salve para manter");
@@ -235,7 +235,7 @@ export function BrandStudio({ org, theme }: { org: Org; theme: BrandTheme }) {
       const url = await fileToLogoDataUrl(file, 2400);
       setLogo(url);
       // o logotipo novo já traz as cores dele para a página inteira (dá para ajustar depois)
-      await useLogoColors(url, true);
+      await applyLogoColors(url, true);
     } catch (e) {
       toast(e instanceof Error ? e.message : "Falha ao ler a imagem", "error");
     }
@@ -504,7 +504,7 @@ export function BrandStudio({ org, theme }: { org: Org; theme: BrandTheme }) {
               ))}
             </div>
             {logo && (
-              <Button type="button" variant="secondary" size="sm" className="mt-4" trail={<Palette className="size-3.5" />} onClick={() => useLogoColors()}>
+              <Button type="button" variant="secondary" size="sm" className="mt-4" trail={<Palette className="size-3.5" />} onClick={() => applyLogoColors()}>
                 Usar as cores do logotipo
               </Button>
             )}
