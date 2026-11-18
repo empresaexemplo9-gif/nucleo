@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ArrowLeft, Building2, FileText, Info, Mail, MessageCircle, Package, Pencil, Phone, RotateCcw, ThumbsDown, ThumbsUp, Trash2, User, X } from "lucide-react";
+import { WhatsAppButton } from "@/components/whatsapp-button";
 import { Avatar, Badge, Button, Card, CardHeader, cn, Field, Input, Modal } from "@/components/ui";
 import { CustomFieldValues, InfoRow } from "@/components/custom-fields";
 import { EntityPicker, TagList } from "@/components/pickers";
@@ -226,14 +227,13 @@ export function DealDetail({
                     </a>
                   )}
                   {(deal.contact.whatsapp || deal.contact.phone) && (
-                    <a
-                      href={`https://wa.me/${(deal.contact.whatsapp || deal.contact.phone)!.replace(/\D/g, "")}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex items-center gap-2 rounded-lg bg-ok/10 px-2.5 py-1.5 font-medium text-ok transition hover:bg-ok/20"
+                    <WhatsAppButton
+                      contactId={deal.contact.id}
+                      phone={(deal.contact.whatsapp || deal.contact.phone)!}
+                      className="flex w-full items-center gap-2 rounded-lg bg-ok/10 px-2.5 py-1.5 text-left font-medium text-ok transition hover:bg-ok/20"
                     >
-                      <MessageCircle className="size-3.5" /> Abrir WhatsApp
-                    </a>
+                      <MessageCircle className="size-3.5" /> {settings.modules.whatsapp ? "Conversar no WhatsApp" : "Abrir WhatsApp"}
+                    </WhatsAppButton>
                   )}
                 </div>
               </div>

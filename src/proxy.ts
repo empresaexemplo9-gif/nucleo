@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, verifySession } from "@/lib/session";
 
-const PUBLIC = ["/login", "/register", "/invite", "/api/health", "/p", "/c", "/api/public"];
+const PUBLIC = ["/login", "/register", "/invite", "/api/health", "/p", "/c", "/api/public", "/api/whatsapp/webhook", "/api/cron"];
 
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;

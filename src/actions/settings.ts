@@ -119,6 +119,7 @@ export async function updateOrgSettings(fd: FormData): Promise<ActionResult> {
             goals: fd.get("mod_goals") === "on",
             automations: fd.get("mod_automations") === "on",
             companies: fd.get("mod_companies") === "on",
+            whatsapp: fd.get("mod_whatsapp") === "on",
           }
         : ctx.settings.modules,
     };
@@ -429,7 +430,13 @@ export async function saveAutomation(id: string | null, fd: FormData): Promise<A
       ownerId: str(fd, "ownerId"),
       note: str(fd, "note"),
       lifecycle: str(fd, "lifecycle"),
+      waTemplate: str(fd, "waTemplate"),
+      waParams: str(fd, "waParams"),
+      waText: str(fd, "waText"),
+      delayHours: numOr(fd, "delayHours", 0),
+      skipIfReplied: fd.get("skipIfReplied") === "on",
     };
+    if (action === "SEND_WHATSAPP" && !config.waTemplate && !config.waText) return { ok: false, error: "Escolha um modelo aprovado ou escreva a mensagem" };
     const data = { name, trigger, action, stageId, config };
     if (id) await db.automation.updateMany({ where: { id, orgId: ctx.org.id }, data });
     else await db.automation.create({ data: { ...data, orgId: ctx.org.id } });

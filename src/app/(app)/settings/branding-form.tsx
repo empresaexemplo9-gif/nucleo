@@ -87,6 +87,7 @@ export function BrandingForm({
                   ["mod_products", "Produtos e serviços", "Catálogo, preços e estoque", settings.modules.products],
                   ["mod_goals", "Metas", "Metas de receita da equipe", settings.modules.goals],
                   ["mod_automations", "Automações", "Regras automáticas no funil", settings.modules.automations],
+                  ["mod_whatsapp", "WhatsApp e chatbot", "Atendimento, envios automáticos e IA", settings.modules.whatsapp],
                 ] as const
               ).map(([n, l, d, v]) => (
                 <label key={n} className={`flex items-start gap-2 rounded-lg border border-line px-3 py-2.5 text-sm ${superadmin ? "" : "opacity-70"}`}>

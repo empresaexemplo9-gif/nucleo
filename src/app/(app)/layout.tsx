@@ -22,7 +22,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const orgId = ctx.org.id;
   setTimeZone(ctx.org.timezone);
   const { css: brandCss, fontsHref, mode: fixedMode } = brandStyle(ctx.org.primaryColor, ctx.org.accentColor, ctx.settings.brand);
-  const [members, tags, fields, pipelines, lostReasons, myOrgs, overdue, modules] = await Promise.all([
+  const [members, tags, fields, pipelines, lostReasons, myOrgs, overdue, modules, waPending] = await Promise.all([
     db.membership.findMany({ where: { orgId, active: true }, include: { user: true }, orderBy: { user: { name: "asc" } } }),
     db.tag.findMany({ where: { orgId }, orderBy: { name: "asc" } }),
     db.customField.findMany({ where: { orgId }, orderBy: { position: "asc" } }),
@@ -34,6 +34,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       : db.membership.findMany({ where: { userId: ctx.user.id, active: true }, include: { org: true } }).then((ms) => ms.map((m) => ({ id: m.org.id, name: m.org.name }))),
     db.activity.count({ where: { orgId, done: false, assigneeId: ctx.user.id, dueAt: { lt: new Date() } } }),
     visibleModules(ctx),
+    // atendimentos do WhatsApp esperando: mensagens novas nos meus e os da fila
+    ctx.settings.modules.whatsapp
+      ? db.conversation.count({ where: { orgId, OR: [{ assigneeId: ctx.user.id, unread: { gt: 0 }, status: "OPEN" }, { status: "QUEUE" }] } })
+      : 0,
   ]);
 
   return (
@@ -61,7 +65,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     >
       {fontsHref && <link rel="stylesheet" href={fontsHref} precedence="default" />}
       {brandCss && <style>{brandCss}</style>}
-      <AppShell fixedMode={fixedMode} dark={(await cookies()).get("theme")?.value === "dark"} orgs={myOrgs} overdue={overdue}>
+      <AppShell fixedMode={fixedMode} dark={(await cookies()).get("theme")?.value === "dark"} orgs={myOrgs} overdue={overdue} waPending={waPending}>
         {children}
       </AppShell>
     </OrgProvider>

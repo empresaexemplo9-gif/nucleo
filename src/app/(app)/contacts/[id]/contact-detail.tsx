@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Info, ArrowLeft, Building2, Mail, MessageCircle, Pencil, Phone, Trash2 } from "lucide-react";
+import { WhatsAppButton } from "@/components/whatsapp-button";
 import { Avatar, Badge, Button, Card, CardHeader, Modal } from "@/components/ui";
 import { CustomFieldValues, InfoRow } from "@/components/custom-fields";
 import { TagList } from "@/components/pickers";
@@ -60,7 +61,9 @@ export function ContactDetail({
             <a href={`tel:${contact.phone}`}><Button variant="secondary"><Phone className="size-4" /> Ligar</Button></a>
           )}
           {wa && (
-            <a href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer"><Button variant="secondary"><MessageCircle className="size-4 text-ok" /> WhatsApp</Button></a>
+            <WhatsAppButton contactId={contact.id} phone={wa} className="inline-flex h-9 items-center gap-2 rounded-[var(--radius-sm)] border border-line bg-[var(--surface-1)] px-3 text-sm font-medium transition hover:border-line-strong">
+              <MessageCircle className="size-4 text-ok" /> WhatsApp
+            </WhatsAppButton>
           )}
           {can("SALES") && <Button variant="secondary" onClick={() => setEditing(true)}><Pencil className="size-4" /> Editar</Button>}
           {can("MANAGER") && (
