@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
-import { AlertTriangle, CalendarClock, CalendarDays, ChevronLeft, ChevronRight, Copy, Download, KanbanSquare, List, Plus, Rss, Settings2, Share2, Trash2 } from "lucide-react";
+import { AlertTriangle, CalendarClock, CalendarDays, LayoutGrid, ChevronLeft, ChevronRight, Copy, Download, KanbanSquare, List, Plus, Rss, Settings2, Share2, Trash2 } from "lucide-react";
 import { Avatar, Badge, Button, Card, cn, EmptyState, Eyebrow, Field, FilterChip, Input, Modal, Select, StatCard, Tabs, Textarea } from "@/components/ui";
 import { Pagination, SearchBox, useParamSetter } from "@/components/list-toolbar";
 import { ModuleIcon } from "@/components/module-icon";
@@ -14,6 +14,7 @@ import { date, dayKey } from "@/lib/format";
 import { useToast } from "@/components/toast";
 import { PUBLIC_TYPES, type FormSettings } from "@/lib/module-public";
 import { RecordForm } from "./record-form";
+import { Gallery, KpiRow, ModaHero, type Kpi } from "./moda";
 
 export type ModStatus = { id: string; name: string; color: string; isFinal: boolean };
 export type ModInfo = {
@@ -66,14 +67,24 @@ export function ModuleView({
   prefill,
   month,
   share,
+  look,
+  kpis,
+  covers,
+  lookbook,
+  palette,
 }: {
+  look: "moda" | null;
+  kpis: Kpi[] | null;
+  covers: Record<string, string>;
+  lookbook: string[];
+  palette: string[];
   prefill: Record<string, unknown>;
   month: string;
   share: { formUrl: string | null; feedUrl: string | null; feedAvailable: boolean; form: FormSettings } | null;
   mod: ModInfo;
   rows: RecordRow[];
   refs: Refs;
-  view: "list" | "board" | "calendar";
+  view: "list" | "board" | "calendar" | "gallery";
   total: number;
   page: number;
   pageSize: number;
@@ -108,6 +119,26 @@ export function ModuleView({
 
   return (
     <div className="w-full px-4 pb-16 pt-8 lg:px-8">
+      {look === "moda" ? (
+        <ModaHero mod={mod} palette={palette} lookbook={lookbook} total={stats.all} actions={<>
+          <a href={`/api/export/module/${mod.key}`} download>
+            <Button variant="secondary" trail={<Download className="size-3.5" />}>Exportar</Button>
+          </a>
+          {share && (
+            <Button variant="secondary" trail={<Share2 className="size-3.5" />} onClick={() => setSharing(true)}>Compartilhar</Button>
+          )}
+          {superadmin && (
+            <Link href={`/settings/modules/${mod.id}`}>
+              <Button variant="secondary" trail={<Settings2 className="size-3.5" />}>Configurar</Button>
+            </Link>
+          )}
+          {mod.canEdit && (
+            <Button trail={<Plus className="size-3.5" />} onClick={() => setCreating(true)}>
+              {mod.singular}
+            </Button>
+          )}
+        </>} />
+      ) : (
       <div className="animate-rise mb-8 flex flex-wrap items-end justify-between gap-5">
         <div className="min-w-0 max-w-3xl">
           <Eyebrow className="mb-3 flex items-center gap-2">
@@ -138,19 +169,24 @@ export function ModuleView({
           )}
         </div>
       </div>
-
+      )}
+      {kpis ? (
+        <KpiRow kpis={kpis} />
+      ) : (
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard index={1} label="Em aberto" value={String(stats.open).padStart(2, "0")} sub={`${stats.all} no total`} color="var(--accent-2)" />
         <StatCard index={2} label="Vencidos" value={String(stats.overdue).padStart(2, "0")} sub={mod.dueFieldKey ? "prazo expirado" : "defina um campo de prazo"} color="var(--err)" />
         <StatCard index={3} label="Próximos 7 dias" value={String(stats.dueSoon).padStart(2, "0")} sub="a vencer" color="var(--warn)" />
         <StatCard index={4} label={amountField ? `${amountField.label} em aberto` : "Valor em aberto"} value={fmt(stats.openSum, stats.openSum >= 1e6)} sub={amountField ? "soma dos registros abertos" : "defina um campo de valor"} color="var(--ok)" />
       </div>
+      )}
 
       <div className="mb-4 mt-8 flex flex-wrap items-center gap-2">
         <Tabs
           value={view}
-          onChange={(v) => set("view", v === "list" ? "" : v)}
+          onChange={(v) => set("view", v)}
           items={[
+            ...(look === "moda" || Object.keys(covers).length ? [{ value: "gallery" as const, label: <span className="flex items-center gap-1.5"><LayoutGrid className="size-3.5" /> Vitrine</span> }] : []),
             { value: "list", label: <span className="flex items-center gap-1.5"><List className="size-3.5" /> Lista</span> },
             { value: "board", label: <span className="flex items-center gap-1.5"><KanbanSquare className="size-3.5" /> Quadro</span> },
             ...(mod.dueFieldKey ? [{ value: "calendar" as const, label: <span className="flex items-center gap-1.5"><CalendarDays className="size-3.5" /> Agenda</span> }] : []),
@@ -165,7 +201,7 @@ export function ModuleView({
           ))}
         </Select>
       </div>
-      {view === "list" && (
+      {(view === "list" || view === "gallery") && (
         <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
           <FilterChip active={!filters.status && filters.scope !== "all"} onClick={() => router.push(`${pathname}`)}>Em aberto</FilterChip>
           <FilterChip active={!filters.status && filters.scope === "all"} onClick={() => set("scope", "all")}>Todos</FilterChip>
@@ -186,10 +222,18 @@ export function ModuleView({
         </div>
       )}
 
-      {view === "calendar" ? (
+      {view === "gallery" ? (
+        rows.length ? (
+          <Gallery mod={mod} rows={rows} refs={refs} covers={covers} />
+        ) : (
+          <Card>
+            <EmptyState icon={<ModuleIcon name={mod.icon} />} title={`Nenhum registro em ${mod.name.toLowerCase()}`} description="Ajuste os filtros ou cadastre o primeiro — fotos anexadas viram a capa na vitrine." action={mod.canEdit && <Button trail={<Plus className="size-3.5" />} onClick={() => setCreating(true)}>Novo(a) {mod.singular.toLowerCase()}</Button>} />
+          </Card>
+        )
+      ) : view === "calendar" ? (
         <Calendar mod={mod} rows={rows} month={month} onNew={mod.canEdit ? newOn : undefined} />
       ) : view === "board" ? (
-        <Board mod={mod} rows={rows} refs={refs} />
+        <Board mod={mod} rows={rows} refs={refs} covers={covers} />
       ) : (
         <Card className="overflow-x-auto">
           {rows.length ? (
@@ -254,7 +298,7 @@ export function ModuleView({
           )}
         </Card>
       )}
-      {view === "list" && (
+      {(view === "list" || view === "gallery") && (
         <div className="mt-3 flex justify-end">
           <Pagination page={page} total={total} pageSize={pageSize} />
         </div>
@@ -269,7 +313,7 @@ export function ModuleView({
 }
 
 /** Quadro por status (arrastar e soltar). */
-function Board({ mod, rows: initial, refs }: { mod: ModInfo; rows: RecordRow[]; refs: Refs }) {
+function Board({ mod, rows: initial, refs, covers }: { mod: ModInfo; rows: RecordRow[]; refs: Refs; covers: Record<string, string> }) {
   const { member } = useOrg();
   const [rows, setRows] = useState(initial);
   const [prev, setPrev] = useState(initial);
@@ -328,6 +372,10 @@ function Board({ mod, rows: initial, refs }: { mod: ModInfo; rows: RecordRow[]; 
                     onDragEnd={() => setDragId(null)}
                     className={cn("block rounded-[10px] border border-line bg-[var(--card-bg)] p-3 shadow-[0_10px_30px_-24px_var(--shadow)] transition hover:-translate-y-0.5 hover:border-line-strong", dragId === r.id && "opacity-40")}
                   >
+                    {covers[r.id] && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={`/api/files/${covers[r.id]}`} alt="" loading="lazy" draggable={false} className="-mx-3 -mt-3 mb-2.5 aspect-[16/10] w-[calc(100%+1.5rem)] max-w-none rounded-t-[10px] object-cover" />
+                    )}
                     <div className="flex items-start justify-between gap-2">
                       <span className="font-mono text-[10px] text-muted">{code(mod.prefix, r.number)}</span>
                       {owner && <Avatar name={owner.name} color={owner.avatarColor} size={20} />}

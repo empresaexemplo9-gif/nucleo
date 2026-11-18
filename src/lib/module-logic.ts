@@ -1,4 +1,5 @@
 /** Regras dos campos de módulo que valem no servidor e nas telas (sem dependências). */
+import { gradeTotal, parseGrade } from "./fashion-colors";
 
 /* ------------------------------ Fórmulas ------------------------------ */
 
@@ -140,6 +141,7 @@ export function numericValue(type: string, v: unknown, options: string[] = []): 
   if (v == null || v === "") return null;
   if (typeof v === "number") return v;
   if (typeof v === "boolean") return v ? 1 : 0;
+  if (type === "GRADE") return gradeTotal(parseGrade(v, options));
   if (Array.isArray(v)) return type === "CHECKLIST" && options.length ? v.length : v.length;
   if (type === "DATE" || type === "DATETIME") {
     const t = new Date(type === "DATE" ? `${v}T12:00:00Z` : `${v}:00Z`).getTime();
@@ -201,4 +203,24 @@ export function advanceDate(value: string, step: { days?: number; months?: numbe
   }
   const dt = new Date(Date.UTC(y, mo, d + (step.days ?? 0)));
   return dt.toISOString().slice(0, 10) + (m[4] ?? "");
+}
+
+/* ------------------------------ Status automático de estoque ------------------------------ */
+
+export type StockRule = { qty: string; min: string; ok: string; low: string; out: string };
+
+/**
+ * Estoque: escolhe Disponível / Estoque baixo / Esgotado pela quantidade (ou pelo total da grade).
+ * Só troca entre esses três: status manuais (ex.: "Fora de linha", "Aguardando reposição") são respeitados.
+ */
+export function stockStatus(rule: StockRule | null | undefined, fields: { key: string; type: string; options: string[] }[], data: Record<string, unknown>, current: string | null) {
+  if (!rule) return null;
+  const managed = [rule.ok, rule.low, rule.out].map((x) => x.toLowerCase());
+  if (current && !managed.includes(current.toLowerCase())) return null;
+  const f = fields.find((x) => x.key === rule.qty);
+  const qty = f ? numericValue(f.type, data[rule.qty], f.options) : null;
+  if (qty == null) return null;
+  const minF = fields.find((x) => x.key === rule.min);
+  const min = minF ? (numericValue(minF.type, data[rule.min], minF.options) ?? 0) : 0;
+  return qty <= 0 ? rule.out : qty <= min ? rule.low : rule.ok;
 }

@@ -6,7 +6,7 @@ import { ArrowDown, ArrowUp, Check, Package, Plus, Settings2, Sparkles, Trash2 }
 import { Badge, Button, Card, CardHeader, cn, EmptyState, Field, Input, Modal, Textarea } from "@/components/ui";
 import { MODULE_ICONS, ModuleIcon } from "@/components/module-icon";
 import { useAction } from "@/components/use-action";
-import { createModule, deleteModule, installModuleTemplates, moveModule } from "@/actions/modules";
+import { createModule, deleteModule, installModuleTemplates, moveModule, upgradePack } from "@/actions/modules";
 import { MODULE_TEMPLATES, packForSegment, SEGMENT_PACKS } from "@/lib/module-templates";
 
 type Installed = { id: string; key: string; name: string; icon: string; color: string; group: string; prefix: string; templateKey: string | null; records: number; fields: number };
@@ -98,9 +98,15 @@ export function ModulesGallery({ installed, segment }: { installed: Installed[];
                 </div>
                 <p className="mt-1 text-xs text-muted">{p.modules.map((k) => MODULE_TEMPLATES.find((t) => t.key === k)?.name).join(" · ")}</p>
                 {p.ref && <p className="mono-label mt-1 text-[10px] text-muted">referência: {p.ref}</p>}
-                <Button size="sm" variant="soft" className="mt-2" disabled={!missing.length || pending} onClick={() => install(missing)}>
-                  {missing.length ? `Instalar ${missing.length} módulo(s)` : "Tudo instalado"}
-                </Button>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {missing.length === p.modules.length ? (
+                    <Button size="sm" variant="soft" disabled={pending} onClick={() => install(missing)}>Instalar {missing.length} módulo(s)</Button>
+                  ) : (
+                    <Button size="sm" variant="soft" disabled={pending} onClick={() => run(() => upgradePack(p.key))} title="Instala o que falta e traz as novidades para os módulos já instalados, sem apagar personalizações">
+                      Atualizar pacote{missing.length ? ` · +${missing.length} novo(s)` : ""}
+                    </Button>
+                  )}
+                </div>
               </div>
             );
           })}

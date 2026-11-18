@@ -5,6 +5,7 @@ import { db } from "./db";
 import { hasRole, type Ctx } from "./auth";
 import { slugify } from "./format";
 import { fieldOptions, MODULE_TEMPLATES } from "./module-templates";
+import { applyFormulas } from "./module-logic";
 import { canFinance, isFinanceModule } from "./roles";
 
 type Tx = Prisma.TransactionClient | typeof db;
@@ -34,6 +35,7 @@ export async function installTemplate(tx: Tx, orgId: string, templateKey: string
       dueFieldKey: t.fields.find((f) => f.due)?.key ?? null,
       amountFieldKey: t.fields.find((f) => f.amount)?.key ?? null,
       recurrenceFieldKey: t.fields.find((f) => f.recur)?.key ?? null,
+      settings: { ...(t.stock ? { stock: t.stock } : {}), ...(t.look ? { look: t.look } : {}) },
     },
   });
   await tx.moduleField.createMany({
@@ -91,18 +93,45 @@ export async function syncFromTemplate(tx: Tx, moduleId: string) {
     await tx.moduleStatus.create({ data: { moduleId, name: s.name, color: s.color, isFinal: !!s.final, position } });
     added++;
   }
+  // campos calculados novos: recalcula nos registros que já existem (sem esperar cada um ser editado)
+  const fields = await tx.moduleField.findMany({ where: { moduleId }, orderBy: { position: "asc" } });
+  if (fields.some((f) => f.type === "FORMULA")) {
+    const amountKey = mod.amountFieldKey ?? t.fields.find((f) => f.amount)?.key ?? null;
+    const recs = await tx.moduleRecord.findMany({ where: { moduleId }, select: { id: true, data: true }, take: 20000 });
+    for (const r of recs) {
+      const before = JSON.stringify(r.data ?? {});
+      const data = applyFormulas(fields, { ...((r.data ?? {}) as Record<string, unknown>) });
+      if (JSON.stringify(data) === before) continue;
+      const amount = amountKey && typeof data[amountKey] === "number" ? (data[amountKey] as number) : undefined;
+      await tx.moduleRecord.update({ where: { id: r.id }, data: { data: data as Prisma.InputJsonObject, ...(amount !== undefined ? { amount } : {}) } });
+    }
+  }
   const keys = new Set([...mod.fields.map((f) => f.key), ...t.fields.map((f) => f.key)]);
   const pick = (flag: "due" | "amount" | "recur") => t.fields.find((f) => f[flag] && keys.has(f.key))?.key ?? null;
+  const cur = (mod.settings ?? {}) as Record<string, unknown>;
   await tx.customModule.update({
     where: { id: moduleId },
     data: {
-      description: mod.description || t.description,
+      settings: { ...cur, ...(t.stock && !cur.stock ? { stock: t.stock } : {}), ...(t.look && !cur.look ? { look: t.look } : {}) },
+      color: t.look && !cur.look ? t.color : mod.color,
+      icon: t.look && !cur.look ? t.icon : mod.icon,
+      description: t.look && !cur.look ? t.description : mod.description || t.description,
       dueFieldKey: mod.dueFieldKey ?? pick("due"),
       amountFieldKey: mod.amountFieldKey ?? pick("amount"),
       recurrenceFieldKey: mod.recurrenceFieldKey ?? pick("recur"),
     },
   });
   return added;
+}
+
+/**
+ * Regras do módulo: status automático de estoque, visual e indicadores.
+ * Vêm de `settings` e, quando ausentes, do modelo de origem (módulos instalados antes da novidade já ganham o visual).
+ */
+export function moduleRules(settings: unknown, templateKey?: string | null) {
+  const s = (settings && typeof settings === "object" ? settings : {}) as { stock?: import("./module-logic").StockRule; look?: string };
+  const t = templateKey ? MODULE_TEMPLATES.find((m) => m.key === templateKey) : undefined;
+  return { stock: s.stock ?? t?.stock ?? null, look: (s.look ?? t?.look) === "moda" ? ("moda" as const) : null, kpis: t?.kpis ?? null };
 }
 
 /** Módulos visíveis para o usuário atual (ordenados). */

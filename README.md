@@ -43,7 +43,7 @@ A única referência à desenvolvedora é a assinatura **"Desenvolvido por DRAP"
 - **Formulário público** por módulo (pedido, agendamento, pré-matrícula, chamado): cria o registro, cadastra o contato e avisa a equipe
 - Automações de módulo: registro criado, mudou de status e lembrete X dias ou **X horas** antes do horário marcado, com os campos do registro como variáveis (`{rastreio}`, `{placa}`…)
 - **Feed XML (VRSync)** do módulo de imóveis para ZAP Imóveis, VivaReal e OLX
-- “Atualizar do modelo” leva as novidades dos modelos para módulos já instalados, sem apagar personalizações
+- “Atualizar do modelo” e “Atualizar pacote” (em Configurações → Módulos) levam as novidades para módulos já instalados, sem apagar personalizações, e recalculam os campos automáticos dos registros existentes
 
 | Pacote | Módulos | Referências de mercado |
 |---|---|---|
@@ -56,7 +56,8 @@ A única referência à desenvolvedora é a assinatura **"Desenvolvido por DRAP"
 | Educação | Turmas com vagas livres, matrículas (captação, documentos, bolsa), mensalidades, ocorrências | Sponte, Proesc |
 | Jurídico | Processos (CNJ, fase, êxito), prazos e audiências, andamentos/publicações, honorários, horas | Astrea, ADVBOX, Projuris |
 | Corretora de seguros | Apólices (vigência, prêmio, comissão), sinistros | Segfy, Agger |
-| Agência, SaaS, consultoria, agro, indústria, varejo e moda | Jobs, assinaturas (MRR/ARR, saúde), implantações, timesheet, aplicações por talhão, ordens de produção, estoque com margem e reposição | Operand, Aegro |
+| Loja de roupas e acessórios | Produtos com **grade tamanho × cor**, fotos e status de estoque automático; pedidos com cupom, cashback e separação; clientes e estilo (tamanhos, cores, ticket médio, nível de fidelidade); **malinhas (condicional)**; lista de espera; trocas; envios; compras por coleção; campanhas com ROI. Visual editorial com **vitrine de fotos** | Linx, Dapic, Nuvemshop, Shopify |
+| Agência, SaaS, consultoria, agro, indústria e varejo | Jobs, assinaturas (MRR/ARR, saúde), implantações, timesheet, aplicações por talhão, ordens de produção, estoque com margem e reposição | Operand, Aegro |
 
 **Whitelabel e personalização (Configurações → Marca e geral)**
 - Estúdio de marca: envio do logotipo/identidade oficial com extração automática da paleta

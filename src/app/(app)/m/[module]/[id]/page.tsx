@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { requireContext } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { loadFeed } from "@/lib/feed-data";
-import { canEditModule, getModuleByKey, recordScope, visibleModules } from "@/lib/modules";
+import { canEditModule, getModuleByKey, moduleRules, recordScope, visibleModules } from "@/lib/modules";
 import { loadBacklinks, resolveRefs } from "@/lib/module-data";
 import { RecordDetail } from "./record-detail";
 
@@ -62,6 +62,7 @@ export default async function RecordPage({ params }: { params: Promise<{ module:
       refs={refs}
       feed={feed}
       backlinks={backlinks}
+      look={moduleRules(mod.settings, mod.templateKey).look}
       files={files}
       next={next}
     />

@@ -4,6 +4,11 @@ import { Field, Input, Select, Textarea } from "./ui";
 import { EntityPicker } from "./pickers";
 import { useOrg } from "./org-context";
 import { date } from "@/lib/format";
+import { ColorName, GradeInput, GradeSummary, SizeChip } from "./fashion";
+
+/** Campos de cor e tamanho ganham amostra e etiqueta (moda). */
+const isColorField = (f: MField) => /^cor(es)?(_|$)/.test(f.key) || /^cor(es)?\b/i.test(f.label);
+const isSizeField = (f: MField) => /^tamanho/.test(f.key);
 
 export type MField = { id: string; key: string; label: string; type: string; options: string[]; required: boolean; showInList: boolean };
 export type Refs = Record<string, string>;
@@ -13,7 +18,7 @@ export function RecordFieldInput({ f, value, refs }: { f: MField; value: unknown
   const name = `f_${f.key}`;
   const sv = value == null ? "" : Array.isArray(value) ? "" : String(value);
   const label = f.label + (f.required ? " *" : "");
-  const wide = f.type === "TEXTAREA" || f.type === "MULTISELECT" || f.type === "CHECKLIST";
+  const wide = f.type === "TEXTAREA" || f.type === "MULTISELECT" || f.type === "CHECKLIST" || f.type === "GRADE";
   let input: React.ReactNode;
   switch (f.type) {
     case "TEXTAREA":
@@ -45,6 +50,9 @@ export function RecordFieldInput({ f, value, refs }: { f: MField; value: unknown
       ) : (
         <EntityPicker type="record" module={f.options[0]} name={name} defaultValue={sv ? { id: sv, label: refs[sv] ?? "—" } : null} />
       );
+      break;
+    case "GRADE":
+      input = <GradeInput name={name} value={value} sizes={f.options} />;
       break;
     case "CHECKLIST": {
       const arr = Array.isArray(value) ? (value as string[]) : [];
@@ -124,6 +132,8 @@ export function RecordFieldValue({ f, value, refs, plain }: { f: MField; value: 
       return <span className="whitespace-nowrap">{date(String(value) + "T12:00:00")}</span>;
     case "DATETIME":
       return <span className="whitespace-nowrap">{String(value).replace(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}:\d{2})$/, "$3/$2/$1 · $4")}</span>;
+    case "GRADE":
+      return <GradeSummary value={value} sizes={f.options} compact={plain} />;
     case "CHECKLIST": {
       const done = (value as string[]).length;
       const total = f.options.length || done;
@@ -160,7 +170,12 @@ export function RecordFieldValue({ f, value, refs, plain }: { f: MField; value: 
     case "COMPANY":
       if (plain) return <>{refs[String(value)] ?? "—"}</>;
       return <Link href={`/companies/${value}`} className="hover:text-accent-text">{refs[String(value)] ?? "—"}</Link>;
+    case "SELECT":
+      if (isSizeField(f)) return <SizeChip size={String(value)} />;
+      if (isColorField(f)) return <ColorName name={String(value)} />;
+      return <span className="break-words">{String(value)}</span>;
     default:
+      if (isColorField(f)) return <ColorName name={String(value)} />;
       return <span className="break-words">{String(value)}</span>;
   }
 }

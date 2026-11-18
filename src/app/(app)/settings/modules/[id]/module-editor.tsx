@@ -205,8 +205,8 @@ export function ModuleEditor({ mod, others }: { mod: Mod; others: { key: string;
               {Object.entries(FIELD_TYPES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </Select>
           </Field>
-          {(type === "SELECT" || type === "MULTISELECT" || type === "CHECKLIST") && (
-            <Field label={type === "CHECKLIST" ? "Itens do checklist" : "Opções"} hint="Uma por linha">
+          {(type === "SELECT" || type === "MULTISELECT" || type === "CHECKLIST" || type === "GRADE") && (
+            <Field label={type === "CHECKLIST" ? "Itens do checklist" : type === "GRADE" ? "Tamanhos da grade (ex.: PP, P, M, G, GG ou 34, 36, 38…)" : "Opções"} hint="Uma por linha">
               <Textarea name="options" rows={type === "CHECKLIST" ? 6 : 4} defaultValue={cur?.type === type ? cur.options.join("\n") : ""} required />
             </Field>
           )}

@@ -6,10 +6,11 @@ import { hasRole, requireContext, requireRole, requireSuperadmin } from "@/lib/a
 import { PUBLIC_TYPES } from "@/lib/module-public";
 import { logEvent } from "@/lib/events";
 import { slugify } from "@/lib/format";
-import { canEditModule, installTemplate, linkTemplateRefs, newModuleKey, recordCode, syncFromTemplate } from "@/lib/modules";
+import { canEditModule, installTemplate, linkTemplateRefs, moduleRules, newModuleKey, recordCode, syncFromTemplate } from "@/lib/modules";
 import { canFinance, isFinanceModule } from "@/lib/roles";
-import { DATE_TYPES, FIELD_TYPES, MODULE_TEMPLATES } from "@/lib/module-templates";
-import { advanceDate, applyFormulas, evalFormula, recurrenceOf } from "@/lib/module-logic";
+import { DATE_TYPES, FIELD_TYPES, MODULE_TEMPLATES, SEGMENT_PACKS } from "@/lib/module-templates";
+import { advanceDate, applyFormulas, evalFormula, recurrenceOf, stockStatus } from "@/lib/module-logic";
+import { parseGrade } from "@/lib/fashion-colors";
 import { localToUtc, utcToLocal } from "@/lib/zoned";
 import { runRecordAutomations } from "@/lib/automation";
 import { randomBytes } from "crypto";
@@ -41,6 +42,35 @@ export async function installModuleTemplates(keys: string[]): Promise<ActionResu
       await linkTemplateRefs(tx, ctx.org.id);
     }, { timeout: 30000, maxWait: 10000 });
     return done(valid.length === 1 ? "Módulo instalado" : `${valid.length} módulos instalados`, lastKey);
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+/**
+ * Atualiza um pacote inteiro em um clique: instala os módulos que faltam e traz as novidades dos modelos
+ * para os já instalados (campos, status, opções, regras e visual), sem apagar personalizações.
+ */
+export async function upgradePack(packKey: string): Promise<ActionResult> {
+  try {
+    const ctx = await requireSuperadmin();
+    const pack = SEGMENT_PACKS.find((p) => p.key === packKey);
+    if (!pack) return { ok: false, error: "Pacote não encontrado" };
+    const result = await db.$transaction(async (tx) => {
+      const installed = await tx.customModule.findMany({ where: { orgId: ctx.org.id, templateKey: { in: pack.modules } }, select: { id: true, templateKey: true } });
+      let created = 0;
+      let updates = 0;
+      for (const key of pack.modules) {
+        const mine = installed.filter((m) => m.templateKey === key);
+        if (!mine.length) {
+          await installTemplate(tx, ctx.org.id, key);
+          created++;
+        } else for (const m of mine) updates += await syncFromTemplate(tx, m.id);
+      }
+      await linkTemplateRefs(tx, ctx.org.id);
+      return { created, updates };
+    }, { timeout: 60000, maxWait: 10000 });
+    return done(`${pack.label}: ${result.created} módulo(s) novo(s) e ${result.updates} novidade(s) aplicadas aos módulos existentes`);
   } catch (e) {
     return fail(e);
   }
@@ -178,7 +208,8 @@ export async function saveModuleField(moduleId: string, id: string | null, fd: F
       required: type === "FORMULA" ? false : fd.get("required") === "on",
       showInList: fd.get("showInList") === "on",
     };
-    if ((type === "SELECT" || type === "MULTISELECT" || type === "CHECKLIST") && !data.options.length) return { ok: false, error: type === "CHECKLIST" ? "Informe os itens do checklist" : "Informe as opções da lista" };
+    if ((type === "SELECT" || type === "MULTISELECT" || type === "CHECKLIST" || type === "GRADE") && !data.options.length)
+      return { ok: false, error: type === "CHECKLIST" ? "Informe os itens do checklist" : type === "GRADE" ? "Informe os tamanhos da grade" : "Informe as opções da lista" };
     if (id) {
       await db.moduleField.updateMany({ where: { id, moduleId }, data });
     } else {
@@ -277,6 +308,7 @@ async function readRecordData(orgId: string, timeZone: string, m: ModFull, fd: F
     if (f.type === "RECORD" && (f.options[0] ?? "").startsWith("tpl:")) continue; // módulo vinculado não instalado
     let v: unknown;
     if (f.type === "MULTISELECT" || f.type === "CHECKLIST") v = fd.getAll(name).map(String).filter((x) => x && f.options.includes(x));
+    else if (f.type === "GRADE") v = parseGrade(str(fd, name), f.options);
     else if (f.type === "NUMBER" || f.type === "CURRENCY") v = str(fd, name) == null ? null : moneyOf(fd, name);
     else if (f.type === "BOOLEAN") v = str(fd, name) === "sim" ? true : str(fd, name) === "não" ? false : null;
     else if (f.type === "SELECT") {
@@ -322,6 +354,13 @@ function derived(m: ModFull, data: Record<string, unknown>, timeZone: string) {
   };
 }
 
+/** Status automático de estoque (Disponível / Estoque baixo / Esgotado), quando o módulo tem a regra. */
+function autoStatusId(m: ModFull, data: Record<string, unknown>, currentStatusId: string | null) {
+  const current = m.statuses.find((s) => s.id === currentStatusId)?.name ?? null;
+  const name = stockStatus(moduleRules(m.settings, m.templateKey).stock, m.fields, data, current);
+  return name ? m.statuses.find((s) => s.name.toLowerCase() === name.toLowerCase())?.id ?? null : null;
+}
+
 /** Agenda: o mesmo responsável não pode ter dois compromissos abertos no mesmo horário. */
 async function checkSlot(orgId: string, m: ModFull, dueAt: Date | null, assigneeId: string | null, timeZone: string, exceptId?: string) {
   const due = m.fields.find((f) => f.key === m.dueFieldKey);
@@ -345,7 +384,8 @@ export async function createRecord(moduleId: string, fd: FormData): Promise<Acti
     const title = str(fd, "title");
     if (!title) return { ok: false, error: "Informe o título" };
     const parsed = await readRecordData(ctx.org.id, ctx.org.timezone, m, fd);
-    const statusId = str(fd, "statusId") ?? [...m.statuses].sort((a, b) => a.position - b.position)[0]?.id ?? null;
+    const chosen = str(fd, "statusId") ?? [...m.statuses].sort((a, b) => a.position - b.position)[0]?.id ?? null;
+    const statusId = autoStatusId(m, parsed.data as Record<string, unknown>, chosen) ?? chosen;
     const status = m.statuses.find((s) => s.id === statusId);
     const assigneeId = fd.has("assigneeId") ? str(fd, "assigneeId") : ctx.user.id;
     await checkSlot(ctx.org.id, m, parsed.dueAt, assigneeId, ctx.org.timezone);
@@ -389,7 +429,12 @@ export async function updateRecord(id: string, fd: FormData): Promise<ActionResu
     const parsed = await readRecordData(ctx.org.id, ctx.org.timezone, m, fd, (r.data ?? {}) as Record<string, unknown>);
     const assigneeId = fd.has("assigneeId") ? str(fd, "assigneeId") : r.assigneeId;
     if (!r.status?.isFinal) await checkSlot(ctx.org.id, m, parsed.dueAt, assigneeId, ctx.org.timezone, id);
-    await db.moduleRecord.update({ where: { id }, data: { title: str(fd, "title") ?? r.title, assigneeId, ...parsed } });
+    const auto = autoStatusId(m, parsed.data as Record<string, unknown>, r.statusId);
+    await db.moduleRecord.update({ where: { id }, data: { title: str(fd, "title") ?? r.title, assigneeId, ...parsed, ...(auto && auto !== r.statusId ? { statusId: auto } : {}) } });
+    if (auto && auto !== r.statusId) {
+      await logEvent({ orgId: ctx.org.id, type: "RECORD_STATUS", recordId: id, data: { from: r.status?.name ?? "—", to: m.statuses.find((s) => s.id === auto)?.name ?? "" } });
+      await runRecordAutomations(ctx.org.id, "RECORD_STATUS", id); // ex.: avisar a equipe quando o estoque fica baixo
+    }
     await logEvent({ orgId: ctx.org.id, type: "RECORD_UPDATED", userId: ctx.user.id, recordId: id });
     return done("Alterações salvas");
   } catch (e) {
