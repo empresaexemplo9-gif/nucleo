@@ -12,6 +12,7 @@ import { slugify } from "@/lib/format";
 import { DEFAULT_LABELS, type Labels, type OrgSettings } from "@/lib/labels";
 import { RADII, SANS_FONTS, SERIF_FONTS, SURFACES } from "@/lib/theme-options";
 import { PRESET_KEYS, sanitizeCustom } from "@/lib/theme-presets";
+import { actionsFor, TRIGGERS, type AutomationConfig } from "@/lib/automation-defs";
 import { fail, moneyOf, numOr, str } from "./helpers";
 import type { ActionResult } from "@/components/use-action";
 
@@ -119,7 +120,7 @@ export async function updateOrgSettings(fd: FormData): Promise<ActionResult> {
             goals: fd.get("mod_goals") === "on",
             automations: fd.get("mod_automations") === "on",
             companies: fd.get("mod_companies") === "on",
-            whatsapp: fd.get("mod_whatsapp") === "on",
+            aiBot: fd.get("mod_aiBot") === "on",
           }
         : ctx.settings.modules,
     };
@@ -420,23 +421,38 @@ export async function saveAutomation(id: string | null, fd: FormData): Promise<A
     const trigger = str(fd, "trigger");
     const action = str(fd, "action");
     if (!name || !trigger || !action) return { ok: false, error: "Preencha nome, gatilho e ação" };
-    const stageId = trigger === "DEAL_STAGE_ENTERED" ? str(fd, "stageId") : null;
+    if (!(trigger in TRIGGERS) || !actionsFor(trigger).includes(action as never)) return { ok: false, error: "Esta ação não está disponível para o gatilho escolhido." };
+    const stageId = trigger === "DEAL_STAGE_ENTERED" || trigger === "DEAL_STALE" ? str(fd, "stageId") : null;
     if (trigger === "DEAL_STAGE_ENTERED" && !stageId) return { ok: false, error: "Selecione a etapa" };
-    const config = {
+    if (stageId && !(await db.stage.findFirst({ where: { id: stageId, pipeline: { orgId: ctx.org.id } }, select: { id: true } }))) return { ok: false, error: "Etapa inválida" };
+    if (action === "SEND_WHATSAPP" && !str(fd, "message")) return { ok: false, error: "Escreva a mensagem do WhatsApp" };
+    if (trigger === "RECORD_STATUS" && (!str(fd, "moduleKey") || !str(fd, "statusName"))) return { ok: false, error: "Escolha o módulo e o status" };
+    const one = <T extends string>(k: string, allowed: readonly T[], d: T) => (allowed.includes(str(fd, k) as T) ? (str(fd, k) as T) : d);
+    const config: AutomationConfig = {
+      days: Math.min(365, Math.max(trigger === "RECORD_DUE" ? 0 : 1, numOr(fd, "days", 1))),
+      hoursBefore: Math.min(168, Math.max(1, numOr(fd, "hoursBefore", 24))),
+      reminderType: str(fd, "reminderType") ?? "ANY",
+      moduleKey: str(fd, "moduleKey") ?? "",
+      statusName: str(fd, "statusName") ?? "",
+      dueUnit: one("dueUnit", ["DAY", "HOUR"] as const, "DAY"),
+      when: one("when", ["BEFORE", "ON", "AFTER"] as const, "BEFORE"),
       activityType: str(fd, "activityType") ?? "TASK",
-      title: str(fd, "title"),
+      title: str(fd, "title") ?? undefined,
       daysOffset: numOr(fd, "daysOffset", 0),
-      tag: str(fd, "tag"),
-      ownerId: str(fd, "ownerId"),
-      note: str(fd, "note"),
-      lifecycle: str(fd, "lifecycle"),
-      waTemplate: str(fd, "waTemplate"),
-      waParams: str(fd, "waParams"),
-      waText: str(fd, "waText"),
-      delayHours: numOr(fd, "delayHours", 0),
-      skipIfReplied: fd.get("skipIfReplied") === "on",
+      tag: str(fd, "tag") ?? undefined,
+      ownerId: str(fd, "ownerId") ?? undefined,
+      note: str(fd, "note") ?? undefined,
+      lifecycle: str(fd, "lifecycle") ?? undefined,
+      message: str(fd, "message")?.slice(0, 4000),
+      delayValue: Math.min(10_000, Math.max(0, numOr(fd, "delayValue", 0))),
+      delayUnit: one("delayUnit", ["MIN", "HOUR", "DAY"] as const, "MIN"),
+      stopOnReply: fd.get("stopOnReply") === "on",
+      whileInStage: fd.get("whileInStage") === "on",
+      templateName: str(fd, "templateName") ?? undefined,
+      templateLang: str(fd, "templateLang") ?? "pt_BR",
+      templateParams: str(fd, "templateParams") ?? undefined,
+      notifyTo: one("notifyTo", ["OWNER", "MANAGERS", "BOTH"] as const, "OWNER"),
     };
-    if (action === "SEND_WHATSAPP" && !config.waTemplate && !config.waText) return { ok: false, error: "Escolha um modelo aprovado ou escreva a mensagem" };
     const data = { name, trigger, action, stageId, config };
     if (id) await db.automation.updateMany({ where: { id, orgId: ctx.org.id }, data });
     else await db.automation.create({ data: { ...data, orgId: ctx.org.id } });

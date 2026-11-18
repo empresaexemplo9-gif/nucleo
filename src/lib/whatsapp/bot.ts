@@ -1,140 +1,63 @@
 import "server-only";
+import type { WhatsappAccount, WhatsappConversation } from "@prisma/client";
 import { db } from "../db";
-import { fillVars, type MenuOption } from "./config";
-import { aiAvailable, aiReply } from "./ai";
-import { handoff, sendMessage, systemNote, type Channel } from "./service";
+import { resolveSettings } from "../labels";
+import { aiReply } from "./ai";
+import { menuText, resolveBot, type BotConfig } from "./bot-config";
+import { leadForHandoff, notifyConversation, queueMessage } from "./service";
 
-type BotState = { step?: "menu" | "ai"; misses?: number; aiTurns?: number };
+const HUMAN = /\b(atendente|humano|pessoa|vendedor|consultor|falar com (algu[eé]m|voc[eê]s))\b/i;
+const GREET = /^(oi+|ol[aá]|menu|in[ií]cio|bom dia|boa tarde|boa noite|opa|e a[ií])\b/i;
 
-const MENU_WORDS = /^(menu|in[ií]cio|0|voltar|op[cç][oõ]es)$/i;
-const HUMAN_WORDS = /\b(atendente|humano|pessoa|consultor|vendedor|falar com algu[eé]m)\b/i;
-/** Limite de respostas da IA por atendimento antes de chamar a equipe. */
-const MAX_AI_TURNS = 12;
+const fill = (t: string, vars: Record<string, string>) => t.replace(/\{(\w+)\}/g, (m, k: string) => vars[k] ?? m);
 
-function withinHours(h: Channel["bot"]["hours"]) {
-  if (!h.enabled) return true;
-  // horário de Brasília
-  const now = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
-  if (!h.days.includes(now.getDay())) return false;
-  const hm = now.getHours() * 60 + now.getMinutes();
-  const [sh, sm] = h.start.split(":").map(Number);
-  const [eh, em] = h.end.split(":").map(Number);
-  return hm >= sh! * 60 + sm! && hm < eh! * 60 + em!;
+async function say(conv: WhatsappConversation, body: string) {
+  if (body.trim()) await queueMessage({ orgId: conv.orgId, conversationId: conv.id, body: body.trim(), source: "BOT" });
 }
 
-function matchOption(menu: MenuOption[], input: { text: string; choiceId?: string }) {
-  if (input.choiceId) {
-    const byId = menu.find((o) => o.id === input.choiceId);
-    if (byId) return byId;
-  }
-  const t = input.text.trim().toLowerCase();
-  const n = Number(t.replace(/[^\d]/g, ""));
-  if (/^\d{1,2}[.)]?$/.test(t) && n >= 1 && n <= menu.length) return menu[n - 1];
-  return menu.find((o) => o.label.toLowerCase() === t) ?? null;
+async function handoff(conv: WhatsappConversation, cfg: BotConfig, message: string, reason?: string) {
+  await db.whatsappConversation.update({ where: { id: conv.id }, data: { botPaused: true } });
+  await say(conv, message || cfg.handoffMessage);
+  // responsável em rodízio e negócio no funil antes do aviso, para o link já levar ao lead completo
+  await leadForHandoff(conv, cfg, reason).catch((e) => console.error("Falha ao preparar o lead do WhatsApp", e));
+  await notifyConversation(conv, `${conv.name || conv.phone} pediu atendimento no WhatsApp`, reason);
 }
 
-/** Atendimento inicial: boas-vindas, menu, respostas, IA e passagem para a equipe. */
-export async function runBot(channel: Channel, conversationId: string, input: { text: string; choiceId?: string }) {
-  const bot = channel.bot;
-  // IA ligada no chatbot e com chave configurada no servidor
-  const ai = bot.ai.enabled && aiAvailable();
-  const conv = await db.conversation.findUniqueOrThrow({ where: { id: conversationId } });
-  const state = (conv.botState ?? {}) as BotState;
-  const first = (conv.name ?? "").split(" ")[0] || "";
-  const vars = { nome: first, primeiro_nome: first, empresa: channel.orgName };
-  const say = (text: string, sender: "bot" | "ia" = "bot") => sendMessage({ channel, conversationId, message: { kind: "text", text: fillVars(text, vars) }, sender });
-  const showMenu = () =>
-    bot.menu.length
-      ? sendMessage({ channel, conversationId, message: { kind: "menu", text: fillVars(bot.menuTitle, vars), options: bot.menu.map((o) => ({ id: o.id, label: o.label })) }, sender: "bot" })
-      : null;
-  const setState = (s: BotState) => db.conversation.update({ where: { id: conversationId }, data: { botState: s } });
+/** Responde à mensagem do cliente. O robô fica calado enquanto houver atendimento humano. */
+export async function runBot(account: WhatsappAccount, conv: WhatsappConversation, text: string, first: boolean) {
+  if (!account.botEnabled || conv.botPaused) return;
+  const org = await db.organization.findUnique({ where: { id: conv.orgId }, select: { name: true, settings: true } });
+  if (!org) return;
+  const cfg = resolveBot(account.botConfig);
+  const firstName = conv.contactId ? (conv.name ?? "").trim().split(/\s+/)[0] : "";
+  const vars = { nome: firstName && !/^WhatsApp\b/.test(conv.name ?? "") ? `, ${firstName}` : "", empresa: org.name };
+  const t = text.trim();
 
-  const toTeam = async (opts?: { tag?: string; reason?: string; note?: string }) => {
-    if (!withinHours(bot.hours)) await say(bot.hours.offText);
-    else if (bot.handoffText) await say(bot.handoffText);
-    await handoff(channel, conversationId, opts);
-  };
-
-  if (!bot.enabled) return toTeam({ reason: input.text.slice(0, 120) });
-
-  // primeira mensagem do atendimento
-  if (!state.step) {
-    if (bot.welcome) await say(bot.welcome);
-    if (bot.menu.length) {
-      await showMenu();
-      await setState({ step: "menu" });
-    } else if (ai) {
-      await setState({ step: "ai" });
-      return answerWithAi(channel, conversationId, state, toTeam);
-    } else return toTeam({ reason: input.text.slice(0, 120) });
-    return;
-  }
-
-  if (MENU_WORDS.test(input.text.trim()) && bot.menu.length) {
-    await showMenu();
-    return setState({ step: "menu" });
-  }
-  if (HUMAN_WORDS.test(input.text) && !matchOption(bot.menu, input)) return toTeam({ reason: input.text.slice(0, 120) });
-
-  if (state.step === "menu") {
-    const opt = matchOption(bot.menu, input);
-    if (opt) {
-      if (opt.action === "handoff" || (opt.action === "ai" && !ai)) {
-        if (opt.reply && opt.action === "handoff") await say(opt.reply);
-        return toTeam({ tag: opt.tag, reason: `Escolheu “${opt.label}”` });
-      }
-      if (opt.tag) await tagContact(conv.contactId, opt.tag);
-      if (opt.action === "ai") {
-        await say(opt.reply || "Pode mandar sua pergunta 😊");
-        return setState({ step: "ai" });
-      }
-      await say(`${opt.reply || "Certo!"}\n\nDigite *menu* para ver as opções ou *atendente* para falar com a equipe.`);
-      return setState({ step: "menu", misses: 0 });
+  if (account.botMode === "AI" && resolveSettings(org.settings).modules.aiBot) {
+    const rows = await db.whatsappMessage.findMany({
+      where: { conversationId: conv.id, status: { notIn: ["SCHEDULED", "SENDING", "FAILED", "CANCELED"] } },
+      orderBy: { createdAt: "desc" },
+      take: 30,
+      select: { direction: true, body: true },
+    });
+    const history = rows.reverse().map((m) => ({ role: m.direction === "IN" ? ("user" as const) : ("assistant" as const), content: m.body }));
+    while (history.length && history[0]!.role !== "user") history.shift();
+    const r = await aiReply(org.name, cfg.aiInstructions, history);
+    if (r) {
+      if (r.handoff) return handoff(conv, cfg, r.text, r.reason);
+      if (r.text) return say(conv, r.text);
     }
-    // texto livre no menu: a IA responde se estiver ativa
-    if (ai) {
-      await setState({ ...state, step: "ai" });
-      return answerWithAi(channel, conversationId, state, toTeam);
-    }
-    const misses = (state.misses ?? 0) + 1;
-    if (misses >= 2) return toTeam({ reason: input.text.slice(0, 120) });
-    await say("Não entendi 🤔 Responda com o número de uma das opções:");
-    await showMenu();
-    return setState({ step: "menu", misses });
+    // IA indisponível: cai no menu para o cliente nunca ficar sem resposta
   }
 
-  if (state.step === "ai") {
-    if (!ai) return toTeam({ reason: input.text.slice(0, 120) });
-    return answerWithAi(channel, conversationId, state, toTeam);
+  if (HUMAN.test(t)) return handoff(conv, cfg, cfg.handoffMessage, t.slice(0, 140));
+  const menu = menuText(cfg.options);
+  const n = /^\d$/.test(t) ? Number(t) : NaN;
+  const picked = cfg.options[n - 1] ?? cfg.options.find((o) => o.label.toLowerCase() === t.toLowerCase());
+  if (picked) {
+    if (picked.handoff) return handoff(conv, cfg, fill(picked.answer, vars) || cfg.handoffMessage, picked.label);
+    return say(conv, fill(picked.answer, vars));
   }
-}
-
-async function tagContact(contactId: string | null, tag: string) {
-  if (!contactId) return;
-  const c = await db.contact.findUnique({ where: { id: contactId }, select: { tags: true } });
-  if (c && !c.tags.includes(tag)) await db.contact.update({ where: { id: contactId }, data: { tags: { push: tag } } });
-}
-
-async function answerWithAi(channel: Channel, conversationId: string, state: BotState, toTeam: (o?: { tag?: string; reason?: string; note?: string }) => Promise<unknown>) {
-  const turns = (state.aiTurns ?? 0) + 1;
-  if (turns > MAX_AI_TURNS) return toTeam({ reason: "Conversa longa com a IA" });
-  const history = await db.whatsAppMessage.findMany({
-    where: { conversationId, kind: { not: "system" } },
-    orderBy: { createdAt: "desc" },
-    take: 24,
-    select: { direction: true, body: true },
-  });
-  const r = await aiReply(channel, history.reverse());
-  if (!r) {
-    await systemNote(channel.orgId, conversationId, "IA indisponível: atendimento enviado para a equipe.");
-    return toTeam({ reason: "IA indisponível" });
-  }
-  if (r.reply) await sendMessage({ channel, conversationId, message: { kind: "text", text: r.reply }, sender: "ia" });
-  await db.conversation.update({ where: { id: conversationId }, data: { botState: { ...state, step: "ai", aiTurns: turns } } });
-  if (r.handoff) {
-    const note = r.summary ? `Resumo do atendimento pela IA: ${r.summary}` : undefined;
-    if (r.summary) await systemNote(channel.orgId, conversationId, `Resumo da IA: ${r.summary}`);
-    // a IA já avisou o cliente: transfere sem repetir a mensagem de transferência
-    await handoff(channel, conversationId, { reason: r.summary?.slice(0, 120) || "Pedido de atendimento humano", note, tag: r.interest || undefined });
-  }
+  if (first || GREET.test(t)) return say(conv, [fill(cfg.greeting, vars), menu].filter(Boolean).join("\n\n"));
+  return say(conv, [cfg.fallback, menu].filter(Boolean).join("\n\n"));
 }

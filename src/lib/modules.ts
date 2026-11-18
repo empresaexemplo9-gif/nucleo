@@ -4,7 +4,8 @@ import type { Prisma, Role } from "@prisma/client";
 import { db } from "./db";
 import { hasRole, type Ctx } from "./auth";
 import { slugify } from "./format";
-import { MODULE_TEMPLATES } from "./module-templates";
+import { fieldOptions, MODULE_TEMPLATES } from "./module-templates";
+import { applyFormulas } from "./module-logic";
 import { canFinance, isFinanceModule } from "./roles";
 
 type Tx = Prisma.TransactionClient | typeof db;
@@ -28,17 +29,109 @@ export async function installTemplate(tx: Tx, orgId: string, templateKey: string
       prefix: t.prefix,
       position,
       templateKey: t.key,
+      ...(t.minRoleView ? { minRoleView: t.minRoleView } : {}),
+      ...(t.minRoleEdit ? { minRoleEdit: t.minRoleEdit } : {}),
+      ...(t.group ? { group: t.group } : {}),
       dueFieldKey: t.fields.find((f) => f.due)?.key ?? null,
       amountFieldKey: t.fields.find((f) => f.amount)?.key ?? null,
+      recurrenceFieldKey: t.fields.find((f) => f.recur)?.key ?? null,
+      settings: { ...(t.stock ? { stock: t.stock } : {}), ...(t.look ? { look: t.look } : {}) },
     },
   });
   await tx.moduleField.createMany({
-    data: t.fields.map((f, i) => ({ moduleId: mod.id, key: f.key, label: f.label, type: f.type, options: f.options ?? [], required: !!f.required, showInList: !!f.list, position: i })),
+    data: t.fields.map((f, i) => ({ moduleId: mod.id, key: f.key, label: f.label, type: f.type, options: fieldOptions(f), required: !!f.required, showInList: !!f.list, position: i })),
   });
   await tx.moduleStatus.createMany({
     data: t.statuses.map((s, i) => ({ moduleId: mod.id, name: s.name, color: s.color, isFinal: !!s.final, position: i })),
   });
   return mod;
+}
+
+/**
+ * Liga os campos de vínculo dos modelos ("tpl:imoveis") ao módulo instalado com aquele modelo.
+ * Roda depois de cada instalação: a ordem de instalação dos módulos de um pacote não importa.
+ */
+export async function linkTemplateRefs(tx: Tx, orgId: string) {
+  const pending = await tx.moduleField.findMany({ where: { type: "RECORD", module: { orgId } } });
+  const mods = await tx.customModule.findMany({ where: { orgId }, select: { key: true, templateKey: true }, orderBy: { position: "asc" } });
+  for (const f of pending) {
+    const ref = f.options[0] ?? "";
+    if (!ref.startsWith("tpl:")) continue;
+    const target = mods.find((m) => m.templateKey === ref.slice(4));
+    if (target) await tx.moduleField.update({ where: { id: f.id }, data: { options: [target.key] } });
+  }
+}
+
+/**
+ * Atualiza um módulo instalado com as novidades do modelo: campos e status que faltam,
+ * opções novas nas listas e as configurações de prazo, valor e repetição ainda vazias.
+ * Nada do que a empresa personalizou é apagado ou renomeado.
+ */
+export async function syncFromTemplate(tx: Tx, moduleId: string) {
+  const mod = await tx.customModule.findUniqueOrThrow({ where: { id: moduleId }, include: { fields: true, statuses: true } });
+  const t = MODULE_TEMPLATES.find((m) => m.key === mod.templateKey);
+  if (!t) throw new Error("Este módulo não veio de um modelo pronto");
+  let added = 0;
+  let pos = mod.fields.length;
+  for (const f of t.fields) {
+    const cur = mod.fields.find((x) => x.key === f.key);
+    if (!cur) {
+      await tx.moduleField.create({ data: { moduleId, key: f.key, label: f.label, type: f.type, options: fieldOptions(f), required: false, showInList: !!f.list, position: pos++ } });
+      added++;
+    } else if ((cur.type === "SELECT" || cur.type === "MULTISELECT" || cur.type === "CHECKLIST") && cur.type === f.type) {
+      const extra = (f.options ?? []).filter((o) => !cur.options.includes(o));
+      if (extra.length) await tx.moduleField.update({ where: { id: cur.id }, data: { options: [...cur.options, ...extra] } });
+    }
+  }
+  let spos = mod.statuses.length;
+  const finals = mod.statuses.filter((s) => s.isFinal);
+  for (const s of t.statuses) {
+    if (mod.statuses.some((x) => x.name.toLowerCase() === s.name.toLowerCase())) continue;
+    // status abertos novos entram antes dos finais, para o quadro continuar na ordem do fluxo
+    const position = s.final || !finals.length ? spos++ : Math.min(...finals.map((x) => x.position));
+    if (!s.final && finals.length) await tx.moduleStatus.updateMany({ where: { moduleId, isFinal: true }, data: { position: { increment: 1 } } });
+    await tx.moduleStatus.create({ data: { moduleId, name: s.name, color: s.color, isFinal: !!s.final, position } });
+    added++;
+  }
+  // campos calculados novos: recalcula nos registros que já existem (sem esperar cada um ser editado)
+  const fields = await tx.moduleField.findMany({ where: { moduleId }, orderBy: { position: "asc" } });
+  if (fields.some((f) => f.type === "FORMULA")) {
+    const amountKey = mod.amountFieldKey ?? t.fields.find((f) => f.amount)?.key ?? null;
+    const recs = await tx.moduleRecord.findMany({ where: { moduleId }, select: { id: true, data: true }, take: 20000 });
+    for (const r of recs) {
+      const before = JSON.stringify(r.data ?? {});
+      const data = applyFormulas(fields, { ...((r.data ?? {}) as Record<string, unknown>) });
+      if (JSON.stringify(data) === before) continue;
+      const amount = amountKey && typeof data[amountKey] === "number" ? (data[amountKey] as number) : undefined;
+      await tx.moduleRecord.update({ where: { id: r.id }, data: { data: data as Prisma.InputJsonObject, ...(amount !== undefined ? { amount } : {}) } });
+    }
+  }
+  const keys = new Set([...mod.fields.map((f) => f.key), ...t.fields.map((f) => f.key)]);
+  const pick = (flag: "due" | "amount" | "recur") => t.fields.find((f) => f[flag] && keys.has(f.key))?.key ?? null;
+  const cur = (mod.settings ?? {}) as Record<string, unknown>;
+  await tx.customModule.update({
+    where: { id: moduleId },
+    data: {
+      settings: { ...cur, ...(t.stock && !cur.stock ? { stock: t.stock } : {}), ...(t.look && !cur.look ? { look: t.look } : {}) },
+      color: t.look && !cur.look ? t.color : mod.color,
+      icon: t.look && !cur.look ? t.icon : mod.icon,
+      description: t.look && !cur.look ? t.description : mod.description || t.description,
+      dueFieldKey: mod.dueFieldKey ?? pick("due"),
+      amountFieldKey: mod.amountFieldKey ?? pick("amount"),
+      recurrenceFieldKey: mod.recurrenceFieldKey ?? pick("recur"),
+    },
+  });
+  return added;
+}
+
+/**
+ * Regras do módulo: status automático de estoque, visual e indicadores.
+ * Vêm de `settings` e, quando ausentes, do modelo de origem (módulos instalados antes da novidade já ganham o visual).
+ */
+export function moduleRules(settings: unknown, templateKey?: string | null) {
+  const s = (settings && typeof settings === "object" ? settings : {}) as { stock?: import("./module-logic").StockRule; look?: string };
+  const t = templateKey ? MODULE_TEMPLATES.find((m) => m.key === templateKey) : undefined;
+  return { stock: s.stock ?? t?.stock ?? null, look: (s.look ?? t?.look) === "moda" ? ("moda" as const) : null, kpis: t?.kpis ?? null };
 }
 
 /** Módulos visíveis para o usuário atual (ordenados). */

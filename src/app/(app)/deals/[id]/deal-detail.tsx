@@ -3,7 +3,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ArrowLeft, Building2, FileText, Info, Mail, MessageCircle, Package, Pencil, Phone, RotateCcw, ThumbsDown, ThumbsUp, Trash2, User, X } from "lucide-react";
-import { WhatsAppButton } from "@/components/whatsapp-button";
 import { Avatar, Badge, Button, Card, CardHeader, cn, Field, Input, Modal } from "@/components/ui";
 import { CustomFieldValues, InfoRow } from "@/components/custom-fields";
 import { EntityPicker, TagList } from "@/components/pickers";
@@ -12,6 +11,7 @@ import { DealForm } from "@/components/forms/deal-form";
 import { useOrg } from "@/components/org-context";
 import { useAction } from "@/components/use-action";
 import { addDealProduct, deleteDeal, moveDeal, removeDealProduct, setDealStatus } from "@/actions/deals";
+import { openWhatsappConversation } from "@/actions/whatsapp";
 import { date, dateTime, daysSince } from "@/lib/format";
 import { LostReasonModal } from "../lost-reason-modal";
 import { DealChecklist, type ChecklistItem } from "./deal-checklist";
@@ -227,13 +227,23 @@ export function DealDetail({
                     </a>
                   )}
                   {(deal.contact.whatsapp || deal.contact.phone) && (
-                    <WhatsAppButton
-                      contactId={deal.contact.id}
-                      phone={(deal.contact.whatsapp || deal.contact.phone)!}
-                      className="flex w-full items-center gap-2 rounded-lg bg-ok/10 px-2.5 py-1.5 text-left font-medium text-ok transition hover:bg-ok/20"
+                    <a
+                      href={`https://wa.me/${(deal.contact.whatsapp || deal.contact.phone)!.replace(/\D/g, "")}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-2 rounded-lg bg-ok/10 px-2.5 py-1.5 font-medium text-ok transition hover:bg-ok/20"
                     >
-                      <MessageCircle className="size-3.5" /> {settings.modules.whatsapp ? "Conversar no WhatsApp" : "Abrir WhatsApp"}
-                    </WhatsAppButton>
+                      <MessageCircle className="size-3.5" /> Abrir WhatsApp
+                    </a>
+                  )}
+                  {(deal.contact.whatsapp || deal.contact.phone) && can("SALES") && (
+                    <button
+                      type="button"
+                      onClick={() => run(() => openWhatsappConversation(deal.contact!.id), { onSuccess: (r) => router.push(`/whatsapp?c=${r.id}`) })}
+                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left font-medium text-fg-2 transition hover:bg-tint"
+                    >
+                      <MessageCircle className="size-3.5" /> Conversar pelo CRM
+                    </button>
                   )}
                 </div>
               </div>

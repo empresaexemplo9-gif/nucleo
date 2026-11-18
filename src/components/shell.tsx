@@ -13,7 +13,7 @@ import { NotificationBell } from "./notification-bell";
 import { QuickCreateProvider, useQuickCreate } from "./quick-create";
 import { logout, setTheme, switchOrg } from "@/actions/auth";
 
-export function AppShell({ children, orgs, overdue, waPending = 0, dark, fixedMode }: { children: React.ReactNode; orgs: { id: string; name: string }[]; overdue: number; waPending?: number; dark: boolean; fixedMode?: "light" | "dark" | null }) {
+export function AppShell({ children, orgs, overdue, whatsapp, dark, fixedMode }: { children: React.ReactNode; orgs: { id: string; name: string }[]; overdue: number; whatsapp: number | null; dark: boolean; fixedMode?: "light" | "dark" | null }) {
   const [mobile, setMobile] = useState(false);
   // Tema pronto fixa o modo: alinha a classe do documento e devolve a preferência do usuário ao sair.
   useEffect(() => {
@@ -49,7 +49,7 @@ export function AppShell({ children, orgs, overdue, waPending = 0, dark, fixedMo
             mobile ? "translate-x-0 bg-[var(--menu-bg)] shadow-pop" : "-translate-x-full",
           )}
         >
-          <Sidebar orgs={orgs} overdue={overdue} waPending={waPending} onClose={() => setMobile(false)} />
+          <Sidebar orgs={orgs} overdue={overdue} whatsapp={whatsapp} onClose={() => setMobile(false)} />
         </aside>
         {mobile && <div className="fixed inset-0 z-30 bg-[color-mix(in_oklab,var(--bg)_60%,transparent)] backdrop-blur-sm lg:hidden" onClick={() => setMobile(false)} />}
         <div className="flex min-w-0 flex-1 flex-col">
@@ -95,7 +95,7 @@ function AppFooter() {
 
 type NavItem = { href: string; label: string; badge?: number; dot?: string };
 
-function Sidebar({ orgs, overdue, waPending, onClose }: { orgs: { id: string; name: string }[]; overdue: number; waPending: number; onClose: () => void }) {
+function Sidebar({ orgs, overdue, whatsapp, onClose }: { orgs: { id: string; name: string }[]; overdue: number; whatsapp: number | null; onClose: () => void }) {
   const { org, labels, settings, can, user, role, modules, superadmin } = useOrg();
   const pathname = usePathname();
   const quick = useQuickCreate();
@@ -123,8 +123,8 @@ function Sidebar({ orgs, overdue, waPending, onClose }: { orgs: { id: string; na
     {
       title: "Relacionamento",
       items: [
-        settings.modules.whatsapp && { href: "/inbox", label: "Atendimento", badge: waPending },
         { href: "/contacts", label: labels.contact.plural },
+        (whatsapp != null || can("ADMIN")) && { href: "/whatsapp", label: "WhatsApp", badge: whatsapp ?? 0 },
         settings.modules.companies && { href: "/companies", label: labels.company.plural },
       ],
     },

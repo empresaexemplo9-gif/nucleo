@@ -20,12 +20,14 @@ export function numOr(fd: FormData, k: string, d = 0) {
   return Number.isFinite(n) ? n : d;
 }
 
-/** Aceita "1234.56", "1.234,56" ou "1234,56". */
+/** Aceita "1234.56", "1.234,56", "1234,56" e "1.200" (milhar). */
 export function moneyOf(fd: FormData, k: string) {
   const v = str(fd, k);
   if (v == null) return 0;
   const cleaned = v.replace(/[^\d.,-]/g, "");
-  const n = cleaned.includes(",") ? Number(cleaned.replace(/\./g, "").replace(",", ".")) : Number(cleaned);
+  // "1.200" e "1.234.567" são milhares (padrão brasileiro); "12.5" segue decimal
+  const thousands = /^-?\d{1,3}(\.\d{3})+$/.test(cleaned);
+  const n = cleaned.includes(",") || thousands ? Number(cleaned.replace(/\./g, "").replace(",", ".")) : Number(cleaned);
   return Number.isFinite(n) ? n : 0;
 }
 

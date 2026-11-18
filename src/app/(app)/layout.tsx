@@ -1,6 +1,8 @@
 import { cookies } from "next/headers";
+import { after } from "next/server";
+import { tick } from "@/lib/scheduler";
 import type { Metadata } from "next";
-import { getContext, requireContext } from "@/lib/auth";
+import { getContext, ownerScope, requireContext } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { setTimeZone } from "@/lib/format";
 import { brandStyle } from "@/lib/brand-style";
@@ -22,7 +24,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const orgId = ctx.org.id;
   setTimeZone(ctx.org.timezone);
   const { css: brandCss, fontsHref, mode: fixedMode } = brandStyle(ctx.org.primaryColor, ctx.org.accentColor, ctx.settings.brand);
-  const [members, tags, fields, pipelines, lostReasons, myOrgs, overdue, modules, waPending] = await Promise.all([
+  const [members, tags, fields, pipelines, lostReasons, myOrgs, overdue, modules, waAccount] = await Promise.all([
     db.membership.findMany({ where: { orgId, active: true }, include: { user: true }, orderBy: { user: { name: "asc" } } }),
     db.tag.findMany({ where: { orgId }, orderBy: { name: "asc" } }),
     db.customField.findMany({ where: { orgId }, orderBy: { position: "asc" } }),
@@ -34,11 +36,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       : db.membership.findMany({ where: { userId: ctx.user.id, active: true }, include: { org: true } }).then((ms) => ms.map((m) => ({ id: m.org.id, name: m.org.name }))),
     db.activity.count({ where: { orgId, done: false, assigneeId: ctx.user.id, dueAt: { lt: new Date() } } }),
     visibleModules(ctx),
-    // atendimentos do WhatsApp esperando: mensagens novas nos meus e os da fila
-    ctx.settings.modules.whatsapp
-      ? db.conversation.count({ where: { orgId, OR: [{ assigneeId: ctx.user.id, unread: { gt: 0 }, status: "OPEN" }, { status: "QUEUE" }] } })
-      : 0,
+    db.whatsappAccount.findUnique({ where: { orgId }, select: { id: true } }),
   ]);
+  const own = ownerScope(ctx);
+  const waUnread = waAccount ? await db.whatsappConversation.count({ where: { orgId, unread: { gt: 0 }, ...(own.ownerId ? { contact: { ownerId: own.ownerId } } : {}) } }) : null;
+  // lembretes e mensagens agendadas também andam enquanto a equipe usa o sistema (complementa o cron)
+  after(() => tick(orgId));
 
   return (
     <OrgProvider
@@ -65,7 +68,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     >
       {fontsHref && <link rel="stylesheet" href={fontsHref} precedence="default" />}
       {brandCss && <style>{brandCss}</style>}
-      <AppShell fixedMode={fixedMode} dark={(await cookies()).get("theme")?.value === "dark"} orgs={myOrgs} overdue={overdue} waPending={waPending}>
+      <AppShell fixedMode={fixedMode} dark={(await cookies()).get("theme")?.value === "dark"} orgs={myOrgs} overdue={overdue} whatsapp={waUnread}>
         {children}
       </AppShell>
     </OrgProvider>

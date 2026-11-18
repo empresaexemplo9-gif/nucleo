@@ -1,270 +1,201 @@
 "use server";
-import { randomBytes } from "node:crypto";
+import { randomBytes } from "crypto";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { hasRole, requireContext, requireSuperadmin } from "@/lib/auth";
-import { conversationScope } from "@/lib/whatsapp/scope";
-import { seal } from "@/lib/secret-box";
+import { ownerScope, requireRole, requireSuperadmin, type Ctx } from "@/lib/auth";
+import { decrypt, encrypt } from "@/lib/crypto";
+import { fetchPhoneInfo } from "@/lib/whatsapp/client";
+import { resolveBot } from "@/lib/whatsapp/bot-config";
+import { aiAvailable } from "@/lib/whatsapp/ai";
+import { conversationForContact, getAccount, queueMessage } from "@/lib/whatsapp/service";
 import { notify } from "@/lib/notify";
 import { transferDeals } from "@/lib/transfer";
-import * as cloud from "@/lib/whatsapp/cloud";
-import { countParams, fillVars, resolveBot, resolveTemplates, toWaId, type BotConfig, type WaTemplate } from "@/lib/whatsapp/config";
-import { ensureConversation, ensureLead, getChannel, sendMessage, systemNote } from "@/lib/whatsapp/service";
+import { fail, numOr, str } from "./helpers";
 import type { ActionResult } from "@/components/use-action";
-import { fail, str } from "./helpers";
 
-const SETTINGS = "/settings/whatsapp";
+const done = (message: string, id?: string): ActionResult => {
+  revalidatePath("/", "layout");
+  return { ok: true, message, id };
+};
 
-/* ------------------------- implantação (superadmin) ------------------------- */
+/* ------------------------------ Conexão ------------------------------ */
 
-/** Credenciais do número na API oficial da Meta. Tokens ficam criptografados no banco. */
-export async function saveWhatsAppChannel(fd: FormData): Promise<ActionResult> {
+/** Conexão do número: parte da implantação, feita pelo superadmin da plataforma. */
+export async function saveWhatsappConnection(fd: FormData): Promise<ActionResult> {
   try {
     const ctx = await requireSuperadmin();
+    const current = await getAccount(ctx.org.id);
     const phoneNumberId = str(fd, "phoneNumberId")?.replace(/\D/g, "");
-    if (!phoneNumberId) return { ok: false, error: "Informe o ID do número (Phone number ID)" };
-    const token = str(fd, "accessToken");
-    const appSecret = str(fd, "appSecret");
-    const current = await db.whatsAppChannel.findUnique({ where: { orgId: ctx.org.id } });
-    if (!current && !token) return { ok: false, error: "Informe o token de acesso" };
-    const taken = await db.whatsAppChannel.findUnique({ where: { phoneNumberId } });
-    if (taken && taken.orgId !== ctx.org.id) return { ok: false, error: "Esse número já está conectado a outra empresa" };
+    // campos de segredo em branco mantêm o valor já salvo
+    const token = str(fd, "token") ?? (current ? decrypt(current.tokenEnc) : null);
+    const appSecret = str(fd, "appSecret") ?? (current ? decrypt(current.appSecretEnc) : null);
+    if (!phoneNumberId || !token || !appSecret) return { ok: false, error: "Informe o ID do número, o token de acesso e o segredo do app." };
+    const taken = await db.whatsappAccount.findFirst({ where: { phoneNumberId, orgId: { not: ctx.org.id } }, select: { id: true } });
+    if (taken) return { ok: false, error: "Este número já está conectado a outra empresa." };
+    const info = await fetchPhoneInfo(phoneNumberId, token);
+    if (!info.ok) return { ok: false, error: `A Meta recusou as credenciais: ${info.error}` };
+    const sendStart = Math.min(23, Math.max(0, numOr(fd, "sendStart", 8)));
+    const sendEnd = Math.min(24, Math.max(1, numOr(fd, "sendEnd", 20)));
+    if (sendStart >= sendEnd) return { ok: false, error: "O horário de início dos envios deve ser anterior ao de término." };
     const data = {
       phoneNumberId,
-      wabaId: str(fd, "wabaId")?.replace(/\D/g, "") || null,
-      displayPhone: str(fd, "displayPhone"),
-      active: fd.get("active") === "on",
-      ...(token ? { accessToken: seal(token) } : {}),
-      ...(appSecret ? { appSecret: seal(appSecret) } : fd.get("clearAppSecret") === "on" ? { appSecret: null } : {}),
+      displayPhone: info.displayPhone || null,
+      tokenEnc: encrypt(token),
+      appSecretEnc: encrypt(appSecret),
+      sendStart,
+      sendEnd,
+      autoCreateContact: fd.get("autoCreateContact") === "on",
+      active: true,
     };
-    if (current) await db.whatsAppChannel.update({ where: { id: current.id }, data });
-    else await db.whatsAppChannel.create({ data: { ...data, orgId: ctx.org.id, accessToken: seal(token!), verifyToken: randomBytes(18).toString("base64url") } });
-    revalidatePath(SETTINGS);
-    return { ok: true, message: "Conexão salva" };
+    await db.whatsappAccount.upsert({ where: { orgId: ctx.org.id }, update: data, create: { ...data, orgId: ctx.org.id, verifyToken: randomBytes(24).toString("hex") } });
+    return done(`WhatsApp conectado${info.displayPhone ? `: ${info.displayPhone}` : ""}`);
   } catch (e) {
     return fail(e);
   }
 }
 
-export async function testWhatsAppChannel(): Promise<ActionResult> {
+export async function disconnectWhatsapp(): Promise<ActionResult> {
   try {
     const ctx = await requireSuperadmin();
-    const channel = await getChannel(ctx.org.id);
-    if (!channel) return { ok: false, error: "Conexão inativa ou função WhatsApp fora do plano" };
-    const info = await cloud.phoneInfo(channel.creds);
-    await db.whatsAppChannel.update({ where: { id: channel.id }, data: { displayPhone: info.display_phone_number ?? undefined } });
-    revalidatePath(SETTINGS);
-    return { ok: true, message: `Conectado: ${info.verified_name ?? ""} ${info.display_phone_number ?? ""}${info.quality_rating ? ` · qualidade ${info.quality_rating}` : ""}`.trim() };
+    await db.whatsappAccount.deleteMany({ where: { orgId: ctx.org.id } });
+    await db.whatsappMessage.updateMany({ where: { orgId: ctx.org.id, status: "SCHEDULED" }, data: { status: "CANCELED", error: "WhatsApp desconectado." } });
+    return done("WhatsApp desconectado");
   } catch (e) {
     return fail(e);
   }
 }
 
-export async function rotateVerifyToken(): Promise<ActionResult> {
+export async function saveWhatsappBot(fd: FormData): Promise<ActionResult> {
   try {
-    const ctx = await requireSuperadmin();
-    await db.whatsAppChannel.update({ where: { orgId: ctx.org.id }, data: { verifyToken: randomBytes(18).toString("base64url") } });
-    revalidatePath(SETTINGS);
-    return { ok: true, message: "Novo token de verificação gerado: atualize no app da Meta" };
-  } catch (e) {
-    return fail(e);
-  }
-}
-
-/* ------------------------- modelos e chatbot (administração) ------------------------- */
-
-async function requireWaAdmin() {
-  const ctx = await requireContext();
-  if (!ctx.superadmin && !hasRole(ctx, "ADMIN")) throw new Error("Somente a administração pode alterar o WhatsApp.");
-  if (!ctx.settings.modules.whatsapp) throw new Error("WhatsApp fora do plano da empresa.");
-  const row = await db.whatsAppChannel.findUnique({ where: { orgId: ctx.org.id } });
-  if (!row) throw new Error("Conecte o número do WhatsApp primeiro.");
-  return { ctx, row };
-}
-
-/** Busca na Meta os modelos aprovados e mantém os nomes amigáveis já definidos. */
-export async function syncWhatsAppTemplates(): Promise<ActionResult> {
-  try {
-    const { ctx, row } = await requireWaAdmin();
-    const channel = await getChannel(ctx.org.id);
-    if (!channel) return { ok: false, error: "Conexão inativa" };
-    const remote = await cloud.listTemplates(channel.creds);
-    const current = resolveTemplates(row.templates);
-    const list: WaTemplate[] = remote.map((t) => {
-      const body = t.components?.find((c) => c.type === "BODY")?.text ?? "";
-      const prev = current.find((c) => c.name === t.name && c.language === t.language);
-      return { name: t.name, language: t.language, label: prev?.label ?? t.name.replace(/_/g, " "), body, params: countParams(body) };
+    const ctx = await requireRole("ADMIN");
+    const account = await getAccount(ctx.org.id);
+    if (!account) return { ok: false, error: "Conecte o WhatsApp antes de configurar o chatbot." };
+    let options: unknown = [];
+    try {
+      options = JSON.parse(str(fd, "options") ?? "[]");
+    } catch {}
+    const botConfig = resolveBot({
+      greeting: str(fd, "greeting"),
+      fallback: str(fd, "fallback"),
+      handoffMessage: str(fd, "handoffMessage"),
+      aiInstructions: str(fd, "aiInstructions") ?? "",
+      options,
+      roundRobin: fd.get("roundRobin") === "on",
+      createDeal: fd.get("createDeal") === "on",
     });
-    await db.whatsAppChannel.update({ where: { id: row.id }, data: { templates: list } });
-    revalidatePath(SETTINGS);
-    return { ok: true, message: `${list.length} modelo(s) aprovado(s) importado(s)` };
+    const wantsAi = str(fd, "botMode") === "AI";
+    if (wantsAi && !ctx.settings.modules.aiBot) return { ok: false, error: "O chatbot com IA não está incluído no plano desta empresa." };
+    if (wantsAi && !aiAvailable()) return { ok: false, error: "A chave de IA da plataforma (ANTHROPIC_API_KEY) não está configurada." };
+    await db.whatsappAccount.update({ where: { id: account.id }, data: { botEnabled: fd.get("botEnabled") === "on", botMode: wantsAi ? "AI" : "MENU", botConfig } });
+    return done("Chatbot salvo");
   } catch (e) {
     return fail(e);
   }
 }
 
-export async function saveWhatsAppTemplates(list: WaTemplate[]): Promise<ActionResult> {
-  try {
-    const { row } = await requireWaAdmin();
-    await db.whatsAppChannel.update({ where: { id: row.id }, data: { templates: resolveTemplates(list) } });
-    revalidatePath(SETTINGS);
-    return { ok: true, message: "Modelos salvos" };
-  } catch (e) {
-    return fail(e);
-  }
+/* ------------------------------ Conversas ------------------------------ */
+
+/** Vendedores com visibilidade restrita só acessam conversas dos próprios contatos. */
+function scope(ctx: Ctx) {
+  const own = ownerScope(ctx);
+  return own.ownerId ? { contact: { ownerId: own.ownerId } } : {};
 }
 
-export async function saveWhatsAppBot(bot: BotConfig): Promise<ActionResult> {
-  try {
-    const { ctx, row } = await requireWaAdmin();
-    const clean = resolveBot(bot);
-    if (clean.pipelineId && !(await db.pipeline.findFirst({ where: { id: clean.pipelineId, orgId: ctx.org.id } }))) clean.pipelineId = null;
-    await db.whatsAppChannel.update({ where: { id: row.id }, data: { bot: clean } });
-    revalidatePath(SETTINGS);
-    return { ok: true, message: "Chatbot salvo" };
-  } catch (e) {
-    return fail(e);
-  }
+async function conversationOf(ctx: Ctx, id: string) {
+  const conv = await db.whatsappConversation.findFirst({ where: { id, orgId: ctx.org.id, ...scope(ctx) } });
+  if (!conv) throw new Error("Conversa não encontrada");
+  return conv;
 }
 
-/* ------------------------- atendimento ------------------------- */
-
-async function access(id: string, min: "SALES" | "VIEWER" = "SALES") {
-  const ctx = await requireContext();
-  if (!ctx.settings.modules.whatsapp) throw new Error("WhatsApp fora do plano da empresa.");
-  if (!hasRole(ctx, min)) throw new Error("Seu acesso é somente de visualização.");
-  const conv = await db.conversation.findFirst({ where: { id, orgId: ctx.org.id, ...conversationScope(ctx) } });
-  if (!conv) throw new Error("Atendimento não encontrado");
-  const channel = await getChannel(ctx.org.id);
-  if (!channel) throw new Error("WhatsApp desconectado. Fale com a administração.");
-  return { ctx, conv, channel };
-}
-
-const refresh = () => revalidatePath("/inbox");
-
-export async function sendWhatsAppText(conversationId: string, text: string): Promise<ActionResult> {
+export async function sendWhatsappMessage(conversationId: string, fd: FormData): Promise<ActionResult> {
   try {
-    const { ctx, conv, channel } = await access(conversationId);
-    const body = text.trim().slice(0, 4096);
+    const ctx = await requireRole("SALES");
+    const conv = await conversationOf(ctx, conversationId);
+    const body = str(fd, "body");
     if (!body) return { ok: false, error: "Escreva a mensagem" };
-    await sendMessage({ channel, conversationId, message: { kind: "text", text: body }, authorId: ctx.user.id, sender: "user" });
-    // quem responde assume o atendimento que estava na fila ou com o chatbot
-    if (conv.status !== "OPEN" || !conv.assigneeId)
-      await db.conversation.update({ where: { id: conv.id }, data: { status: "OPEN", assigneeId: conv.assigneeId ?? ctx.user.id, botState: {} } });
-    refresh();
-    return { ok: true };
-  } catch (e) {
-    refresh();
-    return fail(e);
-  }
-}
-
-export async function sendWhatsAppTemplate(conversationId: string, name: string, params: string[]): Promise<ActionResult> {
-  try {
-    const { ctx, conv, channel } = await access(conversationId);
-    const t = channel.templates.find((x) => x.name === name);
-    if (!t) return { ok: false, error: "Modelo não encontrado" };
-    const contact = conv.contactId ? await db.contact.findUnique({ where: { id: conv.contactId }, select: { name: true } }) : null;
-    const first = (contact?.name ?? conv.name ?? "").split(" ")[0];
-    const vars = { nome: contact?.name ?? conv.name, primeiro_nome: first, empresa: channel.orgName, consultor: ctx.user.name.split(" ")[0] };
-    const values = Array.from({ length: t.params }, (_, i) => fillVars(String(params[i] ?? "").trim(), vars).slice(0, 1000));
-    if (values.some((v) => !v)) return { ok: false, error: "Preencha todas as variáveis do modelo" };
-    await sendMessage({ channel, conversationId, message: { kind: "template", template: { name: t.name, language: t.language, params: values } }, authorId: ctx.user.id, sender: "user" });
-    if (conv.status === "CLOSED" || !conv.assigneeId)
-      await db.conversation.update({ where: { id: conv.id }, data: { status: "OPEN", assigneeId: conv.assigneeId ?? ctx.user.id, botState: {} } });
-    refresh();
-    return { ok: true, message: "Modelo enviado" };
-  } catch (e) {
-    refresh();
-    return fail(e);
-  }
-}
-
-/** Assumir (para si) ou transferir o atendimento. O negócio ligado acompanha o novo responsável. */
-export async function assignConversation(conversationId: string, toId: string | null): Promise<ActionResult> {
-  try {
-    const { ctx, conv } = await access(conversationId);
-    if (toId && !(await db.membership.findFirst({ where: { orgId: ctx.org.id, userId: toId, active: true } }))) return { ok: false, error: "Responsável inválido" };
-    if (toId === conv.assigneeId) return { ok: true };
-    await db.conversation.update({ where: { id: conv.id }, data: { assigneeId: toId, status: toId ? "OPEN" : "QUEUE", botState: {} } });
-    const to = toId ? await db.user.findUnique({ where: { id: toId }, select: { name: true } }) : null;
-    await systemNote(ctx.org.id, conv.id, toId === ctx.user.id ? `${ctx.user.name} assumiu o atendimento.` : to ? `${ctx.user.name} transferiu o atendimento para ${to.name}.` : `${ctx.user.name} devolveu o atendimento para a fila.`);
-    if (toId && toId !== ctx.user.id)
-      await notify(ctx.org.id, [toId], { type: "WHATSAPP", title: `Atendimento transferido para você: ${conv.name || conv.waId}`, body: `Transferido por ${ctx.user.name}`, href: `/inbox?c=${conv.id}` });
-    if (conv.dealId && toId) {
-      const deal = await db.deal.findFirst({ where: { id: conv.dealId, orgId: ctx.org.id, status: "OPEN" }, select: { id: true, title: true, ownerId: true } });
-      if (deal && deal.ownerId !== toId) await transferDeals(ctx, [deal], toId);
-    }
-    refresh();
-    return { ok: true, message: toId === ctx.user.id ? "Atendimento assumido" : toId ? "Atendimento transferido" : "Devolvido para a fila" };
-  } catch (e) {
-    return fail(e);
-  }
-}
-
-export async function closeConversation(conversationId: string, sendClosing: boolean): Promise<ActionResult> {
-  try {
-    const { ctx, conv, channel } = await access(conversationId);
-    if (sendClosing && channel.bot.closingText && conv.lastInboundAt && Date.now() - conv.lastInboundAt.getTime() < 864e5)
-      await sendMessage({ channel, conversationId, message: { kind: "text", text: channel.bot.closingText }, authorId: ctx.user.id, sender: "user" }).catch(() => null);
-    await db.conversation.update({ where: { id: conv.id }, data: { status: "CLOSED", unread: 0, botState: {} } });
-    await systemNote(ctx.org.id, conv.id, `${ctx.user.name} encerrou o atendimento.`);
-    refresh();
-    return { ok: true, message: "Atendimento encerrado" };
-  } catch (e) {
-    return fail(e);
-  }
-}
-
-export async function returnToBot(conversationId: string): Promise<ActionResult> {
-  try {
-    const { ctx, conv } = await access(conversationId);
-    await db.conversation.update({ where: { id: conv.id }, data: { status: "BOT", assigneeId: null, botState: { step: "menu" } } });
-    await systemNote(ctx.org.id, conv.id, `${ctx.user.name} devolveu o atendimento para o chatbot.`);
-    refresh();
-    return { ok: true, message: "Chatbot retomou o atendimento" };
-  } catch (e) {
-    return fail(e);
-  }
-}
-
-export async function markConversationRead(conversationId: string): Promise<ActionResult> {
-  try {
-    const ctx = await requireContext();
-    await db.conversation.updateMany({ where: { id: conversationId, orgId: ctx.org.id, unread: { gt: 0 } }, data: { unread: 0 } });
+    const templateName = str(fd, "templateName");
+    const r = await queueMessage({
+      orgId: ctx.org.id,
+      conversationId: conv.id,
+      body: body.slice(0, 4000),
+      source: "MANUAL",
+      userId: ctx.user.id,
+      template: templateName ? { name: templateName, lang: str(fd, "templateLang") ?? "pt_BR", params: (str(fd, "templateParams") ?? "").split("|").map((p) => p.trim()).filter(Boolean) } : null,
+    });
+    // quem responde pela empresa assume a conversa: o robô se cala e o contador zera
+    await db.whatsappConversation.update({ where: { id: conv.id }, data: { botPaused: true, unread: 0 } });
+    revalidatePath("/whatsapp");
+    if (r.status === "FAILED") return { ok: false, error: r.error ?? "Não foi possível enviar." };
     return { ok: true };
   } catch (e) {
     return fail(e);
   }
 }
 
-/** Cria (ou reaproveita) o contato e o negócio no funil a partir da conversa. */
-export async function createLeadFromConversation(conversationId: string): Promise<ActionResult> {
+export async function markWhatsappRead(conversationId: string): Promise<ActionResult> {
   try {
-    const { ctx, conv, channel } = await access(conversationId);
-    const r = await ensureLead({ ...channel, bot: { ...channel.bot, createDeal: true } }, conv.id, conv.assigneeId ?? ctx.user.id);
-    refresh();
-    return { ok: true, id: r.dealId ?? undefined, message: r.dealId ? "Negócio no funil" : "Contato criado" };
+    const ctx = await requireRole("SALES");
+    const conv = await conversationOf(ctx, conversationId);
+    if (conv.unread) await db.whatsappConversation.update({ where: { id: conv.id }, data: { unread: 0 } });
+    return { ok: true };
   } catch (e) {
     return fail(e);
   }
 }
 
-/** Abre a conversa com um contato do CRM (para iniciar pelo modelo aprovado ou responder). */
-export async function openConversationForContact(contactId: string): Promise<ActionResult> {
+export async function setWhatsappBotPaused(conversationId: string, paused: boolean): Promise<ActionResult> {
   try {
-    const ctx = await requireContext();
-    if (!ctx.settings.modules.whatsapp) return { ok: false, error: "WhatsApp fora do plano da empresa." };
-    const contact = await db.contact.findFirst({ where: { id: contactId, orgId: ctx.org.id } });
+    const ctx = await requireRole("SALES");
+    const conv = await conversationOf(ctx, conversationId);
+    await db.whatsappConversation.update({ where: { id: conv.id }, data: { botPaused: paused } });
+    return done(paused ? "Você assumiu a conversa: o robô não responde mais" : "Robô reativado nesta conversa");
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function cancelWhatsappMessage(id: string): Promise<ActionResult> {
+  try {
+    const ctx = await requireRole("SALES");
+    const r = await db.whatsappMessage.updateMany({ where: { id, orgId: ctx.org.id, status: "SCHEDULED", conversation: scope(ctx) }, data: { status: "CANCELED", error: `Cancelada por ${ctx.user.name}.` } });
+    return r.count ? done("Envio cancelado") : { ok: false, error: "Esta mensagem não está mais agendada." };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+/** Abre (ou cria) a conversa com um contato. */
+export async function openWhatsappConversation(contactId: string): Promise<ActionResult> {
+  try {
+    const ctx = await requireRole("SALES");
+    const contact = await db.contact.findFirst({ where: { id: contactId, orgId: ctx.org.id, ...ownerScope(ctx) }, select: { id: true } });
     if (!contact) return { ok: false, error: "Contato não encontrado" };
-    const waId = toWaId(contact.whatsapp) ?? toWaId(contact.phone);
-    if (!waId) return { ok: false, error: "Contato sem WhatsApp ou telefone válido (com DDD)" };
-    if (!(await getChannel(ctx.org.id))) return { ok: false, error: "WhatsApp desconectado. Fale com a administração." };
-    const conv = await ensureConversation(ctx.org.id, waId, contact.name);
-    if (!conv.contactId) await db.conversation.update({ where: { id: conv.id }, data: { contactId: contact.id } });
-    if (!conv.assigneeId && hasRole(ctx, "SALES"))
-      await db.conversation.update({ where: { id: conv.id }, data: { assigneeId: ctx.user.id, status: conv.status === "CLOSED" || conv.status === "BOT" ? "OPEN" : conv.status } });
+    const conv = await conversationForContact(ctx.org.id, contact.id);
+    if (!conv) return { ok: false, error: "O contato não tem um número de WhatsApp ou telefone válido." };
     return { ok: true, id: conv.id };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+/**
+ * Transfere o atendimento: o contato e os negócios em aberto dele passam para o novo responsável
+ * (com o aviso de transferência no card do funil) e o robô fica calado na conversa.
+ */
+export async function transferWhatsappConversation(conversationId: string, toId: string): Promise<ActionResult> {
+  try {
+    const ctx = await requireRole("SALES");
+    const conv = await conversationOf(ctx, conversationId);
+    if (!conv.contactId) return { ok: false, error: "Vincule a conversa a um contato antes de transferir." };
+    const to = await db.membership.findFirst({ where: { orgId: ctx.org.id, userId: toId, active: true }, include: { user: { select: { name: true } } } });
+    if (!to) return { ok: false, error: "Responsável inválido" };
+    await db.contact.update({ where: { id: conv.contactId }, data: { ownerId: toId } });
+    const deals = await db.deal.findMany({ where: { orgId: ctx.org.id, contactId: conv.contactId, status: "OPEN" }, select: { id: true, title: true, ownerId: true } });
+    await transferDeals(ctx, deals, toId);
+    await db.whatsappConversation.update({ where: { id: conv.id }, data: { botPaused: true } });
+    if (toId !== ctx.user.id)
+      await notify(ctx.org.id, [toId], { type: "WHATSAPP", title: `Conversa no WhatsApp transferida para você: ${conv.name || conv.phone}`, body: `Transferida por ${ctx.user.name}`, href: `/whatsapp?c=${conv.id}` });
+    return done(toId === ctx.user.id ? "Você assumiu o atendimento" : `Atendimento transferido para ${to.user.name}`);
   } catch (e) {
     return fail(e);
   }

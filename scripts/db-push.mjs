@@ -10,6 +10,23 @@ if (env.CRM_DATABASE_URL) {
 }
 env.DATABASE_URL_UNPOOLED ||= env.DATABASE_URL;
 
+// Preparo antes do db push: colunas novas com valor único são criadas aqui, já com o índice.
+// O Prisma recusa (sem --accept-data-loss) criar restrição única em tabela existente, mesmo com a coluna vazia;
+// criando antes, o db push não vê diferença e segue sem precisar daquela opção (que esconderia perdas reais).
+// Idempotente e seguro em banco novo (só age se a tabela já existir).
+const prepare = `
+DO $$ BEGIN
+  IF to_regclass('public."CustomModule"') IS NOT NULL THEN
+    ALTER TABLE "CustomModule" ADD COLUMN IF NOT EXISTS "formToken" TEXT;
+    ALTER TABLE "CustomModule" ADD COLUMN IF NOT EXISTS "feedToken" TEXT;
+    CREATE UNIQUE INDEX IF NOT EXISTS "CustomModule_formToken_key" ON "CustomModule"("formToken");
+    CREATE UNIQUE INDEX IF NOT EXISTS "CustomModule_feedToken_key" ON "CustomModule"("feedToken");
+  END IF;
+END $$;
+`;
+const pre = spawnSync("npx", ["prisma", "db", "execute", "--stdin", "--schema", "prisma/schema.prisma"], { input: prepare, stdio: ["pipe", "inherit", "inherit"], env });
+if (pre.status !== 0) process.exit(pre.status ?? 1);
+
 const r = spawnSync("npx", ["prisma", "db", "push", "--skip-generate"], { stdio: "inherit", env });
 if (r.status !== 0) process.exit(r.status ?? 1);
 

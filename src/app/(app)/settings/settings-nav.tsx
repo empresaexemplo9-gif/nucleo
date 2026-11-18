@@ -23,7 +23,7 @@ export function SettingsNav() {
         can("ADMIN") && { href: "/settings/pipelines", label: "Funis e etapas", desc: "Fases da negociação" },
         can("ADMIN") && { href: "/settings/fields", label: "Campos", desc: "Dados personalizados" },
         can("ADMIN") && settings.modules.automations && { href: "/settings/automations", label: "Automações", desc: "Regras automáticas" },
-        can("ADMIN") && settings.modules.whatsapp && { href: "/settings/whatsapp", label: "WhatsApp", desc: "Chatbot, IA e modelos" },
+        can("ADMIN") && { href: "/settings/whatsapp", label: "WhatsApp", desc: "Conexão e chatbot" },
         can("MANAGER") && settings.modules.goals && { href: "/settings/goals", label: "Metas", desc: "Objetivos mensais" },
         can("MANAGER") && { href: "/settings/tags", label: "Etiquetas e motivos", desc: "Segmentação e perdas" },
         can("ADMIN") && { href: "/settings/contracts", label: "Contratos", desc: "Modelos e PDFs da empresa" },

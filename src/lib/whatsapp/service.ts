@@ -1,334 +1,297 @@
 import "server-only";
-import type { Prisma } from "@prisma/client";
+import type { Prisma, WhatsappAccount, WhatsappConversation } from "@prisma/client";
 import { db } from "../db";
+import { decrypt } from "../crypto";
 import { logEvent } from "../events";
 import { managers, notify } from "../notify";
 import { applyStageChecklist } from "../checklist";
-import { unseal } from "../secret-box";
-import { resolveSettings } from "../labels";
-import * as cloud from "./cloud";
-import { fillTemplate, inWindow, resolveBot, resolveTemplates, toWaId, waIdVariants, type BotConfig, type WaTemplate } from "./config";
+import type { BotConfig } from "./bot-config";
+import { nextSendTime } from "../zoned";
+import { OUTSIDE_WINDOW, sendTemplate, sendText, type WaResult, type WaTemplate } from "./client";
+import { normalizePhone, phoneKey } from "./phone";
 
-export type Channel = {
-  id: string;
-  orgId: string;
-  orgName: string;
-  creds: cloud.Creds;
-  appSecret: string | null;
-  bot: BotConfig;
-  templates: WaTemplate[];
-};
+const DAY = 86_400_000;
+/** Margem de segurança da janela de 24h de texto livre da Meta. */
+const FREE_WINDOW = DAY - 10 * 60_000;
 
-type ChannelRow = Prisma.WhatsAppChannelGetPayload<{ include: { org: { select: { name: true; settings: true } } } }>;
+export const OUTSIDE_WINDOW_HELP = "Fora da janela de 24h: o cliente não escreveu nas últimas 24 horas. Informe um modelo aprovado na Meta para enviar.";
 
-function toChannel(c: ChannelRow | null): Channel | null {
-  if (!c || !c.active) return null;
-  if (!resolveSettings(c.org.settings).modules.whatsapp) return null;
-  const accessToken = unseal(c.accessToken);
-  if (!accessToken) return null;
-  return {
-    id: c.id,
-    orgId: c.orgId,
-    orgName: c.org.name,
-    creds: { phoneNumberId: c.phoneNumberId, accessToken, wabaId: c.wabaId },
-    appSecret: unseal(c.appSecret),
-    bot: resolveBot(c.bot),
-    templates: resolveTemplates(c.templates),
-  };
+export type Guard = { stageId?: string; stopOnReply?: boolean; activityId?: string; activityDueAt?: string; recordId?: string; recordDueAt?: string };
+
+export function getAccount(orgId: string) {
+  return db.whatsappAccount.findUnique({ where: { orgId } });
 }
 
-const include = { org: { select: { name: true, settings: true } } } as const;
-
-/** Canal ativo da empresa (com a função WhatsApp no plano). */
-export async function getChannel(orgId: string) {
-  return toChannel(await db.whatsAppChannel.findUnique({ where: { orgId }, include }));
+/** Contato da empresa dono deste número (tolerante a máscara e ao nono dígito). */
+export async function findContactByPhone(orgId: string, phone: string) {
+  const key = phoneKey(phone);
+  if (!key) return null;
+  const rows = await db.$queryRaw<{ id: string; phone: string | null; whatsapp: string | null }[]>`
+    SELECT id, phone, whatsapp FROM "Contact"
+    WHERE "orgId" = ${orgId}
+      AND (regexp_replace(coalesce(whatsapp, ''), '\\D', '', 'g') LIKE ${"%" + key.slice(-8)}
+        OR regexp_replace(coalesce(phone, ''), '\\D', '', 'g') LIKE ${"%" + key.slice(-8)})
+    ORDER BY "createdAt" ASC LIMIT 20`;
+  return rows.find((r) => phoneKey(r.whatsapp) === key) ?? rows.find((r) => phoneKey(r.phone) === key) ?? null;
 }
 
-export async function channelByPhoneId(phoneNumberId: string) {
-  return toChannel(await db.whatsAppChannel.findUnique({ where: { phoneNumberId }, include }));
-}
-
-/* ------------------------- contatos e conversas ------------------------- */
-
-/** Contato da empresa com esse número (WhatsApp ou telefone), se existir. */
-export async function findContactByWa(orgId: string, waId: string) {
-  const variants = waIdVariants(waId);
-  const tails = variants.map((v) => v.slice(-8));
-  const candidates = await db.contact.findMany({
-    where: { orgId, OR: tails.flatMap((t) => [{ whatsapp: { contains: t.slice(-4) } }, { phone: { contains: t.slice(-4) } }]) },
-    select: { id: true, name: true, whatsapp: true, phone: true, ownerId: true },
-    take: 200,
-  });
-  return candidates.find((c) => [c.whatsapp, c.phone].some((p) => { const w = toWaId(p); return !!w && variants.includes(w); })) ?? null;
-}
-
-export async function ensureConversation(orgId: string, waId: string, name?: string | null) {
-  const existing = await db.conversation.findFirst({ where: { orgId, waId: { in: waIdVariants(waId) } } });
+/** Conversa com o contato (cria se ainda não existir). */
+export async function conversationForContact(orgId: string, contactId: string) {
+  const contact = await db.contact.findFirst({ where: { id: contactId, orgId } });
+  if (!contact) return null;
+  const phone = normalizePhone(contact.whatsapp || contact.phone);
+  const existing = await db.whatsappConversation.findFirst({ where: { orgId, OR: [{ contactId }, ...(phone ? [{ phone }] : [])] }, orderBy: { lastMessageAt: "desc" } });
   if (existing) {
-    if (!existing.contactId) {
-      const c = await findContactByWa(orgId, waId);
-      if (c) return db.conversation.update({ where: { id: existing.id }, data: { contactId: c.id } });
-    }
+    if (!existing.contactId) return db.whatsappConversation.update({ where: { id: existing.id }, data: { contactId, name: contact.name } });
     return existing;
   }
-  const contact = await findContactByWa(orgId, waId);
-  return db.conversation.create({ data: { orgId, waId, name: name ?? contact?.name ?? null, contactId: contact?.id ?? null } });
+  if (!phone) return null;
+  return db.whatsappConversation.create({ data: { orgId, phone, contactId, name: contact.name } });
 }
 
-/* ------------------------- envio ------------------------- */
+/* ------------------------------------------------------------------ */
+/* Envio                                                               */
+/* ------------------------------------------------------------------ */
 
-type Outgoing =
-  | { kind: "text"; text: string }
-  | { kind: "template"; template: { name: string; language: string; params: string[] } }
-  | { kind: "menu"; text: string; options: { id: string; label: string }[] };
-
-export type SendInput = { channel: Channel; conversationId: string; message: Outgoing; authorId?: string | null; sender: "user" | "bot" | "ia" | "automacao" };
-
-/** Envia pela Meta e registra no histórico. Texto livre só dentro da janela de 24h. */
-export async function sendMessage({ channel, conversationId, message, authorId = null, sender }: SendInput) {
-  const conv = await db.conversation.findFirstOrThrow({ where: { id: conversationId, orgId: channel.orgId } });
-  if (message.kind !== "template" && !inWindow(conv.lastInboundAt))
-    throw new cloud.WhatsAppError("Fora da janela de 24h desde a última mensagem do cliente: envie um modelo aprovado.");
-  let body: string;
-  let kind: string;
-  if (message.kind === "template") {
-    const t = channel.templates.find((x) => x.name === message.template.name);
-    body = t?.body ? fillTemplate(t.body, message.template.params) : `[modelo] ${t?.label ?? message.template.name}`;
-    kind = "template";
-  } else if (message.kind === "menu") {
-    body = `${message.text}\n${message.options.map((o, i) => `${i + 1}. ${o.label}`).join("\n")}`;
-    kind = "interactive";
-  } else {
-    body = message.text;
-    kind = "text";
-  }
-  const row = await db.whatsAppMessage.create({ data: { orgId: channel.orgId, conversationId, direction: "OUT", kind, body, authorId, sender, status: "pending" } });
-  try {
-    const id =
-      message.kind === "template"
-        ? await cloud.sendTemplate(channel.creds, conv.waId, message.template.name, message.template.language, message.template.params)
-        : message.kind === "menu"
-          ? await cloud.sendMenu(channel.creds, conv.waId, message.text, message.options)
-          : await cloud.sendText(channel.creds, conv.waId, message.text);
-    await db.whatsAppMessage.update({ where: { id: row.id }, data: { externalId: id, status: "sent" } });
-  } catch (e) {
-    await db.whatsAppMessage.update({ where: { id: row.id }, data: { status: "failed", error: (e as Error).message.slice(0, 500) } });
-    throw e;
-  } finally {
-    await db.conversation.update({ where: { id: conversationId }, data: { lastMessageAt: new Date(), preview: body.slice(0, 140) } });
-  }
-  return row.id;
-}
-
-/* ------------------------- distribuição e passagem para a equipe ------------------------- */
-
-/** Consultor ou gestor ativo com menos atendimentos abertos (rodízio). */
-export async function pickAssignee(orgId: string) {
-  const members = await db.membership.findMany({ where: { orgId, active: true, role: { in: ["SALES", "MANAGER"] } }, select: { userId: true } });
-  if (!members.length) return null;
-  const load = await db.conversation.groupBy({ by: ["assigneeId"], where: { orgId, status: "OPEN", assigneeId: { in: members.map((m) => m.userId) } }, _count: true });
-  const count = new Map(load.map((l) => [l.assigneeId, l._count]));
-  return members.map((m) => m.userId).sort((a, b) => (count.get(a) ?? 0) - (count.get(b) ?? 0))[0] ?? null;
-}
-
-/** Garante contato e (opcionalmente) negócio no funil para a conversa. */
-export async function ensureLead(channel: Channel, conversationId: string, ownerId: string | null, extra?: { tag?: string; note?: string }) {
-  const conv = await db.conversation.findUniqueOrThrow({ where: { id: conversationId } });
-  let contactId = conv.contactId;
-  if (!contactId) {
-    const c = await db.contact.create({
-      data: { orgId: channel.orgId, name: conv.name || `WhatsApp ${conv.waId}`, whatsapp: conv.waId, phone: conv.waId, source: "WhatsApp", ownerId, tags: extra?.tag ? [extra.tag] : [] },
-    });
-    contactId = c.id;
-    await logEvent({ orgId: channel.orgId, type: "CONTACT_CREATED", contactId, data: { via: "WhatsApp" } });
-  } else if (extra?.tag) {
-    const c = await db.contact.findUnique({ where: { id: contactId }, select: { tags: true } });
-    if (c && !c.tags.includes(extra.tag)) await db.contact.update({ where: { id: contactId }, data: { tags: { push: extra.tag } } });
-  }
-  let dealId = conv.dealId;
-  const openDeal = dealId ? await db.deal.findFirst({ where: { id: dealId, status: "OPEN" } }) : null;
-  if (!openDeal && channel.bot.createDeal) {
-    const pipeline = await db.pipeline.findFirst({
-      where: { orgId: channel.orgId, ...(channel.bot.pipelineId ? { id: channel.bot.pipelineId } : { isDefault: true }) },
-      include: { stages: { where: { type: "OPEN" }, orderBy: { position: "asc" }, take: 1 } },
-    });
-    const stage = pipeline?.stages[0];
-    if (pipeline && stage) {
-      const last = await db.deal.findFirst({ where: { stageId: stage.id }, orderBy: { position: "desc" } });
-      const deal = await db.deal.create({
-        data: {
-          orgId: channel.orgId,
-          title: `${conv.name || conv.waId} · WhatsApp`,
-          pipelineId: pipeline.id,
-          stageId: stage.id,
-          contactId,
-          ownerId,
-          source: "WhatsApp",
-          tags: extra?.tag ? [extra.tag] : [],
-          position: (last?.position ?? 0) + 1,
-        },
-      });
-      dealId = deal.id;
-      await applyStageChecklist(channel.orgId, deal.id, stage.id, null);
-      await logEvent({ orgId: channel.orgId, type: "DEAL_CREATED", dealId: deal.id, contactId, data: { title: deal.title, via: "WhatsApp" } });
-      if (extra?.note) await db.note.create({ data: { orgId: channel.orgId, dealId: deal.id, contactId, content: extra.note } });
-      const { runAutomations } = await import("../automation");
-      await runAutomations(channel.orgId, "DEAL_CREATED", deal.id);
-    }
-  }
-  await db.conversation.update({ where: { id: conversationId }, data: { contactId, dealId } });
-  return { contactId, dealId };
-}
-
-/** Passa o atendimento do chatbot para a equipe. */
-export async function handoff(channel: Channel, conversationId: string, opts?: { tag?: string; note?: string; reason?: string }) {
-  const conv = await db.conversation.findUniqueOrThrow({ where: { id: conversationId } });
-  const assigneeId = conv.assigneeId ?? (channel.bot.assign === "round_robin" ? await pickAssignee(channel.orgId) : null);
-  const { dealId } = await ensureLead(channel, conversationId, assigneeId, opts);
-  await db.conversation.update({ where: { id: conversationId }, data: { status: assigneeId ? "OPEN" : "QUEUE", assigneeId, botState: {} } });
-  await systemNote(channel.orgId, conversationId, assigneeId ? "Atendimento transferido do chatbot para a equipe." : "Chatbot colocou o atendimento na fila da equipe.");
-  const to = assigneeId ? [assigneeId] : await managers(channel.orgId);
-  await notify(channel.orgId, to, {
-    type: "WHATSAPP",
-    title: `${assigneeId ? "Novo atendimento para você" : "Atendimento na fila"}: ${conv.name || conv.waId}`,
-    body: opts?.reason ?? "Cliente aguardando no WhatsApp",
-    href: `/inbox?c=${conversationId}`,
-  });
-  return { assigneeId, dealId };
-}
-
-export async function systemNote(orgId: string, conversationId: string, body: string) {
-  await db.whatsAppMessage.create({ data: { orgId, conversationId, direction: "OUT", kind: "system", body, status: "sent", sender: "bot" } });
-}
-
-/* ------------------------- webhook ------------------------- */
-
-type InboundMessage = {
-  id: string;
-  from: string;
-  timestamp?: string;
-  type: string;
-  text?: { body: string };
-  button?: { text: string; payload?: string };
-  interactive?: { type: string; button_reply?: { id: string; title: string }; list_reply?: { id: string; title: string } };
-  image?: { caption?: string };
-  document?: { caption?: string; filename?: string };
-  location?: { name?: string; address?: string; latitude: number; longitude: number };
+export type QueueInput = {
+  orgId: string;
+  conversationId: string;
+  body: string;
+  source: "MANUAL" | "BOT" | "AUTOMATION";
+  scheduledAt?: Date | null;
+  template?: WaTemplate | null;
+  guard?: Guard | null;
+  automationId?: string | null;
+  dealId?: string | null;
+  userId?: string | null;
 };
 
-export function inboundText(m: InboundMessage): { text: string; choiceId?: string; kind: string } {
-  switch (m.type) {
-    case "text":
-      return { text: m.text?.body ?? "", kind: "text" };
-    case "button":
-      return { text: m.button?.text ?? "", choiceId: m.button?.payload, kind: "interactive" };
-    case "interactive": {
-      const r = m.interactive?.button_reply ?? m.interactive?.list_reply;
-      return { text: r?.title ?? "", choiceId: r?.id, kind: "interactive" };
-    }
-    case "image":
-      return { text: m.image?.caption ? `📷 ${m.image.caption}` : "📷 Imagem", kind: "media" };
-    case "document":
-      return { text: `📎 ${m.document?.filename ?? "Documento"}${m.document?.caption ? ` — ${m.document.caption}` : ""}`, kind: "media" };
-    case "audio":
-      return { text: "🎤 Áudio", kind: "media" };
-    case "video":
-      return { text: "🎬 Vídeo", kind: "media" };
-    case "sticker":
-      return { text: "Figurinha", kind: "media" };
-    case "location":
-      return { text: `📍 ${m.location?.name ?? m.location?.address ?? `${m.location?.latitude}, ${m.location?.longitude}`}`, kind: "media" };
-    default:
-      return { text: `[${m.type}]`, kind: "media" };
-  }
-}
-
-export async function handleInbound(channel: Channel, m: InboundMessage, profileName?: string) {
-  if (await db.whatsAppMessage.findUnique({ where: { externalId: m.id } })) return; // reentrega da Meta
-  const conv = await ensureConversation(channel.orgId, m.from, profileName);
-  const { text, choiceId, kind } = inboundText(m);
-  await db.whatsAppMessage.create({ data: { orgId: channel.orgId, conversationId: conv.id, direction: "IN", kind, body: text, externalId: m.id, status: "received" } });
-  // atendimento encerrado: a próxima mensagem começa um novo atendimento pelo chatbot
-  const reopened = conv.status === "CLOSED";
-  const status = reopened ? (channel.bot.enabled ? "BOT" : "QUEUE") : conv.status;
-  const updated = await db.conversation.update({
-    where: { id: conv.id },
+/** Registra a mensagem de saída. Sem agendamento futuro, já tenta enviar. */
+export async function queueMessage(input: QueueInput) {
+  const now = new Date();
+  const scheduledAt = input.scheduledAt && input.scheduledAt > now ? input.scheduledAt : now;
+  const msg = await db.whatsappMessage.create({
     data: {
-      lastInboundAt: new Date(),
-      lastMessageAt: new Date(),
-      preview: text.slice(0, 140),
-      unread: { increment: 1 },
-      status,
-      ...(reopened ? { botState: {}, assigneeId: channel.bot.enabled ? null : conv.assigneeId } : {}),
-      ...(profileName && !conv.name ? { name: profileName } : {}),
+      orgId: input.orgId,
+      conversationId: input.conversationId,
+      direction: "OUT",
+      body: input.body,
+      status: "SCHEDULED",
+      source: input.source,
+      scheduledAt,
+      template: (input.template ?? undefined) as Prisma.InputJsonValue | undefined,
+      guard: (input.guard ?? undefined) as Prisma.InputJsonValue | undefined,
+      automationId: input.automationId,
+      dealId: input.dealId,
+      userId: input.userId,
     },
   });
-  void cloud.markRead(channel.creds, m.id);
-  if (status === "BOT") {
-    const { runBot } = await import("./bot");
-    await runBot(channel, updated.id, { text, choiceId });
-  } else if (status === "QUEUE" && reopened) {
-    await handoff(channel, updated.id, { reason: text.slice(0, 120) });
-  } else if (updated.assigneeId) {
-    await notify(channel.orgId, [updated.assigneeId], { type: "WHATSAPP", title: `Nova mensagem de ${updated.name || updated.waId}`, body: text.slice(0, 120), href: `/inbox?c=${updated.id}` });
-  }
+  if (scheduledAt <= now) return dispatchMessage(msg.id);
+  return { id: msg.id, status: "SCHEDULED" as string, error: null as string | null };
 }
 
-type StatusUpdate = { id: string; status: string; errors?: { code: number; title?: string; message?: string; error_data?: { details?: string } }[] };
-const STATUS_ORDER = ["pending", "sent", "delivered", "read"];
-
-export async function handleStatus(s: StatusUpdate) {
-  const msg = await db.whatsAppMessage.findUnique({ where: { externalId: s.id } });
-  if (!msg) return;
-  if (s.status === "failed") {
-    const e = s.errors?.[0];
-    await db.whatsAppMessage.update({ where: { id: msg.id }, data: { status: "failed", error: (e?.error_data?.details || e?.message || e?.title || "Falha no envio").slice(0, 500) } });
-    return;
-  }
-  // as notificações podem chegar fora de ordem: nunca volta o status
-  if (STATUS_ORDER.indexOf(s.status) > STATUS_ORDER.indexOf(msg.status)) await db.whatsAppMessage.update({ where: { id: msg.id }, data: { status: s.status } });
+async function finish(id: string, status: string, error: string | null = null, extra: Prisma.WhatsappMessageUpdateInput = {}) {
+  await db.whatsappMessage.update({ where: { id }, data: { status, error, ...extra } });
+  return { id, status, error };
 }
 
-/* ------------------------- envios das automações ------------------------- */
+/** Envia uma mensagem agendada, conferindo antes se ela ainda faz sentido. */
+export async function dispatchMessage(id: string): Promise<{ id: string; status: string; error: string | null }> {
+  // reserva a mensagem: duas execuções simultâneas nunca enviam em duplicidade
+  const claim = await db.whatsappMessage.updateMany({ where: { id, status: "SCHEDULED" }, data: { status: "SENDING" } });
+  if (!claim.count) return { id, status: "SKIPPED", error: null };
+  const msg = await db.whatsappMessage.findUniqueOrThrow({ where: { id }, include: { conversation: true, org: { select: { timezone: true } } } });
+  try {
+    const conv = msg.conversation;
+    const account = await getAccount(msg.orgId);
+    if (!account || !account.active) return await finish(id, "FAILED", "WhatsApp não conectado. Configure em Configurações → WhatsApp.");
+    const guard = (msg.guard ?? {}) as Guard;
+    const now = new Date();
 
-export type WaPayload = { template?: { name: string; language: string; params: string[] }; text?: string; skipIfReplied?: boolean };
-
-/**
- * Envia para um número: texto se a janela de 24h estiver aberta, senão o modelo aprovado.
- * Sem modelo e fora da janela, registra a falha.
- */
-export async function deliver(channel: Channel, to: string, payload: WaPayload, opts?: { contactName?: string | null; since?: Date }) {
-  const conv = await ensureConversation(channel.orgId, to, opts?.contactName);
-  if (payload.skipIfReplied && opts?.since && conv.lastInboundAt && conv.lastInboundAt > opts.since) return "SKIPPED" as const;
-  const message: Outgoing | null =
-    payload.text && inWindow(conv.lastInboundAt) ? { kind: "text", text: payload.text } : payload.template ? { kind: "template", template: payload.template } : null;
-  if (!message) throw new cloud.WhatsAppError("Fora da janela de 24h e sem modelo aprovado configurado.");
-  await sendMessage({ channel, conversationId: conv.id, message, sender: "automacao" });
-  return "SENT" as const;
-}
-
-/** Processa envios agendados vencidos (chamado pelo cron e pelo webhook). */
-export async function processScheduled(limit = 25) {
-  const due = await db.whatsAppScheduled.findMany({ where: { status: "PENDING", sendAt: { lte: new Date() } }, orderBy: { sendAt: "asc" }, take: limit });
-  let sent = 0;
-  for (const job of due) {
-    // trava otimista: evita envio duplicado com execuções simultâneas
-    const lock = await db.whatsAppScheduled.updateMany({ where: { id: job.id, status: "PENDING" }, data: { status: "SENDING" } });
-    if (!lock.count) continue;
-    try {
-      const channel = await getChannel(job.orgId);
-      if (!channel) throw new Error("WhatsApp desativado para a empresa");
-      if (job.dealId) {
-        const deal = await db.deal.findUnique({ where: { id: job.dealId }, select: { status: true } });
-        if (!deal) throw new Error("Negócio excluído");
+    if (msg.source === "AUTOMATION") {
+      if (conv.optedOut) return await finish(id, "CANCELED", "O cliente pediu para não receber mensagens automáticas.");
+      if (guard.stopOnReply && conv.lastInboundAt && conv.lastInboundAt > msg.createdAt) return await finish(id, "CANCELED", "Cancelada: o cliente respondeu antes do envio.");
+      if (guard.stageId && msg.dealId) {
+        const deal = await db.deal.findUnique({ where: { id: msg.dealId }, select: { stageId: true, status: true } });
+        if (!deal || deal.status !== "OPEN" || deal.stageId !== guard.stageId) return await finish(id, "CANCELED", "Cancelada: o negócio saiu da etapa.");
       }
-      const contact = job.contactId ? await db.contact.findUnique({ where: { id: job.contactId }, select: { name: true } }) : null;
-      const r = await deliver(channel, job.to, job.payload as WaPayload, { contactName: contact?.name, since: job.createdAt });
-      await db.whatsAppScheduled.update({ where: { id: job.id }, data: { status: r } });
-      if (r === "SENT") sent++;
-    } catch (e) {
-      await db.whatsAppScheduled.update({ where: { id: job.id }, data: { status: "FAILED", error: (e as Error).message.slice(0, 500) } });
+      // mensagens automáticas só saem no horário comercial da empresa
+      let when = nextSendTime(now, msg.org.timezone, account.sendStart, account.sendEnd);
+      if (guard.activityId) {
+        const act = await db.activity.findUnique({ where: { id: guard.activityId }, select: { done: true, dueAt: true } });
+        if (!act || act.done || act.dueAt?.toISOString() !== guard.activityDueAt) return await finish(id, "CANCELED", "Cancelada: o compromisso foi concluído, remarcado ou excluído.");
+        if (act.dueAt && act.dueAt < now) return await finish(id, "CANCELED", "Cancelada: o compromisso já passou.");
+        // lembrete que só caberia depois do compromisso sai agora mesmo
+        if (act.dueAt && when >= act.dueAt) when = now;
+      }
+      if (guard.recordId) {
+        const rec = await db.moduleRecord.findUnique({ where: { id: guard.recordId }, select: { closedAt: true, dueAt: true, status: { select: { isFinal: true } } } });
+        if (!rec || rec.closedAt || rec.status?.isFinal) return await finish(id, "CANCELED", "Cancelada: o registro foi concluído ou excluído.");
+        if (guard.recordDueAt && rec.dueAt?.toISOString() !== guard.recordDueAt) return await finish(id, "CANCELED", "Cancelada: a data do registro mudou.");
+        if (guard.recordDueAt && rec.dueAt && rec.dueAt > now && when >= rec.dueAt) when = now;
+      }
+      if (when > now) return await finish(id, "SCHEDULED", null, { scheduledAt: when });
+    }
+
+    const token = decrypt(account.tokenEnc);
+    const template = msg.template as WaTemplate | null;
+    const inWindow = !!conv.lastInboundAt && now.getTime() - conv.lastInboundAt.getTime() < FREE_WINDOW;
+    let r: WaResult;
+    if (inWindow) {
+      r = await sendText(account.phoneNumberId, token, conv.phone, msg.body);
+      if (!r.ok && r.code === OUTSIDE_WINDOW && template) r = await sendTemplate(account.phoneNumberId, token, conv.phone, template);
+    } else if (template) {
+      r = await sendTemplate(account.phoneNumberId, token, conv.phone, template);
+    } else {
+      return await finish(id, "FAILED", OUTSIDE_WINDOW_HELP);
+    }
+
+    if (!r.ok) {
+      // falha temporária (rede, limite da Meta): tenta de novo nas próximas execuções, por até 1 hora
+      const since = now.getTime() - (msg.scheduledAt ?? msg.createdAt).getTime();
+      if (r.retryable && since < 3_600_000) return await finish(id, "SCHEDULED", r.error);
+      return await finish(id, "FAILED", r.code === OUTSIDE_WINDOW ? OUTSIDE_WINDOW_HELP : r.error);
+    }
+    await db.whatsappConversation.update({ where: { id: conv.id }, data: { lastMessageAt: now, lastPreview: msg.body.slice(0, 120) } });
+    if (msg.source === "AUTOMATION" && (msg.dealId || conv.contactId))
+      await logEvent({ orgId: msg.orgId, type: "WHATSAPP_SENT", dealId: msg.dealId, contactId: conv.contactId, data: { title: msg.body.slice(0, 80) } }).catch(() => {});
+    return await finish(id, "SENT", null, { waId: r.waId, sentAt: now });
+  } catch (e) {
+    console.error("Falha ao enviar WhatsApp", e);
+    return await finish(id, "FAILED", "Erro inesperado ao enviar.").catch(() => ({ id, status: "FAILED", error: "Erro inesperado ao enviar." }));
+  }
+}
+
+/** Envia tudo o que já venceu na fila (chamado pelo agendador). */
+export async function dispatchDue(orgId?: string, limit = 60) {
+  const due = await db.whatsappMessage.findMany({
+    where: { status: "SCHEDULED", scheduledAt: { lte: new Date() }, ...(orgId ? { orgId } : {}) },
+    orderBy: { scheduledAt: "asc" },
+    take: limit,
+    select: { id: true },
+  });
+  let sent = 0;
+  for (const m of due) if ((await dispatchMessage(m.id)).status === "SENT") sent += 1;
+  return { due: due.length, sent };
+}
+
+/* ------------------------------------------------------------------ */
+/* Recebimento (webhook)                                               */
+/* ------------------------------------------------------------------ */
+
+const OPT_OUT = /^(sair|parar|pare|stop|cancelar|descadastrar|n[aã]o quero (mais )?receber)\b/i;
+const OPT_IN = /^(voltar|retomar|quero receber)\b/i;
+
+export type Inbound = { waId: string; from: string; text: string; name?: string | null };
+
+/** Guarda a mensagem do cliente. Devolve a conversa quando a mensagem é nova (para o robô responder). */
+export async function receiveMessage(account: WhatsappAccount, m: Inbound): Promise<{ conversation: WhatsappConversation; first: boolean; optOut: boolean } | null> {
+  const orgId = account.orgId;
+  const phone = normalizePhone(m.from);
+  if (!phone) return null;
+  if (await db.whatsappMessage.findUnique({ where: { waId: m.waId }, select: { id: true } })) return null; // a Meta reenviou
+  const now = new Date();
+  const key = phoneKey(phone)!;
+  let conv =
+    (await db.whatsappConversation.findUnique({ where: { orgId_phone: { orgId, phone } } })) ??
+    // mesmo número cadastrado com/sem o nono dígito
+    (await db.whatsappConversation.findMany({ where: { orgId, phone: { endsWith: key.slice(-8) } } })).find((c) => phoneKey(c.phone) === key) ??
+    null;
+  let created = false;
+  let contactId = conv?.contactId ?? null;
+  if (!contactId) {
+    contactId = (await findContactByPhone(orgId, phone))?.id ?? null;
+    if (!contactId && account.autoCreateContact) {
+      const c = await db.contact.create({ data: { orgId, name: m.name?.trim() || `WhatsApp ${phone}`, whatsapp: phone, source: "WhatsApp", lifecycle: "lead" } });
+      contactId = c.id;
+      created = true;
+      await logEvent({ orgId, type: "CONTACT_CREATED", contactId: c.id, data: { name: "via WhatsApp" } }).catch(() => {});
     }
   }
-  return { processed: due.length, sent };
+  const first = !conv || !conv.lastInboundAt || now.getTime() - conv.lastInboundAt.getTime() > DAY;
+  const optOut = OPT_OUT.test(m.text.trim());
+  const data = {
+    phone, // o número que o WhatsApp entrega é o que funciona para responder
+    contactId,
+    lastMessageAt: now,
+    lastInboundAt: now,
+    lastPreview: m.text.slice(0, 120),
+    unread: { increment: 1 },
+    ...(optOut ? { optedOut: true } : OPT_IN.test(m.text.trim()) ? { optedOut: false } : {}),
+  };
+  const wasUnread = conv?.unread ?? 0;
+  conv = conv
+    ? await db.whatsappConversation.update({ where: { id: conv.id }, data: { ...data, name: conv.name ?? m.name ?? null } })
+    : await db.whatsappConversation.create({ data: { ...data, unread: 1, orgId, name: m.name ?? null } });
+  try {
+    await db.whatsappMessage.create({ data: { orgId, conversationId: conv.id, direction: "IN", body: m.text, status: "RECEIVED", source: "CUSTOMER", waId: m.waId } });
+  } catch {
+    return null; // entrega duplicada em paralelo
+  }
+  const who = conv.name || phone;
+  if (created) await notify(orgId, await managers(orgId), { type: "WHATSAPP", title: `Novo lead pelo WhatsApp: ${who}`, body: m.text.slice(0, 140), href: `/whatsapp?c=${conv.id}` });
+  else if ((!account.botEnabled || conv.botPaused) && wasUnread === 0) await notifyConversation(conv, `Nova mensagem de ${who}`, m.text.slice(0, 140));
+  return { conversation: conv, first, optOut };
+}
+
+/** Avisa o responsável pelo contato (ou os gestores, se não houver). */
+export async function notifyConversation(conv: WhatsappConversation, title: string, body?: string) {
+  const owner = conv.contactId ? (await db.contact.findUnique({ where: { id: conv.contactId }, select: { ownerId: true } }))?.ownerId : null;
+  await notify(conv.orgId, owner ? [owner] : await managers(conv.orgId), { type: "WHATSAPP", title, body, href: `/whatsapp?c=${conv.id}` });
+}
+
+const RANK: Record<string, number> = { SENT: 1, DELIVERED: 2, READ: 3 };
+
+/** Atualiza o status de entrega informado pela Meta. */
+export async function receiveStatus(orgId: string, s: { id: string; status: string; error?: string }) {
+  const msg = await db.whatsappMessage.findFirst({ where: { waId: s.id, orgId, direction: "OUT" } });
+  if (!msg) return;
+  const status = s.status.toUpperCase();
+  if (status === "FAILED") await db.whatsappMessage.update({ where: { id: msg.id }, data: { status: "FAILED", error: (s.error || "A Meta não conseguiu entregar a mensagem.").slice(0, 300) } });
+  else if (RANK[status] && RANK[status] > (RANK[msg.status] ?? 0)) await db.whatsappMessage.update({ where: { id: msg.id }, data: { status } });
+}
+
+/* ------------------------------------------------------------------ */
+/* Passagem para a equipe                                              */
+/* ------------------------------------------------------------------ */
+
+/** Consultor ou gestor ativo com menos contatos de WhatsApp aguardando (rodízio). */
+async function nextInLine(orgId: string) {
+  const members = await db.membership.findMany({ where: { orgId, active: true, role: { in: ["SALES", "MANAGER"] } }, select: { userId: true } });
+  if (!members.length) return null;
+  const ids = members.map((m) => m.userId);
+  const since = new Date(Date.now() - 7 * DAY);
+  const load = await db.whatsappConversation.findMany({ where: { orgId, botPaused: true, lastMessageAt: { gte: since }, contact: { ownerId: { in: ids } } }, select: { contact: { select: { ownerId: true } } } });
+  const count = new Map<string, number>();
+  for (const l of load) if (l.contact?.ownerId) count.set(l.contact.ownerId, (count.get(l.contact.ownerId) ?? 0) + 1);
+  return ids.sort((a, b) => (count.get(a) ?? 0) - (count.get(b) ?? 0))[0] ?? null;
+}
+
+/**
+ * Quando o robô passa o atendimento: define o responsável pelo contato (rodízio, se ainda não houver)
+ * e cria o negócio no funil padrão se o contato não tiver nenhum em aberto.
+ */
+export async function leadForHandoff(conv: WhatsappConversation, cfg: BotConfig, reason?: string) {
+  if (!conv.contactId) return;
+  const contact = await db.contact.findUnique({ where: { id: conv.contactId }, select: { id: true, name: true, ownerId: true, companyId: true } });
+  if (!contact) return;
+  let ownerId = contact.ownerId;
+  if (!ownerId && cfg.roundRobin) {
+    ownerId = await nextInLine(conv.orgId);
+    if (ownerId) await db.contact.update({ where: { id: contact.id }, data: { ownerId } });
+  }
+  if (!cfg.createDeal) return;
+  if (await db.deal.findFirst({ where: { orgId: conv.orgId, contactId: contact.id, status: "OPEN" }, select: { id: true } })) return;
+  const pipeline = await db.pipeline.findFirst({ where: { orgId: conv.orgId, isDefault: true }, include: { stages: { where: { type: "OPEN" }, orderBy: { position: "asc" }, take: 1 } } });
+  const stage = pipeline?.stages[0];
+  if (!pipeline || !stage) return;
+  const last = await db.deal.findFirst({ where: { stageId: stage.id }, orderBy: { position: "desc" }, select: { position: true } });
+  const deal = await db.deal.create({
+    data: { orgId: conv.orgId, title: `${contact.name} · WhatsApp`, pipelineId: pipeline.id, stageId: stage.id, contactId: contact.id, companyId: contact.companyId, ownerId, source: "WhatsApp", position: (last?.position ?? 0) + 1 },
+  });
+  await applyStageChecklist(conv.orgId, deal.id, stage.id, null);
+  if (reason) await db.note.create({ data: { orgId: conv.orgId, dealId: deal.id, contactId: contact.id, content: `Pedido no WhatsApp: ${reason}` } });
+  await logEvent({ orgId: conv.orgId, type: "DEAL_CREATED", dealId: deal.id, contactId: contact.id, data: { title: deal.title, via: "WhatsApp" } }).catch(() => {});
+  const { runAutomations } = await import("../automation");
+  await runAutomations(conv.orgId, "DEAL_CREATED", deal.id);
 }

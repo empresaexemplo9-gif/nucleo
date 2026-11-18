@@ -31,7 +31,7 @@ export function resolveLabels(raw: unknown): Labels {
 
 export type OrgSettings = {
   visibility: "ALL" | "OWN";
-  modules: { products: boolean; goals: boolean; automations: boolean; companies: boolean; whatsapp: boolean };
+  modules: { products: boolean; goals: boolean; automations: boolean; companies: boolean; /** Chatbot com IA no WhatsApp (usa a chave de IA da plataforma) */ aiBot: boolean };
   requireLostReason: boolean;
   weekStartsOn: 0 | 1;
   /** Personalização visual (whitelabel) */
@@ -40,7 +40,7 @@ export type OrgSettings = {
 
 export const DEFAULT_SETTINGS: OrgSettings = {
   visibility: "ALL",
-  modules: { products: true, goals: true, automations: true, companies: true, whatsapp: false },
+  modules: { products: true, goals: true, automations: true, companies: true, aiBot: false },
   requireLostReason: true,
   weekStartsOn: 1,
   brand: {},

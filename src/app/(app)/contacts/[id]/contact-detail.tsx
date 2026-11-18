@@ -3,7 +3,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Info, ArrowLeft, Building2, Mail, MessageCircle, Pencil, Phone, Trash2 } from "lucide-react";
-import { WhatsAppButton } from "@/components/whatsapp-button";
 import { Avatar, Badge, Button, Card, CardHeader, Modal } from "@/components/ui";
 import { CustomFieldValues, InfoRow } from "@/components/custom-fields";
 import { TagList } from "@/components/pickers";
@@ -14,6 +13,7 @@ import { RelatedDeals, type RelatedDeal } from "@/components/related-deals";
 import { useOrg } from "@/components/org-context";
 import { useAction } from "@/components/use-action";
 import { deleteContacts } from "@/actions/crm";
+import { openWhatsappConversation } from "@/actions/whatsapp";
 import { LIFECYCLES } from "@/lib/defaults";
 import { date } from "@/lib/format";
 
@@ -61,9 +61,12 @@ export function ContactDetail({
             <a href={`tel:${contact.phone}`}><Button variant="secondary"><Phone className="size-4" /> Ligar</Button></a>
           )}
           {wa && (
-            <WhatsAppButton contactId={contact.id} phone={wa} className="inline-flex h-9 items-center gap-2 rounded-[var(--radius-sm)] border border-line bg-[var(--surface-1)] px-3 text-sm font-medium transition hover:border-line-strong">
-              <MessageCircle className="size-4 text-ok" /> WhatsApp
-            </WhatsAppButton>
+            <a href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer"><Button variant="secondary"><MessageCircle className="size-4 text-ok" /> WhatsApp</Button></a>
+          )}
+          {wa && can("SALES") && (
+            <Button variant="secondary" onClick={() => run(() => openWhatsappConversation(contact.id), { onSuccess: (r) => router.push(`/whatsapp?c=${r.id}`) })}>
+              <MessageCircle className="size-4" /> Conversar
+            </Button>
           )}
           {can("SALES") && <Button variant="secondary" onClick={() => setEditing(true)}><Pencil className="size-4" /> Editar</Button>}
           {can("MANAGER") && (

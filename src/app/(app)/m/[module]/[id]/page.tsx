@@ -2,8 +2,8 @@ import { notFound } from "next/navigation";
 import { requireContext } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { loadFeed } from "@/lib/feed-data";
-import { canEditModule, getModuleByKey, recordScope } from "@/lib/modules";
-import { resolveRefs } from "@/lib/module-data";
+import { canEditModule, getModuleByKey, moduleRules, recordScope, visibleModules } from "@/lib/modules";
+import { loadBacklinks, resolveRefs } from "@/lib/module-data";
 import { RecordDetail } from "./record-detail";
 
 export default async function RecordPage({ params }: { params: Promise<{ module: string; id: string }> }) {
@@ -17,7 +17,13 @@ export default async function RecordPage({ params }: { params: Promise<{ module:
   });
   if (!r) notFound();
   const data = (r.data ?? {}) as Record<string, unknown>;
-  const [refs, feed] = await Promise.all([resolveRefs(ctx.org.id, mod.fields, [data]), loadFeed({ recordId: r.id })]);
+  const [refs, feed, backlinks, files] = await Promise.all([
+    resolveRefs(ctx.org.id, mod.fields, [data]),
+    loadFeed({ recordId: r.id }),
+    visibleModules(ctx).then((vis) => loadBacklinks(ctx.org.id, mod.key, r.id, vis)),
+    db.storedFile.findMany({ where: { recordId: r.id, orgId: ctx.org.id }, orderBy: [{ position: "asc" }, { createdAt: "asc" }], select: { id: true, name: true, mime: true, size: true } }),
+  ]);
+  const next = typeof data.__proximo === "string" ? await db.moduleRecord.findFirst({ where: { id: data.__proximo, orgId: ctx.org.id }, select: { id: true, number: true } }) : null;
   return (
     <RecordDetail
       mod={{
@@ -31,8 +37,10 @@ export default async function RecordPage({ params }: { params: Promise<{ module:
         prefix: mod.prefix,
         dueFieldKey: mod.dueFieldKey,
         amountFieldKey: mod.amountFieldKey,
+        recurrenceFieldKey: mod.recurrenceFieldKey,
         canEdit: canEditModule(ctx, mod),
-        fields: mod.fields.map((f) => ({ id: f.id, key: f.key, label: f.label, type: f.type, options: f.options, required: f.required, showInList: f.showInList })),
+        // vínculo com módulo ainda não instalado fica oculto até a instalação
+        fields: mod.fields.filter((f) => !(f.type === "RECORD" && (f.options[0] ?? "").startsWith("tpl:"))).map((f) => ({ id: f.id, key: f.key, label: f.label, type: f.type, options: f.options, required: f.required, showInList: f.showInList })),
         statuses: mod.statuses.map((s) => ({ id: s.id, name: s.name, color: s.color, isFinal: s.isFinal })),
       }}
       record={{
@@ -53,6 +61,10 @@ export default async function RecordPage({ params }: { params: Promise<{ module:
       }}
       refs={refs}
       feed={feed}
+      backlinks={backlinks}
+      look={moduleRules(mod.settings, mod.templateKey).look}
+      files={files}
+      next={next}
     />
   );
 }

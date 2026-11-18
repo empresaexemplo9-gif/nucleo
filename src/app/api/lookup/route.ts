@@ -46,7 +46,8 @@ export async function GET(req: Request) {
     out.push(...products.map((p) => ({ type: "product", id: p.id, label: p.name, sub: String(p.price) })));
   }
   if (type === "all" || type === "record") {
-    const mods = await visibleModules(ctx);
+    const only = url.searchParams.get("module");
+    const mods = (await visibleModules(ctx)).filter((m) => !only || m.key === only);
     if (mods.length) {
       const n = Number(q.replace(/\D/g, ""));
       const recs = await db.moduleRecord.findMany({
@@ -58,7 +59,7 @@ export async function GET(req: Request) {
         },
         include: { status: true },
         orderBy: { updatedAt: "desc" },
-        take: type === "all" ? 8 : 15,
+        take: type === "all" ? 8 : 20,
       });
       for (const r of recs) {
         const m = mods.find((x) => x.id === r.moduleId)!;

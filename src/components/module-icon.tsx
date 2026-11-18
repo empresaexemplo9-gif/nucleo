@@ -1,7 +1,8 @@
 import {
   Boxes, Briefcase, Building, CalendarClock, Car, ClipboardList, FileCheck, FileSignature, FileText, Folder, FolderKanban, GraduationCap,
   HardHat, Hammer, HeartPulse, IdCard, Landmark, LifeBuoy, Megaphone, Package, PawPrint, Receipt, Repeat, Scale, Shirt, ShieldCheck, ShoppingBag, ShoppingCart, Sprout, Stethoscope,
-  Store, Tag, Tractor, Truck, Users, Utensils, Wallet, Warehouse, Wrench, type LucideIcon,
+  Store, Tag, Tractor, Truck, Users, Utensils, Wallet, Warehouse, Wrench, House, KeyRound, CalendarCheck, Scissors, Dumbbell, Activity,
+  NotebookPen, Gavel, Timer, Factory, Cog, Ruler, Umbrella, FileWarning, PenTool, Rocket, BookOpen, Handshake, Layers, Heart, Gem, BellRing, Sparkles, Ribbon, type LucideIcon,
 } from "lucide-react";
 
 /** Ícones disponíveis para módulos personalizados. */
@@ -13,6 +14,10 @@ export const MODULE_ICONS: Record<string, LucideIcon> = {
   "graduation-cap": GraduationCap, "id-card": IdCard, users: Users, briefcase: Briefcase, building: Building, "calendar-clock": CalendarClock,
   "shield-check": ShieldCheck, tag: Tag, utensils: Utensils,
   shirt: Shirt, "shopping-bag": ShoppingBag, repeat: Repeat, megaphone: Megaphone,
+  house: House, "key-round": KeyRound, "calendar-check": CalendarCheck, scissors: Scissors, dumbbell: Dumbbell, activity: Activity,
+  "notebook-pen": NotebookPen, gavel: Gavel, timer: Timer, factory: Factory, cog: Cog, ruler: Ruler, umbrella: Umbrella,
+  "file-warning": FileWarning, "pen-tool": PenTool, rocket: Rocket, "book-open": BookOpen, handshake: Handshake, layers: Layers,
+  heart: Heart, gem: Gem, "bell-ring": BellRing, sparkles: Sparkles, ribbon: Ribbon,
 };
 
 export function ModuleIcon({ name, className }: { name: string; className?: string }) {
