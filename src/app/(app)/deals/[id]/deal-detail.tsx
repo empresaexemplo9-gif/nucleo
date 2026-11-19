@@ -11,6 +11,7 @@ import { DealForm } from "@/components/forms/deal-form";
 import { useOrg } from "@/components/org-context";
 import { useAction } from "@/components/use-action";
 import { addDealProduct, deleteDeal, moveDeal, removeDealProduct, setDealStatus } from "@/actions/deals";
+import { openWhatsappConversation } from "@/actions/whatsapp";
 import { date, dateTime, daysSince } from "@/lib/format";
 import { LostReasonModal } from "../lost-reason-modal";
 import { DealChecklist, type ChecklistItem } from "./deal-checklist";
@@ -234,6 +235,15 @@ export function DealDetail({
                     >
                       <MessageCircle className="size-3.5" /> Abrir WhatsApp
                     </a>
+                  )}
+                  {(deal.contact.whatsapp || deal.contact.phone) && can("SALES") && (
+                    <button
+                      type="button"
+                      onClick={() => run(() => openWhatsappConversation(deal.contact!.id), { onSuccess: (r) => router.push(`/whatsapp?c=${r.id}`) })}
+                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left font-medium text-fg-2 transition hover:bg-tint"
+                    >
+                      <MessageCircle className="size-3.5" /> Conversar pelo CRM
+                    </button>
                   )}
                 </div>
               </div>

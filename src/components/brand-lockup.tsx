@@ -15,18 +15,18 @@ export function BrandLockup({ logoUrl, name, subtitle = "Gestão · CRM" }: { lo
     img.onload = () => setWide({ src: logoUrl, ratio: img.naturalWidth / Math.max(1, img.naturalHeight) });
     img.src = logoUrl;
   }, [logoUrl]);
-  const isWide = !!logoUrl && wide?.src === logoUrl && wide.ratio >= 2.2;
+  const isWide = !!logoUrl && wide?.src === logoUrl && wide.ratio >= 1.8;
   return (
     <span className="flex min-w-0 flex-1 items-center gap-3">
       {isWide ? (
         <span className="min-w-0 flex-1">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={logoUrl!} alt={name} className="block h-8 w-auto max-w-full object-contain object-left mix-blend-multiply dark:mix-blend-normal" />
+          <img src={logoUrl!} alt={name} className="block h-14 w-auto max-w-full object-contain object-left mix-blend-multiply dark:mix-blend-normal" />
           <span className="mt-1 block truncate font-mono text-[9.5px] uppercase tracking-[0.18em] text-muted">{subtitle}</span>
         </span>
       ) : (
         <>
-          <BrandMark logoUrl={logoUrl} name={name} />
+          <BrandMark logoUrl={logoUrl} name={name} size={logoUrl ? 52 : 40} />
           <span className="min-w-0 flex-1">
             <span className="block truncate text-[15px] font-semibold tracking-[-0.02em]">{name}</span>
             <span className="block truncate font-mono text-[9.5px] uppercase tracking-[0.18em] text-muted">{subtitle}</span>

@@ -21,11 +21,43 @@ A única referência à desenvolvedora é a assinatura **"Desenvolvido por DRAP"
 **Produtividade**
 - Atividades (ligação, reunião, tarefa, e-mail, prazo, almoço, WhatsApp) em lista agrupada por dia ou **calendário mensal**, com atrasadas destacadas
 - **Automações** “quando… então…”: ao criar, mudar de etapa, ganhar ou perder → criar atividade, etiqueta, responsável, nota ou ciclo de vida
+- **Lembretes e follow-ups agendados**: compromisso se aproximando, proposta sem resposta, negócio parado, vencimento de registros dos módulos e aniversário → WhatsApp ao cliente, aviso à equipe, atividade ou nota
+
+**WhatsApp (API oficial da Meta)**
+- Cada empresa conecta o próprio número em *Configurações → WhatsApp* (credenciais cifradas no banco)
+- Mensagens automáticas com variáveis (`{nome}`, `{negocio}`, `{data}`, `{link}`…), atraso configurável, cancelamento se o cliente responder ou o negócio sair da etapa, horário comercial e descadastro pelo cliente (**SAIR**)
+- **Chatbot**: menu de respostas prontas ou assistente com IA (Claude) que usa as informações da empresa; transfere para a equipe e avisa o responsável
+- **Caixa de conversas** (`/whatsapp`): histórico, resposta manual, status de entrega/leitura e mensagens agendadas
+- Números desconhecidos viram leads automaticamente
 - **Metas** mensais (receita, negócios ganhos, atividades) por empresa ou vendedor
 
 **Gestão**
 - Painel com pipeline, previsão ponderada, conversão, ticket médio, ciclo de venda, meta, ranking e negócios parados
 - Relatórios: funil de conversão, receita 12 meses, desempenho por vendedor, motivos de perda, origens, atividades e previsão de fechamento
+
+**Controle interno por segmento (Configurações → Módulos)**
+- Módulos com campos livres, fluxo de status, lista, quadro Kanban e **agenda mensal** (filtrável por profissional/responsável)
+- Tipos de campo: texto, número, moeda, data, **data e hora** (com bloqueio de horário duplicado por responsável), listas, **checklist**, **cálculo automático** (fórmulas com `{campos}`, `min`, `max`, `arred`, `abs`) e **vínculo entre módulos** (a ficha mostra os registros vinculados e cria um novo já ligado)
+- **Repetição**: ao concluir uma mensalidade, manutenção, renovação ou aluguel, o próximo é criado com o prazo avançado
+- **Fotos e anexos** em cada registro (a primeira imagem é a capa)
+- **Formulário público** por módulo (pedido, agendamento, pré-matrícula, chamado): cria o registro, cadastra o contato e avisa a equipe
+- Automações de módulo: registro criado, mudou de status e lembrete X dias ou **X horas** antes do horário marcado, com os campos do registro como variáveis (`{rastreio}`, `{placa}`…)
+- **Feed XML (VRSync)** do módulo de imóveis para ZAP Imóveis, VivaReal e OLX
+- “Atualizar do modelo” e “Atualizar pacote” (em Configurações → Módulos) levam as novidades para módulos já instalados, sem apagar personalizações, e recalculam os campos automáticos dos registros existentes
+
+| Pacote | Módulos | Referências de mercado |
+|---|---|---|
+| Serviços e assistência técnica | OS (agenda do técnico, checklist, peças, total calculado, aceite, nota), equipamentos dos clientes, manutenções preventivas/PMOC com repetição, chamados, contratos | Auvo, Field Control |
+| Imobiliária | Imóveis (fotos, características, valor do m², exclusividade, publicação em portais), visitas, propostas com documentação e comissão, contratos de locação com repasse, aluguéis a receber | Jetimob, Kenlo, Vista |
+| Construção e obras | Obras (orçado x realizado, custo/m², avanço), diário de obra (RDO), medições com retenção | Sienge, Obra Prima |
+| Saúde e clínicas | Agenda por profissional (convênio, guia, retorno), prontuário eletrônico restrito à equipe, pacotes de sessões | iClinic, Feegow |
+| Beleza e estética | Agenda do salão com comissão, pacotes, cobranças recorrentes | Trinks, Avec |
+| Academias e estúdios | Alunos e planos, avaliações físicas (IMC, RCQ, massa magra), fichas de treino, mensalidades | Tecnofit, EVO |
+| Educação | Turmas com vagas livres, matrículas (captação, documentos, bolsa), mensalidades, ocorrências | Sponte, Proesc |
+| Jurídico | Processos (CNJ, fase, êxito), prazos e audiências, andamentos/publicações, honorários, horas | Astrea, ADVBOX, Projuris |
+| Corretora de seguros | Apólices (vigência, prêmio, comissão), sinistros | Segfy, Agger |
+| Loja de roupas e acessórios | Produtos com **grade tamanho × cor**, fotos e status de estoque automático; pedidos com cupom, cashback e separação; clientes e estilo (tamanhos, cores, ticket médio, nível de fidelidade); **malinhas (condicional)**; lista de espera; trocas; envios; compras por coleção; campanhas com ROI. Visual editorial com **vitrine de fotos** | Linx, Dapic, Nuvemshop, Shopify |
+| Agência, SaaS, consultoria, agro, indústria e varejo | Jobs, assinaturas (MRR/ARR, saúde), implantações, timesheet, aplicações por talhão, ordens de produção, estoque com margem e reposição | Operand, Aegro |
 
 **Whitelabel e personalização (Configurações → Marca e geral)**
 - Estúdio de marca: envio do logotipo/identidade oficial com extração automática da paleta
@@ -52,11 +84,17 @@ Next.js 16 (App Router, Server Actions) · React 19 · Tailwind CSS 4 · Prisma 
    - `AUTH_SECRET` — uma chave longa e aleatória (`openssl rand -base64 32`)
    - `NEXT_PUBLIC_APP_NAME` — nome neutro exibido no login quando nenhuma empresa é identificada (opcional, padrão "Gestão & CRM")
    - `ALLOW_SIGNUP` — `false` para impedir que qualquer pessoa crie empresas (opcional)
+   - `CRON_SECRET` — protege o agendador de lembretes e follow-ups (`openssl rand -hex 32`)
+   - `ANTHROPIC_API_KEY` — só se for oferecer o chatbot com IA (opcional)
 4. Faça o deploy. O build executa `prisma db push`, criando as tabelas automaticamente.
 5. Acesse `/register` e crie a primeira empresa — funil, etapas e motivos de perda já vêm configurados.
 
 > Usando outro Postgres (Supabase, RDS…)? Defina `DATABASE_URL` e `DATABASE_URL_UNPOOLED` (pode ser a mesma URL).
 > Se o projeto já tiver outro banco conectado, defina `CRM_DATABASE_URL` (e opcionalmente `CRM_DATABASE_URL_UNPOOLED`): elas têm prioridade sobre `DATABASE_URL`.
+
+**Agendador (lembretes, follow-ups e mensagens agendadas):** `vercel.json` chama `/api/cron/automations` uma vez por dia, que é o limite do plano Hobby da Vercel. No plano Pro, troque o `schedule` para `*/5 * * * *`; no Hobby, aponte um agendador externo (cron-job.org, GitHub Actions…) para a mesma URL a cada 5 minutos, enviando o cabeçalho `Authorization: Bearer <CRON_SECRET>`. Como complemento, a fila também é processada enquanto alguém usa o sistema.
+
+**WhatsApp:** o webhook a cadastrar no app da Meta é `https://<seu-domínio>/api/public/whatsapp/webhook`; o token de verificação aparece em *Configurações → WhatsApp* depois de conectar. Fora da janela de 24h desde a última mensagem do cliente, a Meta só aceita **modelos aprovados** — informe o nome do modelo na automação.
 
 **Domínio por cliente (whitelabel):** adicione o domínio do cliente em *Settings → Domains* da Vercel e informe o mesmo domínio em *Configurações → Marca* dentro da empresa do cliente.
 
@@ -80,7 +118,9 @@ prisma/seed.ts              dados de demonstração
 src/actions/                Server Actions (negócios, CRM, configurações, autenticação)
 src/app/(auth)/             login, cadastro e convites (com a marca da empresa)
 src/app/(app)/              painel, negócios, contatos, empresas, atividades, produtos, relatórios, configurações
-src/app/api/                busca rápida, exportação CSV, health check, logout
+src/app/api/                busca rápida, exportação CSV, health check, logout, cron e webhook do WhatsApp
+src/lib/whatsapp/           cliente da API da Meta, fila de envio, chatbot e assistente com IA
+src/lib/scheduler.ts        gatilhos agendados (lembretes e follow-ups)
 src/components/             UI, formulários, Kanban, linha do tempo, gráficos
 src/lib/                    auth, permissões, rótulos, automações, métricas, formatação
 src/proxy.ts                proteção de rotas
