@@ -77,9 +77,9 @@ export function WhatsappSettings({ account, webhookUrl, cronReady, ai, superadmi
           }}
           className="grid gap-3 sm:grid-cols-2"
         >
-          <Field label="ID do número de telefone"><Input name="phoneNumberId" required inputMode="numeric" defaultValue={account?.phoneNumberId} placeholder="Ex.: 123456789012345" /></Field>
-          <Field label="Chave secreta do app" hint={account ? "Em branco = manter a atual" : undefined}><Input name="appSecret" type="password" autoComplete="off" required={!account} placeholder={account ? "••••••••" : ""} /></Field>
-          <Field label="Token de acesso permanente" className="sm:col-span-2" hint={account ? "Em branco = manter o atual" : undefined}><Input name="token" type="password" autoComplete="off" required={!account} placeholder={account ? "••••••••" : "EAAG…"} /></Field>
+          <Field label="ID do número de telefone"><Input name="phoneNumberId" required inputMode="numeric" autoComplete="off" data-1p-ignore data-lpignore="true" pattern="[0-9]{8,25}" title="Somente números: o ID que aparece em WhatsApp → Configuração da API (não é o telefone nem e-mail)" defaultValue={account?.phoneNumberId} placeholder="Ex.: 123456789012345" /></Field>
+          <Field label="Chave secreta do app" hint={account ? "Em branco = manter a atual" : undefined}><Input name="appSecret" type="password" autoComplete="new-password" data-1p-ignore data-lpignore="true" pattern="[a-fA-F0-9]{32}" title="A chave secreta do app tem 32 letras e números (Configurações do app → Básico)" required={!account} placeholder={account ? "••••••••" : ""} /></Field>
+          <Field label="Token de acesso permanente" className="sm:col-span-2" hint={account ? "Em branco = manter o atual" : undefined}><Input name="token" type="password" autoComplete="new-password" data-1p-ignore data-lpignore="true" required={!account} placeholder={account ? "••••••••" : "EAAG…"} /></Field>
           <Field label="Mensagens automáticas: enviar a partir das">
             <Select name="sendStart" defaultValue={String(account?.sendStart ?? 8)}>{hours.slice(0, 24).map((h) => <option key={h} value={h}>{h}h</option>)}</Select>
           </Field>

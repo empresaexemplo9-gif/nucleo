@@ -30,6 +30,11 @@ export async function saveWhatsappConnection(fd: FormData): Promise<ActionResult
     const token = str(fd, "token") ?? (current ? decrypt(current.tokenEnc) : null);
     const appSecret = str(fd, "appSecret") ?? (current ? decrypt(current.appSecretEnc) : null);
     if (!phoneNumberId || !token || !appSecret) return { ok: false, error: "Informe o ID do número, o token de acesso e o segredo do app." };
+    // proteção contra preenchimento automático do navegador (e-mail ou senha salvos nos campos errados)
+    const rawId = str(fd, "phoneNumberId") ?? "";
+    if (/[@a-z]/i.test(rawId) || phoneNumberId.length < 8) return { ok: false, error: "O ID do número de telefone deve ter só números (veja em WhatsApp → Configuração da API, na Meta). Não é o telefone nem o e-mail." };
+    if (str(fd, "appSecret") && !/^[a-f0-9]{32}$/i.test(appSecret)) return { ok: false, error: "A chave secreta do app tem 32 letras e números (Meta → Configurações do app → Básico). Confira se o navegador não preencheu uma senha salva." };
+    if (str(fd, "token") && !/^EAA[A-Za-z0-9]{20,}$/.test(token)) return { ok: false, error: "O token de acesso começa com EAA… (gerado no usuário do sistema da Meta). Confira se o navegador não preencheu uma senha salva." };
     const taken = await db.whatsappAccount.findFirst({ where: { phoneNumberId, orgId: { not: ctx.org.id } }, select: { id: true } });
     if (taken) return { ok: false, error: "Este número já está conectado a outra empresa." };
     const info = await fetchPhoneInfo(phoneNumberId, token);
