@@ -1,6 +1,4 @@
 "use server";
-import { packForSegment } from "@/lib/module-templates";
-import { installTemplate } from "@/lib/modules";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { db } from "@/lib/db";
@@ -8,9 +6,11 @@ import { checkPassword, endSession, hashPassword, requireContext, startSession }
 import { setupOrganization } from "@/lib/defaults";
 import { slugify } from "@/lib/format";
 import { isSuperadminEmail } from "@/lib/superadmin";
+import { domainBelongsTo, emailDomain, findCompanyByName } from "@/lib/company-match";
+import { managers, notify } from "@/lib/notify";
 import { str } from "./helpers";
 
-export type FormState = { error?: string } | undefined;
+export type FormState = { error?: string; notice?: string } | undefined;
 
 /** Cores de avatar (dados do usuário), na paleta DRAP. */
 const COLORS = ["#b48a4f", "#3c78c0", "#17905f", "#8a672f", "#2d63a3", "#4b505a"];
@@ -34,7 +34,12 @@ export async function login(_: FormState, fd: FormData): Promise<FormState> {
     (superadmin
       ? ((orgSlug ? await db.organization.findFirst({ where: { OR: [{ id: orgSlug }, { slug: orgSlug }] } }) : null) ?? (await db.organization.findFirst({ orderBy: { createdAt: "asc" } })))?.id
       : undefined);
-  if (!orgId) return { error: superadmin ? "Nenhuma empresa cadastrada ainda." : "Seu acesso foi desativado. Fale com o administrador." };
+  if (!orgId) {
+    if (superadmin) return { error: "Nenhuma empresa cadastrada ainda." };
+    const pending = await db.membership.findFirst({ where: { userId: user.id, active: false, requestedAt: { not: null } }, include: { org: { select: { name: true } } } });
+    if (pending) return { notice: `Seu pedido de acesso à ${pending.org.name} ainda aguarda a aprovação da administração da empresa.` };
+    return { error: "Seu acesso foi desativado. Fale com o administrador." };
+  }
   await startSession(user.id, orgId);
   const next = str(fd, "next");
   redirect(next && next.startsWith("/") && !next.startsWith("//") ? next : "/");
@@ -60,6 +65,10 @@ export async function register(_: FormState, fd: FormData): Promise<FormState> {
   if (existing && !(await checkPassword(password, existing.passwordHash)))
     return { error: "Este e-mail já está cadastrado. Entre com sua senha para criar outra empresa." };
 
+  // empresa já cadastrada com o mesmo nome: a pessoa entra nela (nunca cria uma cópia)
+  const same = await findCompanyByName(company);
+  if (same) return joinCompany(same, { name, email, password, existing });
+
   const slug = await uniqueSlug(company);
   const { user, org } = await db.$transaction(async (tx) => {
     const user = existing ?? (await tx.user.create({ data: { name, email, passwordHash: await hashPassword(password), avatarColor: pickColor() } }));
@@ -74,12 +83,39 @@ export async function register(_: FormState, fd: FormData): Promise<FormState> {
     });
     await tx.membership.create({ data: { userId: user.id, orgId: org.id, role: "OWNER" } });
     await setupOrganization(tx, org.id);
-    // instala os módulos de controle interno do segmento escolhido
-    for (const k of packForSegment(str(fd, "segment")).modules) await installTemplate(tx, org.id, k);
+    // módulos de controle interno não são instalados no cadastro: são implantados pelo superadmin
     return { user, org };
   }, { timeout: 30000, maxWait: 10000 });
   await startSession(user.id, org.id);
   redirect("/?welcome=1");
+}
+
+/**
+ * Cadastro com o nome de uma empresa existente. Com e-mail do mesmo domínio corporativo de quem já está
+ * na empresa, entra na hora com o acesso mais restrito (Visualização); senão, vira um pedido que a
+ * administração aprova e define o perfil. Em ambos os casos, a gestão é avisada.
+ */
+async function joinCompany(org: { id: string; name: string }, u: { name: string; email: string; password: string; existing: { id: string } | null }): Promise<FormState> {
+  if (isSuperadminEmail(u.email)) return { error: "Este e-mail não pode ser cadastrado." };
+  const user = u.existing ?? (await db.user.create({ data: { name: u.name, email: u.email, passwordHash: await hashPassword(u.password), avatarColor: pickColor() } }));
+  const current = await db.membership.findUnique({ where: { userId_orgId: { userId: user.id, orgId: org.id } } });
+  if (current?.active) {
+    await startSession(user.id, org.id);
+    redirect("/");
+  }
+  if (current && !current.requestedAt) return { error: `Seu acesso à ${org.name} foi desativado. Fale com o administrador da empresa.` };
+  const auto = await domainBelongsTo(org.id, emailDomain(u.email));
+  if (!current)
+    await db.membership.create({ data: { userId: user.id, orgId: org.id, role: "VIEWER", active: auto, requestedAt: auto ? null : new Date() } });
+  else if (auto) await db.membership.update({ where: { id: current.id }, data: { active: true, requestedAt: null } });
+  const admins = await managers(org.id);
+  if (auto) {
+    await notify(org.id, admins, { type: "TEAM", title: `${u.name} entrou na equipe pelo cadastro`, body: `${u.email} · acesso de Visualização. Defina o perfil em Usuários.`, href: "/settings/users" });
+    await startSession(user.id, org.id);
+    redirect("/");
+  }
+  if (!current) await notify(org.id, admins, { type: "TEAM", title: `Pedido de acesso: ${u.name}`, body: `${u.email} quer entrar na ${org.name}. Aprove e defina o perfil em Usuários.`, href: "/settings/users" });
+  return { notice: `A ${org.name} já está cadastrada. Enviamos seu pedido de acesso à administração da empresa; você poderá entrar assim que ele for aprovado.` };
 }
 
 export async function acceptInvite(_: FormState, fd: FormData): Promise<FormState> {

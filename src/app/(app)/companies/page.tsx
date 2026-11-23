@@ -1,5 +1,5 @@
 import type { Prisma } from "@prisma/client";
-import { requireContext, ownerScope } from "@/lib/auth";
+import { requireContext, ownerScope, requireFeature } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { CompaniesTable } from "./companies-table";
 
@@ -8,6 +8,7 @@ const PAGE = 50;
 
 export default async function CompaniesPage({ searchParams }: { searchParams: Promise<{ q?: string; owner?: string; tag?: string; page?: string }> }) {
   const ctx = await requireContext();
+  requireFeature(ctx, "companies");
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page) || 1);
   const ci = (v: string) => ({ contains: v, mode: "insensitive" as const });

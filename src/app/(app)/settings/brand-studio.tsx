@@ -6,7 +6,7 @@ import { useAction } from "@/components/use-action";
 import { useToast } from "@/components/toast";
 import { updateBranding } from "@/actions/settings";
 import { DRAP_PRIMARY, DRAP_SECONDARY } from "@/lib/brand-colors";
-import { contrast, extractAesthetic, extractPalette, fileToLogoDataUrl, loadImage, mix, suggestPair } from "@/lib/color-tools";
+import { contrast, extractAesthetic, extractPalette, fileToLogoDataUrl, loadImage, logoTheme, mix, suggestPair } from "@/lib/color-tools";
 import { initials } from "@/lib/format";
 import { findSans, findSerif, RADII, SANS_FONTS, SERIF_FONTS, SURFACES, type BrandTheme } from "@/lib/theme-options";
 import { BASE_PRESET, cssVarsOnly, findPreset, FONT_NAMES, LOOKS, PRESET_GROUPS, presetFontsHref, presetStyle, resolveTheme, sanitizeCustom, THEME_PRESETS, type PresetGroup, type ThemeCustom, type ThemePreset } from "@/lib/theme-presets";
@@ -181,13 +181,19 @@ export function BrandStudio({ org, theme }: { org: Org; theme: BrandTheme }) {
       toast(e instanceof Error && e.message === "Arquivo de tema inválido" ? e.message : "Não foi possível ler o arquivo de tema", "error");
     }
   }
-  async function useLogoColors() {
+  /** A página inteira (fundo, painéis, texto, menu, botões e destaques) passa a usar as cores reais do logotipo. */
+  function applyLogoTheme(palette: string[]) {
+    const t = logoTheme(palette);
+    if (!t) return false;
+    setCustom((c) => ({ ...c, bg: t.bg, card: t.card, text: t.text, nav: t.nav, btn: t.btn }));
+    setPrimary(t.primary);
+    setAccent(t.accent);
+    return true;
+  }
+  async function applyLogoColors(src = logo, silent = false) {
     try {
-      const pair = suggestPair(extractPalette(await loadImage(logo), 8));
-      if (!pair) return toast("Não encontramos cores marcantes no logotipo", "error");
-      setPrimary(pair.primary);
-      setAccent(pair.accent);
-      toast("Cores do logotipo aplicadas — salve para manter");
+      if (!applyLogoTheme(extractPalette(await loadImage(src), 8))) return toast("Não encontramos cores marcantes no logotipo", "error");
+      toast(silent ? "Logotipo e cores aplicados na prévia — salve para manter" : "Cores do logotipo aplicadas em toda a página — salve para manter");
     } catch {
       toast("Não foi possível ler as cores deste logotipo (envie o arquivo em vez do link)", "error");
     }
@@ -211,6 +217,8 @@ export function BrandStudio({ org, theme }: { org: Org; theme: BrandTheme }) {
         setCustom((c) => ({ ...c, bg: look.bg, card: look.card, text: look.text, nav: look.nav, btn: look.btn }));
         setPrimary(look.primary);
         setAccent(look.accent);
+      } else if (useAsLogo && applyLogoTheme(palette)) {
+        // imagem usada como logotipo: a página toda segue as cores reais dele
       } else if (pair) {
         setPrimary(pair.primary);
         setAccent(pair.accent);
@@ -224,7 +232,10 @@ export function BrandStudio({ org, theme }: { org: Org; theme: BrandTheme }) {
 
   async function uploadLogo(file: File) {
     try {
-      setLogo(await fileToLogoDataUrl(file, 2400));
+      const url = await fileToLogoDataUrl(file, 2400);
+      setLogo(url);
+      // o logotipo novo já traz as cores dele para a página inteira (dá para ajustar depois)
+      await applyLogoColors(url, true);
     } catch (e) {
       toast(e instanceof Error ? e.message : "Falha ao ler a imagem", "error");
     }
@@ -493,7 +504,7 @@ export function BrandStudio({ org, theme }: { org: Org; theme: BrandTheme }) {
               ))}
             </div>
             {logo && (
-              <Button type="button" variant="secondary" size="sm" className="mt-4" trail={<Palette className="size-3.5" />} onClick={useLogoColors}>
+              <Button type="button" variant="secondary" size="sm" className="mt-4" trail={<Palette className="size-3.5" />} onClick={() => applyLogoColors()}>
                 Usar as cores do logotipo
               </Button>
             )}

@@ -3,6 +3,7 @@ import { Button, Card, Field, Input, Select } from "@/components/ui";
 import { useAction } from "@/components/use-action";
 import { updateLabels, updateOrgSettings } from "@/actions/settings";
 import type { Labels, OrgSettings } from "@/lib/labels";
+import { useOrg } from "@/components/org-context";
 
 
 export function BrandingForm({
@@ -15,6 +16,7 @@ export function BrandingForm({
   settings: OrgSettings;
 }) {
   const { run, pending } = useAction();
+  const { superadmin } = useOrg();
   void org;
 
   return (
@@ -45,8 +47,12 @@ export function BrandingForm({
       </Card>
 
       <Card className="p-5">
-        <h2 className="text-base font-semibold">Preferências e módulos</h2>
-        <p className="mb-4 text-sm text-muted">Ative apenas o que sua operação usa para manter o CRM simples.</p>
+        <h2 className="text-base font-semibold">Preferências e funções</h2>
+        <p className="mb-4 text-sm text-muted">
+          {superadmin
+            ? "Ligue só as funções contratadas no plano desta empresa: o que estiver desligado some do menu e das telas."
+            : "Ajuste as preferências da equipe. As funções do CRM fazem parte do seu plano e são ativadas pela equipe da plataforma."}
+        </p>
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -69,18 +75,30 @@ export function BrandingForm({
               </Select>
             </Field>
           </div>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {[
-              ["mod_companies", "Empresas (B2B)", settings.modules.companies],
-              ["mod_products", "Produtos e serviços", settings.modules.products],
-              ["mod_goals", "Metas", settings.modules.goals],
-              ["mod_automations", "Automações", settings.modules.automations],
-              ["requireLostReason", "Exigir motivo ao marcar como perdido", settings.requireLostReason],
-            ].map(([n, l, v]) => (
-              <label key={n as string} className="flex items-center gap-2 rounded-lg border border-line px-3 py-2.5 text-sm">
-                <input type="checkbox" name={n as string} defaultChecked={v as boolean} className="size-4 accent-brand" /> {l}
-              </label>
-            ))}
+          <label className="flex items-center gap-2 rounded-lg border border-line px-3 py-2.5 text-sm">
+            <input type="checkbox" name="requireLostReason" defaultChecked={settings.requireLostReason} className="size-4 accent-brand" /> Exigir motivo ao marcar como perdido
+          </label>
+          <div>
+            <p className="mono-label mb-2 text-[10.5px] text-muted">Funções do CRM {superadmin ? "· plano da empresa" : "· ativadas pela plataforma"}</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {(
+                [
+                  ["mod_companies", "Empresas (B2B)", "Cadastro de empresas clientes", settings.modules.companies],
+                  ["mod_products", "Produtos e serviços", "Catálogo, preços e estoque", settings.modules.products],
+                  ["mod_goals", "Metas", "Metas de receita da equipe", settings.modules.goals],
+                  ["mod_automations", "Automações", "Regras automáticas, lembretes e follow-ups", settings.modules.automations],
+                  ["mod_aiBot", "Chatbot com IA", "Assistente inteligente no WhatsApp", settings.modules.aiBot],
+                ] as const
+              ).map(([n, l, d, v]) => (
+                <label key={n} className={`flex items-start gap-2 rounded-lg border border-line px-3 py-2.5 text-sm ${superadmin ? "" : "opacity-70"}`}>
+                  <input type="checkbox" name={n} defaultChecked={v} disabled={!superadmin} className="mt-0.5 size-4 accent-brand" />
+                  <span>
+                    {l}
+                    <span className="block text-xs text-muted">{superadmin ? d : v ? "Incluída no plano" : "Fora do plano"}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
           </div>
           <Button loading={pending}>Salvar preferências</Button>
         </form>

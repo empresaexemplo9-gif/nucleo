@@ -4,7 +4,8 @@ import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { logEvent } from "@/lib/events";
 import { runAutomations } from "@/lib/automation";
-import { notify } from "@/lib/notify";
+import { applyStageChecklist, checklistBlock } from "@/lib/checklist";
+import { transferDeals } from "@/lib/transfer";
 import { customFieldsOf, dateOf, fail, moneyOf, str, tagsOf } from "./helpers";
 import type { ActionResult } from "@/components/use-action";
 
@@ -14,27 +15,6 @@ async function assertDeal(orgId: string, id: string) {
   return deal;
 }
 
-/**
- * Transferência de atendimento: valida o novo responsável, registra quem transferiu e quando
- * (aviso automático no card do funil) e avisa o novo e o antigo responsável.
- */
-async function transferDeals(ctx: { org: { id: string }; user: { id: string; name: string } }, deals: { id: string; title: string; ownerId: string | null }[], toId: string | null) {
-  if (toId && !(await db.membership.findFirst({ where: { orgId: ctx.org.id, userId: toId, active: true } }))) throw new Error("Responsável inválido");
-  const moved = deals.filter((d) => d.ownerId !== toId);
-  if (!moved.length) return;
-  const now = new Date();
-  for (const d of moved) {
-    await db.deal.update({ where: { id: d.id }, data: { ownerId: toId, transferredAt: now, transferFromId: d.ownerId, transferById: ctx.user.id } });
-    await logEvent({ orgId: ctx.org.id, type: "DEAL_OWNER", userId: ctx.user.id, dealId: d.id });
-  }
-  const one = moved.length === 1 ? moved[0]! : null;
-  const href = one ? `/deals/${one.id}` : "/deals";
-  const what = one ? `“${one.title}”` : `${moved.length} negócios`;
-  // novo responsável recebe o atendimento; o anterior fica sabendo (sem avisar quem fez a ação)
-  await notify(ctx.org.id, [toId].filter((x) => x !== ctx.user.id), { type: "DEAL_TRANSFER", title: `Atendimento transferido para você: ${what}`, body: `Transferido por ${ctx.user.name}`, href });
-  const previous = [...new Set(moved.map((d) => d.ownerId))].filter((x) => x && x !== ctx.user.id && x !== toId);
-  await notify(ctx.org.id, previous, { type: "DEAL_TRANSFER", title: `Atendimento transferido: ${what}`, body: `Transferido por ${ctx.user.name}`, href });
-}
 
 export async function createDeal(fd: FormData): Promise<ActionResult> {
   try {
@@ -87,6 +67,7 @@ export async function createDeal(fd: FormData): Promise<ActionResult> {
       },
     });
     await logEvent({ orgId: ctx.org.id, type: "DEAL_CREATED", userId: ctx.user.id, dealId: deal.id, contactId, companyId });
+    await applyStageChecklist(ctx.org.id, deal.id, stageId, ctx.user.id);
     // criado já em nome de outra pessoa: conta como transferência, com aviso
     const assignTo = str(fd, "ownerId");
     if (assignTo && assignTo !== ctx.user.id) await transferDeals(ctx, [{ id: deal.id, title, ownerId: ctx.user.id }], assignTo);
@@ -137,6 +118,12 @@ export async function moveDeal(id: string, stageId: string, position?: number): 
     if (!stage) return { ok: false, error: "Etapa inválida" };
     const changed = stage.id !== deal.stageId;
     const status = stage.type === "WON" ? "WON" : stage.type === "LOST" ? "LOST" : "OPEN";
+    // avançar (etapa seguinte ou ganho) respeita o checklist obrigatório da etapa atual
+    const forward = changed && (stage.type === "WON" || (stage.type === "OPEN" && stage.position > deal.stage.position));
+    if (forward) {
+      const blocked = await checklistBlock(deal);
+      if (blocked) return { ok: false, error: blocked };
+    }
     await db.deal.update({
       where: { id },
       data: {
@@ -154,6 +141,7 @@ export async function moveDeal(id: string, stageId: string, position?: number): 
         dealId: id,
         data: { from: deal.stage.name, to: stage.name },
       });
+      await applyStageChecklist(ctx.org.id, id, stageId, ctx.user.id);
       await runAutomations(ctx.org.id, "DEAL_STAGE_ENTERED", id, stageId);
     }
     revalidatePath("/", "layout");
@@ -168,6 +156,10 @@ export async function setDealStatus(id: string, status: "WON" | "LOST" | "OPEN",
     const ctx = await requireRole("SALES");
     const deal = await assertDeal(ctx.org.id, id);
     if (status === "LOST" && ctx.settings.requireLostReason && !lostReason) return { ok: false, error: "Informe o motivo da perda" };
+    if (status === "WON" && deal.stage.type === "OPEN") {
+      const blocked = await checklistBlock(deal);
+      if (blocked) return { ok: false, error: blocked };
+    }
     let stageId = deal.stageId;
     if (status === "OPEN" && deal.stage.type !== "OPEN") {
       const first = await db.stage.findFirst({ where: { pipelineId: deal.pipelineId, type: "OPEN" }, orderBy: { position: "desc" } });

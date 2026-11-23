@@ -19,7 +19,7 @@ export default async function UsersPage() {
       me={ctx.user.id}
       assignable={assignableRoles(ctx.role, ctx.superadmin)}
       superadmin={ctx.superadmin}
-      members={members.map((m) => ({ id: m.id, userId: m.userId, name: m.user.name, email: m.user.email, color: m.user.avatarColor, role: m.role, active: m.active }))}
+      members={members.map((m) => ({ id: m.id, userId: m.userId, name: m.user.name, email: m.user.email, color: m.user.avatarColor, role: m.role, active: m.active, requested: !m.active && !!m.requestedAt }))}
       invites={invites.map((i) => ({ id: i.id, email: i.email, role: i.role, token: i.token }))}
     />
   );

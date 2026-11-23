@@ -6,11 +6,13 @@ import type { EntityType, FieldType, Role, StageType } from "@prisma/client";
 import { db } from "@/lib/db";
 import { checkPassword, hashPassword, requireContext, requireRole, requireSuperadmin, requireUserManager } from "@/lib/auth";
 import { assignableRoles, roleLabel } from "@/lib/roles";
+import { cleanChecklist } from "@/lib/checklist";
 import { isSuperadminEmail } from "@/lib/superadmin";
 import { slugify } from "@/lib/format";
 import { DEFAULT_LABELS, type Labels, type OrgSettings } from "@/lib/labels";
 import { RADII, SANS_FONTS, SERIF_FONTS, SURFACES } from "@/lib/theme-options";
 import { PRESET_KEYS, sanitizeCustom } from "@/lib/theme-presets";
+import { actionsFor, TRIGGERS, type AutomationConfig } from "@/lib/automation-defs";
 import { fail, moneyOf, numOr, str } from "./helpers";
 import type { ActionResult } from "@/components/use-action";
 
@@ -111,12 +113,16 @@ export async function updateOrgSettings(fd: FormData): Promise<ActionResult> {
       visibility: str(fd, "visibility") === "OWN" ? "OWN" : "ALL",
       requireLostReason: fd.get("requireLostReason") === "on",
       weekStartsOn: str(fd, "weekStartsOn") === "0" ? 0 : 1,
-      modules: {
-        products: fd.get("mod_products") === "on",
-        goals: fd.get("mod_goals") === "on",
-        automations: fd.get("mod_automations") === "on",
-        companies: fd.get("mod_companies") === "on",
-      },
+      // funções do CRM fazem parte do plano: só o superadmin liga e desliga
+      modules: ctx.superadmin
+        ? {
+            products: fd.get("mod_products") === "on",
+            goals: fd.get("mod_goals") === "on",
+            automations: fd.get("mod_automations") === "on",
+            companies: fd.get("mod_companies") === "on",
+            aiBot: fd.get("mod_aiBot") === "on",
+          }
+        : ctx.settings.modules,
     };
     await db.organization.update({ where: { id: ctx.org.id }, data: { settings: { ...(ctx.org.settings as object), ...s } } });
     return done();
@@ -179,7 +185,7 @@ export async function deletePipeline(id: string): Promise<ActionResult> {
   }
 }
 
-export type StageInput = { id?: string; name: string; color: string; probability: number; rottingDays: number | null; type: StageType };
+export type StageInput = { id?: string; name: string; color: string; probability: number; rottingDays: number | null; type: StageType; checklist?: string[]; checklistRequired?: boolean };
 
 /** Salva todas as etapas de um funil de uma vez (ordem = ordem do array). */
 export async function saveStages(pipelineId: string, stages: StageInput[]): Promise<ActionResult> {
@@ -201,6 +207,9 @@ export async function saveStages(pipelineId: string, stages: StageInput[]): Prom
           probability: Math.max(0, Math.min(100, Math.round(s.probability))),
           rottingDays: s.rottingDays || null,
           type: s.type,
+          // checklist só nas etapas abertas
+          checklist: s.type === "OPEN" ? cleanChecklist(s.checklist) : [],
+          checklistRequired: s.type === "OPEN" && !!s.checklistRequired && cleanChecklist(s.checklist).length > 0,
           position: s.type === "OPEN" ? i : s.type === "WON" ? 100 : 101,
         };
         if (s.id && p.stages.some((x) => x.id === s.id)) await tx.stage.update({ where: { id: s.id }, data });
@@ -375,6 +384,26 @@ export async function updateMember(id: string, data: { role?: Role; active?: boo
   }
 }
 
+/** Pedido de acesso feito pelo cadastro: aprovar (com o perfil escolhido) ou recusar. */
+export async function answerAccessRequest(id: string, approve: boolean, role?: Role): Promise<ActionResult> {
+  try {
+    const ctx = await requireUserManager();
+    const m = await db.membership.findFirst({ where: { id, orgId: ctx.org.id, requestedAt: { not: null }, active: false } });
+    if (!m) return { ok: false, error: "Pedido não encontrado ou já respondido" };
+    if (!approve) {
+      await db.membership.delete({ where: { id } });
+      return done("Pedido recusado");
+    }
+    const r = role ?? "VIEWER";
+    const denied = roleDenied(ctx, r);
+    if (denied) return { ok: false, error: denied };
+    await db.membership.update({ where: { id }, data: { active: true, role: r, requestedAt: null } });
+    return done("Acesso aprovado");
+  } catch (e) {
+    return fail(e);
+  }
+}
+
 export async function createUserDirect(fd: FormData): Promise<ActionResult> {
   try {
     const ctx = await requireUserManager();
@@ -412,16 +441,37 @@ export async function saveAutomation(id: string | null, fd: FormData): Promise<A
     const trigger = str(fd, "trigger");
     const action = str(fd, "action");
     if (!name || !trigger || !action) return { ok: false, error: "Preencha nome, gatilho e ação" };
-    const stageId = trigger === "DEAL_STAGE_ENTERED" ? str(fd, "stageId") : null;
+    if (!(trigger in TRIGGERS) || !actionsFor(trigger).includes(action as never)) return { ok: false, error: "Esta ação não está disponível para o gatilho escolhido." };
+    const stageId = trigger === "DEAL_STAGE_ENTERED" || trigger === "DEAL_STALE" ? str(fd, "stageId") : null;
     if (trigger === "DEAL_STAGE_ENTERED" && !stageId) return { ok: false, error: "Selecione a etapa" };
-    const config = {
+    if (stageId && !(await db.stage.findFirst({ where: { id: stageId, pipeline: { orgId: ctx.org.id } }, select: { id: true } }))) return { ok: false, error: "Etapa inválida" };
+    if (action === "SEND_WHATSAPP" && !str(fd, "message")) return { ok: false, error: "Escreva a mensagem do WhatsApp" };
+    if (trigger === "RECORD_STATUS" && (!str(fd, "moduleKey") || !str(fd, "statusName"))) return { ok: false, error: "Escolha o módulo e o status" };
+    const one = <T extends string>(k: string, allowed: readonly T[], d: T) => (allowed.includes(str(fd, k) as T) ? (str(fd, k) as T) : d);
+    const config: AutomationConfig = {
+      days: Math.min(365, Math.max(trigger === "RECORD_DUE" ? 0 : 1, numOr(fd, "days", 1))),
+      hoursBefore: Math.min(168, Math.max(1, numOr(fd, "hoursBefore", 24))),
+      reminderType: str(fd, "reminderType") ?? "ANY",
+      moduleKey: str(fd, "moduleKey") ?? "",
+      statusName: str(fd, "statusName") ?? "",
+      dueUnit: one("dueUnit", ["DAY", "HOUR"] as const, "DAY"),
+      when: one("when", ["BEFORE", "ON", "AFTER"] as const, "BEFORE"),
       activityType: str(fd, "activityType") ?? "TASK",
-      title: str(fd, "title"),
+      title: str(fd, "title") ?? undefined,
       daysOffset: numOr(fd, "daysOffset", 0),
-      tag: str(fd, "tag"),
-      ownerId: str(fd, "ownerId"),
-      note: str(fd, "note"),
-      lifecycle: str(fd, "lifecycle"),
+      tag: str(fd, "tag") ?? undefined,
+      ownerId: str(fd, "ownerId") ?? undefined,
+      note: str(fd, "note") ?? undefined,
+      lifecycle: str(fd, "lifecycle") ?? undefined,
+      message: str(fd, "message")?.slice(0, 4000),
+      delayValue: Math.min(10_000, Math.max(0, numOr(fd, "delayValue", 0))),
+      delayUnit: one("delayUnit", ["MIN", "HOUR", "DAY"] as const, "MIN"),
+      stopOnReply: fd.get("stopOnReply") === "on",
+      whileInStage: fd.get("whileInStage") === "on",
+      templateName: str(fd, "templateName") ?? undefined,
+      templateLang: str(fd, "templateLang") ?? "pt_BR",
+      templateParams: str(fd, "templateParams") ?? undefined,
+      notifyTo: one("notifyTo", ["OWNER", "MANAGERS", "BOTH"] as const, "OWNER"),
     };
     const data = { name, trigger, action, stageId, config };
     if (id) await db.automation.updateMany({ where: { id, orgId: ctx.org.id }, data });

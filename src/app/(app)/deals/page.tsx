@@ -46,6 +46,7 @@ export default async function DealsPage({
         contact: { select: { id: true, name: true } },
         company: { select: { id: true, name: true } },
         activities: { where: { done: false }, orderBy: { dueAt: "asc" }, take: 1, select: { dueAt: true, title: true, type: true } },
+        checklist: { select: { done: true } },
       },
     }),
   ]);
@@ -62,6 +63,7 @@ export default async function DealsPage({
     probability: d.probability,
     expectedClose: d.expectedClose?.toISOString() ?? null,
     stageChangedAt: d.stageChangedAt.toISOString(),
+    checklist: d.checklist.length ? { done: d.checklist.filter((i) => i.done).length, total: d.checklist.length } : null,
     transfer: d.transferredAt ? { at: d.transferredAt.toISOString(), fromId: d.transferFromId, byId: d.transferById } : null,
     createdAt: d.createdAt.toISOString(),
     contact: d.contact,

@@ -10,6 +10,7 @@ export const EVENT_LABELS: Record<string, string> = {
   COMPANY_CREATED: "criou a empresa",
   ACTIVITY_DONE: "concluiu uma atividade",
   AUTOMATION: "automação executada",
+  WHATSAPP_SENT: "mensagem automática enviada pelo WhatsApp",
   RECORD_CREATED: "criou o registro",
   RECORD_UPDATED: "atualizou o registro",
   RECORD_STATUS: "alterou o status",

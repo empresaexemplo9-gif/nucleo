@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { requireContext, ownerScope } from "@/lib/auth";
+import { requireContext, ownerScope, requireFeature } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { loadFeed } from "@/lib/feed-data";
 import { loadLinkedRecords } from "@/lib/linked-records";
@@ -8,6 +8,7 @@ import { CompanyDetail } from "./company-detail";
 export default async function CompanyPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const ctx = await requireContext();
+  requireFeature(ctx, "companies");
   const c = await db.company.findFirst({
     where: { id, orgId: ctx.org.id, ...ownerScope(ctx) },
     include: { contacts: { orderBy: { name: "asc" } }, deals: { include: { stage: true }, orderBy: { createdAt: "desc" } } },

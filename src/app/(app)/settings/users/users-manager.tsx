@@ -4,10 +4,10 @@ import { Copy, Link2, UserPlus, X } from "lucide-react";
 import { Avatar, Badge, Button, Card, Field, Input, Modal, Select, Tabs } from "@/components/ui";
 import { useAction } from "@/components/use-action";
 import { useToast } from "@/components/toast";
-import { createUserDirect, inviteUser, revokeInvite, updateMember } from "@/actions/settings";
+import { answerAccessRequest, createUserDirect, inviteUser, revokeInvite, updateMember } from "@/actions/settings";
 import { ROLE_INFO, ROLE_ORDER, roleLabel, type Role } from "@/lib/roles";
 
-type M = { id: string; userId: string; name: string; email: string; color: string; role: string; active: boolean };
+type M = { id: string; userId: string; name: string; email: string; color: string; role: string; active: boolean; requested: boolean };
 
 export function UsersManager({ me, assignable, superadmin, members, invites }: { me: string; assignable: Role[]; superadmin: boolean; members: M[]; invites: { id: string; email: string; role: string; token: string }[] }) {
   const { run, pending } = useAction();
@@ -15,6 +15,9 @@ export function UsersManager({ me, assignable, superadmin, members, invites }: {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"invite" | "direct">("invite");
   const roles = ROLE_ORDER.filter((r) => assignable.includes(r));
+  const requests = members.filter((m) => m.requested);
+  const team = members.filter((m) => !m.requested);
+  const [grant, setGrant] = useState<Record<string, Role>>({});
   const canEdit = (m: M) => m.userId !== me && (superadmin || assignable.includes(m.role as Role));
   const copy = (token: string) => {
     navigator.clipboard.writeText(`${location.origin}/invite/${token}`);
@@ -23,11 +26,34 @@ export function UsersManager({ me, assignable, superadmin, members, invites }: {
 
   return (
     <div className="space-y-4">
+      {requests.length > 0 && (
+        <Card className="border-[color-mix(in_oklab,var(--warn)_45%,transparent)] p-5">
+          <h2 className="text-base font-semibold">Pedidos de acesso</h2>
+          <p className="mb-3 text-sm text-muted">Pessoas que se cadastraram com o nome desta empresa. Confira se fazem parte da equipe, escolha o perfil e aprove.</p>
+          <div className="divide-y divide-line">
+            {requests.map((m) => (
+              <div key={m.id} className="flex flex-wrap items-center gap-3 py-3">
+                <Avatar name={m.name} color={m.color} size={34} />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium">{m.name}</p>
+                  <p className="text-xs text-muted">{m.email}</p>
+                </div>
+                <Select className="w-44" aria-label={`Perfil de ${m.name}`} value={grant[m.id] ?? roles[roles.length - 1]} onChange={(e) => setGrant((g) => ({ ...g, [m.id]: e.target.value as Role }))}>
+                  {roles.map((r) => <option key={r} value={r}>{roleLabel(r)}</option>)}
+                </Select>
+                <Button size="sm" onClick={() => run(() => answerAccessRequest(m.id, true, grant[m.id] ?? roles[roles.length - 1]))}>Aprovar</Button>
+                <Button size="sm" variant="ghost" onClick={() => confirm(`Recusar o pedido de ${m.name}?`) && run(() => answerAccessRequest(m.id, false))}>Recusar</Button>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
       <Card className="p-5">
         <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="text-base font-semibold">Equipe</h2>
-            <p className="text-sm text-muted">{members.filter((m) => m.active).length} usuário(s) ativo(s)</p>
+            <p className="text-sm text-muted">{team.filter((m) => m.active).length} usuário(s) ativo(s)</p>
             <p className="mt-1 max-w-xl text-xs text-muted">
               {superadmin
                 ? "Como superadmin, você cadastra todos os níveis, inclusive administradores, financeiro e gestores."
@@ -37,7 +63,7 @@ export function UsersManager({ me, assignable, superadmin, members, invites }: {
           <Button onClick={() => setOpen(true)}><UserPlus className="size-4" /> Adicionar usuário</Button>
         </div>
         <div className="divide-y divide-line">
-          {members.map((m) => (
+          {team.map((m) => (
             <div key={m.id} className="flex flex-wrap items-center gap-3 py-3">
               <Avatar name={m.name} color={m.color} size={34} />
               <div className="min-w-0 flex-1">

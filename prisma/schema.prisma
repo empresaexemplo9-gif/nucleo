@@ -102,6 +102,11 @@ model Organization {
   files             StoredFile[]
   stockMoves        StockMove[]
   notifications     Notification[]
+  /// Última varredura das automações agendadas (lembretes e follow-ups)
+  automationTickAt  DateTime?
+  whatsappAccount   WhatsappAccount?
+  conversations     WhatsappConversation[]
+  whatsappMessages  WhatsappMessage[]
 }
 
 model User {
@@ -135,6 +140,8 @@ model Membership {
   orgId     String
   role      Role         @default(SALES)
   active    Boolean      @default(true)
+  /// Pedido de acesso pelo cadastro (mesmo nome de empresa), aguardando a administração
+  requestedAt DateTime?
   createdAt DateTime     @default(now())
   user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
@@ -168,18 +175,22 @@ model Pipeline {
 }
 
 model Stage {
-  id          String       @id @default(cuid())
-  pipelineId  String
-  name        String
-  color       String       @default("#6366f1")
-  probability Int          @default(10)
-  position    Int          @default(0)
-  type        StageType    @default(OPEN)
+  id                String       @id @default(cuid())
+  pipelineId        String
+  name              String
+  color             String       @default("#6366f1")
+  probability       Int          @default(10)
+  position          Int          @default(0)
+  type              StageType    @default(OPEN)
   /// Dias sem movimentação até o negócio ser considerado "parado"
-  rottingDays Int?
-  pipeline    Pipeline     @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
-  deals       Deal[]
-  automations Automation[]
+  rottingDays       Int?
+  /// Checklist padrão da etapa: itens criados no negócio quando ele entra na etapa
+  checklist         String[]     @default([])
+  /// Exige o checklist da etapa concluído para o negócio avançar
+  checklistRequired Boolean      @default(false)
+  pipeline          Pipeline     @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  deals             Deal[]
+  automations       Automation[]
 
   @@index([pipelineId])
 }
@@ -220,75 +231,77 @@ model Company {
 }
 
 model Contact {
-  id           String          @id @default(cuid())
-  orgId        String
-  name         String
-  email        String?
-  phone        String?
-  whatsapp     String?
-  position     String?
-  companyId    String?
-  ownerId      String?
-  source       String?
-  lifecycle    String          @default("lead")
-  tags         String[]        @default([])
-  customFields Json            @default("{}")
-  birthday     DateTime?
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
-  org          Organization    @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  company      Company?        @relation(fields: [companyId], references: [id], onDelete: SetNull)
-  owner        User?           @relation("ContactOwner", fields: [ownerId], references: [id], onDelete: SetNull)
-  deals        Deal[]
-  activities   Activity[]
-  notes        Note[]
-  events       TimelineEvent[]
-  records      ModuleRecord[]
-  proposals    Proposal[]
-  orders       Order[]
-  contracts    Contract[]
+  id            String                 @id @default(cuid())
+  orgId         String
+  name          String
+  email         String?
+  phone         String?
+  whatsapp      String?
+  position      String?
+  companyId     String?
+  ownerId       String?
+  source        String?
+  lifecycle     String                 @default("lead")
+  tags          String[]               @default([])
+  customFields  Json                   @default("{}")
+  birthday      DateTime?
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+  org           Organization           @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  company       Company?               @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  owner         User?                  @relation("ContactOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  deals         Deal[]
+  activities    Activity[]
+  notes         Note[]
+  events        TimelineEvent[]
+  records       ModuleRecord[]
+  proposals     Proposal[]
+  orders        Order[]
+  contracts     Contract[]
+  conversations WhatsappConversation[]
 
   @@index([orgId])
   @@index([companyId])
 }
 
 model Deal {
-  id             String          @id @default(cuid())
+  id             String              @id @default(cuid())
   orgId          String
   title          String
-  value          Decimal         @default(0) @db.Decimal(14, 2)
+  value          Decimal             @default(0) @db.Decimal(14, 2)
   pipelineId     String
   stageId        String
   contactId      String?
   companyId      String?
   ownerId        String?
-  status         DealStatus      @default(OPEN)
-  position       Float           @default(0)
+  status         DealStatus          @default(OPEN)
+  position       Float               @default(0)
   probability    Int?
   expectedClose  DateTime?
   source         String?
   lostReason     String?
-  tags           String[]        @default([])
-  customFields   Json            @default("{}")
-  stageChangedAt DateTime        @default(now())
+  tags           String[]            @default([])
+  customFields   Json                @default("{}")
+  stageChangedAt DateTime            @default(now())
   /// Última transferência de atendimento (aviso no card do funil)
   transferredAt  DateTime?
   transferFromId String?
   transferById   String?
   closedAt       DateTime?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  org            Organization    @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  pipeline       Pipeline        @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
-  stage          Stage           @relation(fields: [stageId], references: [id], onDelete: Restrict)
-  contact        Contact?        @relation(fields: [contactId], references: [id], onDelete: SetNull)
-  company        Company?        @relation(fields: [companyId], references: [id], onDelete: SetNull)
-  owner          User?           @relation("DealOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  org            Organization        @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  pipeline       Pipeline            @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  stage          Stage               @relation(fields: [stageId], references: [id], onDelete: Restrict)
+  contact        Contact?            @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  company        Company?            @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  owner          User?               @relation("DealOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   products       DealProduct[]
   activities     Activity[]
   notes          Note[]
   events         TimelineEvent[]
   proposals      Proposal[]
+  checklist      DealChecklistItem[]
   orders         Order[]
   contracts      Contract[]
 
@@ -439,19 +452,31 @@ model Tag {
 }
 
 model Automation {
-  id        String       @id @default(cuid())
+  id        String          @id @default(cuid())
   orgId     String
   name      String
-  /// DEAL_CREATED | DEAL_STAGE_ENTERED | DEAL_WON | DEAL_LOST
+  /// Eventos e gatilhos agendados: ver src/lib/automation-defs.ts
   trigger   String
   stageId   String?
-  /// CREATE_ACTIVITY | ADD_TAG | SET_OWNER | ADD_NOTE
+  /// Ações: ver src/lib/automation-defs.ts
   action    String
-  config    Json         @default("{}")
-  active    Boolean      @default(true)
-  createdAt DateTime     @default(now())
-  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  stage     Stage?       @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  config    Json            @default("{}")
+  active    Boolean         @default(true)
+  createdAt DateTime        @default(now())
+  org       Organization    @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  stage     Stage?          @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  runs      AutomationRun[]
+}
+
+/// Garante que um gatilho agendado dispare uma única vez por registro
+model AutomationRun {
+  id           String     @id @default(cuid())
+  automationId String
+  key          String
+  createdAt    DateTime   @default(now())
+  automation   Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+
+  @@unique([automationId, key])
 }
 
 model Goal {
@@ -471,28 +496,35 @@ model Goal {
 
 /// Módulo de controle interno criado pela empresa (ordens de serviço, estoque, chamados…)
 model CustomModule {
-  id             String         @id @default(cuid())
-  orgId          String
-  key            String
-  name           String
-  singular       String
-  description    String?
-  icon           String         @default("folder")
-  color          String         @default("#b48a4f")
-  prefix         String         @default("REG")
-  sequence       Int            @default(0)
-  position       Int            @default(0)
-  group          String         @default("Controle interno")
-  minRoleView    Role           @default(VIEWER)
-  minRoleEdit    Role           @default(SALES)
-  dueFieldKey    String?
-  amountFieldKey String?
-  templateKey    String?
-  createdAt      DateTime       @default(now())
-  org            Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  fields         ModuleField[]
-  statuses       ModuleStatus[]
-  records        ModuleRecord[]
+  id                 String         @id @default(cuid())
+  orgId              String
+  key                String
+  name               String
+  singular           String
+  description        String?
+  icon               String         @default("folder")
+  color              String         @default("#b48a4f")
+  prefix             String         @default("REG")
+  sequence           Int            @default(0)
+  position           Int            @default(0)
+  group              String         @default("Controle interno")
+  minRoleView        Role           @default(VIEWER)
+  minRoleEdit        Role           @default(SALES)
+  dueFieldKey        String?
+  amountFieldKey     String?
+  templateKey        String?
+  /// Campo de lista que define a repetição (Mensal, Anual…): ao concluir, gera o próximo registro
+  recurrenceFieldKey String?
+  /// Formulário público (/f/<token>) e feed para portais (/api/public/feed/<token>)
+  formToken          String?        @unique
+  feedToken          String?        @unique
+  /// Textos do formulário público e outras preferências do módulo
+  settings           Json           @default("{}")
+  createdAt          DateTime       @default(now())
+  org                Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  fields             ModuleField[]
+  statuses           ModuleStatus[]
+  records            ModuleRecord[]
 
   @@unique([orgId, key])
 }
@@ -502,7 +534,8 @@ model ModuleField {
   moduleId   String
   key        String
   label      String
-  /// TEXT, TEXTAREA, NUMBER, CURRENCY, DATE, SELECT, MULTISELECT, BOOLEAN, URL, EMAIL, PHONE, CONTACT, COMPANY
+  /// TEXT, TEXTAREA, NUMBER, CURRENCY, DATE, DATETIME, SELECT, MULTISELECT, CHECKLIST, BOOLEAN, URL, EMAIL, PHONE,
+  /// CONTACT, COMPANY, RECORD (options[0] = chave do módulo vinculado), FORMULA (options[0] = expressão, options[1] = formato)
   type       String       @default("TEXT")
   options    String[]     @default([])
   required   Boolean      @default(false)
@@ -552,6 +585,7 @@ model ModuleRecord {
   activities  Activity[]
   notes       Note[]
   events      TimelineEvent[]
+  files       StoredFile[]
 
   @@unique([moduleId, number])
   @@index([orgId, moduleId, statusId])
@@ -764,12 +798,37 @@ model StoredFile {
   mime      String
   size      Int
   data      Bytes
+  /// Anexo de um registro de módulo (fotos, documentos)
+  recordId  String?
+  /// Posição na galeria do registro (a primeira imagem é a capa)
+  position  Int                @default(0)
   createdAt DateTime           @default(now())
   org       Organization       @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  record    ModuleRecord?      @relation(fields: [recordId], references: [id], onDelete: Cascade)
   templates ContractTemplate[]
   contracts Contract[]
 
   @@index([orgId])
+  @@index([recordId])
+}
+
+/// Item de checklist de um negócio (vindo do padrão da etapa ou criado à mão)
+model DealChecklistItem {
+  id          String    @id @default(cuid())
+  orgId       String
+  dealId      String
+  title       String
+  done        Boolean   @default(false)
+  doneAt      DateTime?
+  doneById    String?
+  /// Etapa que originou o item (nulo = item avulso)
+  stageId     String?
+  position    Int       @default(0)
+  createdById String?
+  createdAt   DateTime  @default(now())
+  deal        Deal      @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  @@index([dealId])
 }
 
 model Notification {
@@ -786,4 +845,98 @@ model Notification {
   user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, readAt])
+}
+
+/**
+ * ------------------------------------------------------------------
+ */
+/**
+ * WhatsApp (API oficial da Meta): conexão, conversas, mensagens e chatbot
+ */
+/**
+ * ------------------------------------------------------------------
+ */
+
+/// Número de WhatsApp Business da empresa (um por empresa)
+model WhatsappAccount {
+  id                String       @id @default(cuid())
+  orgId             String       @unique
+  /// Identificador do número na Meta (Phone number ID)
+  phoneNumberId     String       @unique
+  displayPhone      String?
+  /// Token de acesso e segredo do app, cifrados (AES-256-GCM)
+  tokenEnc          String
+  appSecretEnc      String
+  /// Token de verificação do webhook (gerado pela plataforma)
+  verifyToken       String       @unique
+  active            Boolean      @default(true)
+  /// Janela de envio das mensagens automáticas (hora local da empresa)
+  sendStart         Int          @default(8)
+  sendEnd           Int          @default(20)
+  autoCreateContact Boolean      @default(true)
+  botEnabled        Boolean      @default(false)
+  /// MENU (respostas prontas) ou AI (assistente com IA)
+  botMode           String       @default("MENU")
+  /// Saudação, opções do menu, mensagens padrão e instruções da IA
+  botConfig         Json         @default("{}")
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  org               Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+}
+
+model WhatsappConversation {
+  id            String            @id @default(cuid())
+  orgId         String
+  /// Número do cliente só com dígitos, com DDI (ex.: 5511999999999)
+  phone         String
+  name          String?
+  contactId     String?
+  lastMessageAt DateTime          @default(now())
+  /// Última mensagem recebida do cliente (abre a janela de 24h de texto livre)
+  lastInboundAt DateTime?
+  lastPreview   String?
+  unread        Int               @default(0)
+  /// Atendimento humano em andamento: o robô não responde
+  botPaused     Boolean           @default(false)
+  /// Cliente pediu para não receber mensagens automáticas
+  optedOut      Boolean           @default(false)
+  createdAt     DateTime          @default(now())
+  org           Organization      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  contact       Contact?          @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  messages      WhatsappMessage[]
+
+  @@unique([orgId, phone])
+  @@index([orgId, lastMessageAt])
+  @@index([contactId])
+}
+
+model WhatsappMessage {
+  id             String               @id @default(cuid())
+  orgId          String
+  conversationId String
+  /// IN (cliente) ou OUT (empresa)
+  direction      String
+  body           String
+  /// RECEIVED | SCHEDULED | SENDING | SENT | DELIVERED | READ | FAILED | CANCELED
+  status         String
+  /// MANUAL | BOT | AUTOMATION | CUSTOMER
+  source         String               @default("MANUAL")
+  /// Identificador da mensagem na Meta
+  waId           String?              @unique
+  error          String?
+  /// Modelo aprovado na Meta, usado fora da janela de 24h: { name, lang, params[] }
+  template       Json?
+  /// Condições conferidas na hora do envio: { stageId, stopOnReply }
+  guard          Json?
+  automationId   String?
+  dealId         String?
+  userId         String?
+  scheduledAt    DateTime?
+  sentAt         DateTime?
+  createdAt      DateTime             @default(now())
+  org            Organization         @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  conversation   WhatsappConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@index([status, scheduledAt])
 }

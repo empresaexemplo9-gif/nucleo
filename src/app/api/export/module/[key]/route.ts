@@ -22,7 +22,14 @@ export async function GET(_: Request, { params }: { params: Promise<{ key: strin
     const out: Record<string, unknown> = { codigo: recordCode(mod.prefix, r.number), titulo: r.title, status: r.status?.name, responsavel: r.assignee?.name };
     for (const f of mod.fields) {
       const v = d[f.key];
-      out[f.label] = (f.type === "CONTACT" || f.type === "COMPANY") && typeof v === "string" ? (refs[v] ?? v) : f.type === "BOOLEAN" && v != null ? (v ? "Sim" : "Não") : v;
+      out[f.label] =
+        (f.type === "CONTACT" || f.type === "COMPANY" || f.type === "RECORD") && typeof v === "string"
+          ? (refs[v] ?? v)
+          : f.type === "BOOLEAN" && v != null
+            ? v ? "Sim" : "Não"
+            : Array.isArray(v)
+              ? v.join("; ")
+              : v;
     }
     out.criado_em = r.createdAt;
     out.concluido_em = r.closedAt;

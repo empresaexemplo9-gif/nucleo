@@ -2,16 +2,19 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
-import { AlertTriangle, CalendarClock, Download, KanbanSquare, List, Plus, Settings2, Trash2 } from "lucide-react";
-import { Avatar, Badge, Button, Card, cn, EmptyState, Eyebrow, FilterChip, Modal, Select, StatCard, Tabs } from "@/components/ui";
+import { AlertTriangle, CalendarClock, CalendarDays, LayoutGrid, ChevronLeft, ChevronRight, Copy, Download, KanbanSquare, List, Plus, Rss, Settings2, Share2, Trash2 } from "lucide-react";
+import { Avatar, Badge, Button, Card, cn, EmptyState, Eyebrow, Field, FilterChip, Input, Modal, Select, StatCard, Tabs, Textarea } from "@/components/ui";
 import { Pagination, SearchBox, useParamSetter } from "@/components/list-toolbar";
 import { ModuleIcon } from "@/components/module-icon";
 import { RecordFieldValue, type MField, type Refs } from "@/components/record-fields";
 import { useOrg } from "@/components/org-context";
 import { useAction } from "@/components/use-action";
-import { deleteRecords, setRecordStatus } from "@/actions/modules";
+import { deleteRecords, saveModuleForm, setRecordStatus, toggleModuleFeed } from "@/actions/modules";
 import { date, dayKey } from "@/lib/format";
+import { useToast } from "@/components/toast";
+import { PUBLIC_TYPES, type FormSettings } from "@/lib/module-public";
 import { RecordForm } from "./record-form";
+import { Gallery, KpiRow, ModaHero, type Kpi } from "./moda";
 
 export type ModStatus = { id: string; name: string; color: string; isFinal: boolean };
 export type ModInfo = {
@@ -25,6 +28,7 @@ export type ModInfo = {
   prefix: string;
   dueFieldKey: string | null;
   amountFieldKey: string | null;
+  recurrenceFieldKey?: string | null;
   canEdit: boolean;
   fields: MField[];
   statuses: ModStatus[];
@@ -60,11 +64,27 @@ export function ModuleView({
   stats,
   filters,
   openNew,
+  prefill,
+  month,
+  share,
+  look,
+  kpis,
+  covers,
+  lookbook,
+  palette,
 }: {
+  look: "moda" | null;
+  kpis: Kpi[] | null;
+  covers: Record<string, string>;
+  lookbook: string[];
+  palette: string[];
+  prefill: Record<string, unknown>;
+  month: string;
+  share: { formUrl: string | null; feedUrl: string | null; feedAvailable: boolean; form: FormSettings } | null;
   mod: ModInfo;
   rows: RecordRow[];
   refs: Refs;
-  view: "list" | "board";
+  view: "list" | "board" | "calendar" | "gallery";
   total: number;
   page: number;
   pageSize: number;
@@ -77,6 +97,14 @@ export function ModuleView({
   const router = useRouter();
   const pathname = usePathname();
   const [creating, setCreating] = useState(openNew);
+  const [sharing, setSharing] = useState(false);
+  const [draft, setDraft] = useState<Record<string, unknown>>(prefill);
+  const dueField = mod.fields.find((f) => f.key === mod.dueFieldKey);
+  const newOn = (day: string) => {
+    if (!dueField) return;
+    setDraft({ ...prefill, [dueField.key]: dueField.type === "DATETIME" ? `${day}T09:00` : day });
+    setCreating(true);
+  };
   const [sel, setSel] = useState<Set<string>>(new Set());
   const { run, pending } = useAction();
   const listFields = mod.fields.filter((f) => f.showInList).slice(0, 5);
@@ -85,11 +113,32 @@ export function ModuleView({
   const ids = [...sel];
   const closeNew = () => {
     setCreating(false);
+    setDraft(prefill);
     if (openNew) router.replace(pathname);
   };
 
   return (
     <div className="w-full px-4 pb-16 pt-8 lg:px-8">
+      {look === "moda" ? (
+        <ModaHero mod={mod} palette={palette} lookbook={lookbook} total={stats.all} actions={<>
+          <a href={`/api/export/module/${mod.key}`} download>
+            <Button variant="secondary" trail={<Download className="size-3.5" />}>Exportar</Button>
+          </a>
+          {share && (
+            <Button variant="secondary" trail={<Share2 className="size-3.5" />} onClick={() => setSharing(true)}>Compartilhar</Button>
+          )}
+          {superadmin && (
+            <Link href={`/settings/modules/${mod.id}`}>
+              <Button variant="secondary" trail={<Settings2 className="size-3.5" />}>Configurar</Button>
+            </Link>
+          )}
+          {mod.canEdit && (
+            <Button trail={<Plus className="size-3.5" />} onClick={() => setCreating(true)}>
+              {mod.singular}
+            </Button>
+          )}
+        </>} />
+      ) : (
       <div className="animate-rise mb-8 flex flex-wrap items-end justify-between gap-5">
         <div className="min-w-0 max-w-3xl">
           <Eyebrow className="mb-3 flex items-center gap-2">
@@ -105,6 +154,9 @@ export function ModuleView({
           <a href={`/api/export/module/${mod.key}`} download>
             <Button variant="secondary" trail={<Download className="size-3.5" />}>Exportar</Button>
           </a>
+          {share && (
+            <Button variant="secondary" trail={<Share2 className="size-3.5" />} onClick={() => setSharing(true)}>Compartilhar</Button>
+          )}
           {superadmin && (
             <Link href={`/settings/modules/${mod.id}`}>
               <Button variant="secondary" trail={<Settings2 className="size-3.5" />}>Configurar</Button>
@@ -117,21 +169,27 @@ export function ModuleView({
           )}
         </div>
       </div>
-
+      )}
+      {kpis ? (
+        <KpiRow kpis={kpis} />
+      ) : (
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard index={1} label="Em aberto" value={String(stats.open).padStart(2, "0")} sub={`${stats.all} no total`} color="var(--accent-2)" />
         <StatCard index={2} label="Vencidos" value={String(stats.overdue).padStart(2, "0")} sub={mod.dueFieldKey ? "prazo expirado" : "defina um campo de prazo"} color="var(--err)" />
         <StatCard index={3} label="Próximos 7 dias" value={String(stats.dueSoon).padStart(2, "0")} sub="a vencer" color="var(--warn)" />
         <StatCard index={4} label={amountField ? `${amountField.label} em aberto` : "Valor em aberto"} value={fmt(stats.openSum, stats.openSum >= 1e6)} sub={amountField ? "soma dos registros abertos" : "defina um campo de valor"} color="var(--ok)" />
       </div>
+      )}
 
       <div className="mb-4 mt-8 flex flex-wrap items-center gap-2">
         <Tabs
           value={view}
-          onChange={(v) => set("view", v === "list" ? "" : v)}
+          onChange={(v) => set("view", v)}
           items={[
+            ...(look === "moda" || Object.keys(covers).length ? [{ value: "gallery" as const, label: <span className="flex items-center gap-1.5"><LayoutGrid className="size-3.5" /> Vitrine</span> }] : []),
             { value: "list", label: <span className="flex items-center gap-1.5"><List className="size-3.5" /> Lista</span> },
             { value: "board", label: <span className="flex items-center gap-1.5"><KanbanSquare className="size-3.5" /> Quadro</span> },
+            ...(mod.dueFieldKey ? [{ value: "calendar" as const, label: <span className="flex items-center gap-1.5"><CalendarDays className="size-3.5" /> Agenda</span> }] : []),
           ]}
         />
         <SearchBox initial={filters.q} placeholder={`Buscar por título ou ${mod.prefix}-0001`} />
@@ -143,7 +201,7 @@ export function ModuleView({
           ))}
         </Select>
       </div>
-      {view === "list" && (
+      {(view === "list" || view === "gallery") && (
         <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
           <FilterChip active={!filters.status && filters.scope !== "all"} onClick={() => router.push(`${pathname}`)}>Em aberto</FilterChip>
           <FilterChip active={!filters.status && filters.scope === "all"} onClick={() => set("scope", "all")}>Todos</FilterChip>
@@ -164,8 +222,18 @@ export function ModuleView({
         </div>
       )}
 
-      {view === "board" ? (
-        <Board mod={mod} rows={rows} refs={refs} />
+      {view === "gallery" ? (
+        rows.length ? (
+          <Gallery mod={mod} rows={rows} refs={refs} covers={covers} />
+        ) : (
+          <Card>
+            <EmptyState icon={<ModuleIcon name={mod.icon} />} title={`Nenhum registro em ${mod.name.toLowerCase()}`} description="Ajuste os filtros ou cadastre o primeiro — fotos anexadas viram a capa na vitrine." action={mod.canEdit && <Button trail={<Plus className="size-3.5" />} onClick={() => setCreating(true)}>Novo(a) {mod.singular.toLowerCase()}</Button>} />
+          </Card>
+        )
+      ) : view === "calendar" ? (
+        <Calendar mod={mod} rows={rows} month={month} onNew={mod.canEdit ? newOn : undefined} />
+      ) : view === "board" ? (
+        <Board mod={mod} rows={rows} refs={refs} covers={covers} />
       ) : (
         <Card className="overflow-x-auto">
           {rows.length ? (
@@ -230,21 +298,22 @@ export function ModuleView({
           )}
         </Card>
       )}
-      {view === "list" && (
+      {(view === "list" || view === "gallery") && (
         <div className="mt-3 flex justify-end">
           <Pagination page={page} total={total} pageSize={pageSize} />
         </div>
       )}
 
       <Modal open={creating} onClose={closeNew} title={`Novo(a) ${mod.singular.toLowerCase()}`} wide>
-        <RecordForm mod={mod} refs={refs} onDone={(id) => (id ? router.push(`/m/${mod.key}/${id}`) : closeNew())} />
+        <RecordForm key={JSON.stringify(draft)} mod={mod} refs={refs} prefill={draft} onDone={(id) => (id ? router.push(`/m/${mod.key}/${id}`) : closeNew())} />
       </Modal>
+      {share && <ShareModal open={sharing} onClose={() => setSharing(false)} mod={mod} share={share} />}
     </div>
   );
 }
 
 /** Quadro por status (arrastar e soltar). */
-function Board({ mod, rows: initial, refs }: { mod: ModInfo; rows: RecordRow[]; refs: Refs }) {
+function Board({ mod, rows: initial, refs, covers }: { mod: ModInfo; rows: RecordRow[]; refs: Refs; covers: Record<string, string> }) {
   const { member } = useOrg();
   const [rows, setRows] = useState(initial);
   const [prev, setPrev] = useState(initial);
@@ -303,6 +372,10 @@ function Board({ mod, rows: initial, refs }: { mod: ModInfo; rows: RecordRow[]; 
                     onDragEnd={() => setDragId(null)}
                     className={cn("block rounded-[10px] border border-line bg-[var(--card-bg)] p-3 shadow-[0_10px_30px_-24px_var(--shadow)] transition hover:-translate-y-0.5 hover:border-line-strong", dragId === r.id && "opacity-40")}
                   >
+                    {covers[r.id] && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={`/api/files/${covers[r.id]}`} alt="" loading="lazy" draggable={false} className="-mx-3 -mt-3 mb-2.5 aspect-[16/10] w-[calc(100%+1.5rem)] max-w-none rounded-t-[10px] object-cover" />
+                    )}
                     <div className="flex items-start justify-between gap-2">
                       <span className="font-mono text-[10px] text-muted">{code(mod.prefix, r.number)}</span>
                       {owner && <Avatar name={owner.name} color={owner.avatarColor} size={20} />}
@@ -328,5 +401,155 @@ function Board({ mod, rows: initial, refs }: { mod: ModInfo; rows: RecordRow[]; 
         );
       })}
     </div>
+  );
+}
+
+const WEEK = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
+
+/** Agenda mensal pelo campo de prazo (consultas, visitas, aulas, audiências, entregas…). */
+function Calendar({ mod, rows, month, onNew }: { mod: ModInfo; rows: RecordRow[]; month: string; onNew?: (day: string) => void }) {
+  const { settings, member } = useOrg();
+  const set = useParamSetter();
+  const dueField = mod.fields.find((f) => f.key === mod.dueFieldKey);
+  const [y, m] = month.split("-").map(Number) as [number, number];
+  const first = new Date(Date.UTC(y, m - 1, 1));
+  const start = (first.getUTCDay() - settings.weekStartsOn + 7) % 7;
+  const days = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const cells = Math.ceil((start + days) / 7) * 7;
+  const today = dayKey(new Date());
+  const shift = (n: number) => {
+    const d = new Date(Date.UTC(y, m - 1 + n, 1));
+    set("month", d.toISOString().slice(0, 7));
+  };
+  const byDay = new Map<string, RecordRow[]>();
+  for (const r of rows) {
+    const raw = dueField ? r.data[dueField.key] : null;
+    const k = typeof raw === "string" ? raw.slice(0, 10) : r.dueAt ? dayKey(r.dueAt) : null;
+    if (k) byDay.set(k, [...(byDay.get(k) ?? []), r]);
+  }
+  const timeOf = (r: RecordRow) => {
+    const raw = dueField?.type === "DATETIME" ? r.data[dueField.key] : null;
+    return typeof raw === "string" ? raw.slice(11, 16) : "";
+  };
+  const statusOf = (id: string | null) => mod.statuses.find((s) => s.id === id);
+  const raw = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric", timeZone: "UTC" }).format(first);
+  const label = raw.charAt(0).toUpperCase() + raw.slice(1);
+  return (
+    <Card className="overflow-hidden">
+      <div className="flex items-center gap-2 border-b border-line px-4 py-3">
+        <Button size="icon" variant="ghost" onClick={() => shift(-1)} aria-label="Mês anterior"><ChevronLeft className="size-4" /></Button>
+        <h2 className="min-w-40 text-center text-sm font-semibold">{label}</h2>
+        <Button size="icon" variant="ghost" onClick={() => shift(1)} aria-label="Próximo mês"><ChevronRight className="size-4" /></Button>
+        <Button size="sm" variant="ghost" onClick={() => set("month", "")}>Hoje</Button>
+        <span className="ml-auto text-xs text-muted">{rows.length} no período · por “{dueField?.label}”</span>
+      </div>
+      <div className="grid grid-cols-7 border-b border-line bg-surface-2 text-center font-mono text-[10px] uppercase tracking-[0.1em] text-muted">
+        {Array.from({ length: 7 }, (_, i) => <div key={i} className="py-2">{WEEK[(i + settings.weekStartsOn) % 7]}</div>)}
+      </div>
+      <div className="grid grid-cols-7">
+        {Array.from({ length: cells }, (_, i) => {
+          const d = i - start + 1;
+          const inMonth = d >= 1 && d <= days;
+          const key = new Date(Date.UTC(y, m - 1, d)).toISOString().slice(0, 10);
+          const list = (byDay.get(key) ?? []).sort((a, b) => timeOf(a).localeCompare(timeOf(b)));
+          return (
+            <div key={i} className={cn("group min-h-28 border-b border-r border-line p-1.5 [&:nth-child(7n)]:border-r-0", !inMonth && "bg-surface-2/60")}>
+              <div className="mb-1 flex items-center justify-between">
+                <span className={cn("inline-flex size-6 items-center justify-center rounded-full font-mono text-[11px]", key === today ? "bg-[var(--accent)] text-white" : inMonth ? "text-fg-2" : "text-muted")}>{Number(key.slice(8))}</span>
+                {onNew && inMonth && (
+                  <button type="button" onClick={() => onNew(key)} className="hidden rounded p-0.5 text-muted hover:bg-tint hover:text-fg group-hover:block" aria-label={`Novo em ${key}`}>
+                    <Plus className="size-3.5" />
+                  </button>
+                )}
+              </div>
+              <div className="space-y-1">
+                {list.slice(0, 4).map((r) => {
+                  const st = statusOf(r.statusId);
+                  const who = member(r.assigneeId);
+                  return (
+                    <Link
+                      key={r.id}
+                      href={`/m/${mod.key}/${r.id}`}
+                      title={`${r.title}${who ? ` · ${who.name}` : ""}${st ? ` · ${st.name}` : ""}`}
+                      className={cn("block truncate rounded-[5px] border-l-2 bg-tint px-1.5 py-0.5 text-[11.5px] leading-snug hover:bg-[var(--surface-1)]", r.isFinal && "opacity-55 line-through")}
+                      style={{ borderLeftColor: st?.color ?? mod.color }}
+                    >
+                      {timeOf(r) && <b className="mr-1 font-mono text-[10.5px]">{timeOf(r)}</b>}
+                      {r.title}
+                    </Link>
+                  );
+                })}
+                {list.length > 4 && <p className="px-1 text-[10.5px] text-muted">+{list.length - 4} mais</p>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
+function CopyLine({ value }: { value: string }) {
+  const toast = useToast();
+  return (
+    <div className="flex gap-2">
+      <Input readOnly value={value} onFocus={(e) => e.currentTarget.select()} className="font-mono text-xs" />
+      <Button type="button" variant="secondary" size="icon" className="size-10 shrink-0" aria-label="Copiar" onClick={() => navigator.clipboard.writeText(value).then(() => toast("Link copiado"))}>
+        <Copy className="size-4" />
+      </Button>
+    </div>
+  );
+}
+
+/** Formulário público (pedidos, agendamentos, pré-matrículas, solicitações) e feed para portais. */
+function ShareModal({ open, onClose, mod, share }: { open: boolean; onClose: () => void; mod: ModInfo; share: { formUrl: string | null; feedUrl: string | null; feedAvailable: boolean; form: FormSettings } }) {
+  const { run, pending } = useAction();
+  const eligible = mod.fields.filter((f) => PUBLIC_TYPES.includes(f.type));
+  const chosen = share.form.fields.length ? share.form.fields : eligible.filter((f) => f.showInList || f.required).map((f) => f.key);
+  return (
+    <Modal open={open} onClose={onClose} title={`Compartilhar ${mod.name.toLowerCase()}`} wide>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          run(() => saveModuleForm(mod.id, new FormData(e.currentTarget)));
+        }}
+        className="space-y-3"
+      >
+        <label className="flex items-start gap-2 text-sm font-medium">
+          <input type="checkbox" name="formEnabled" defaultChecked={!!share.formUrl} className="mt-0.5 size-4 accent-[var(--accent)]" />
+          <span>
+            Formulário público
+            <span className="block text-xs font-normal text-muted">Link para o cliente preencher (no site, Instagram ou WhatsApp). Cada envio cria um(a) {mod.singular.toLowerCase()}, cadastra o contato e avisa a equipe.</span>
+          </span>
+        </label>
+        {share.formUrl && <CopyLine value={share.formUrl} />}
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Título do formulário"><Input name="formTitle" defaultValue={share.form.title} placeholder={`Solicitar ${mod.singular.toLowerCase()}`} /></Field>
+          <Field label="Mensagem de confirmação"><Input name="formSuccess" defaultValue={share.form.success} placeholder="Recebemos! Em breve entraremos em contato." /></Field>
+        </div>
+        <Field label="Texto de apresentação"><Textarea name="formIntro" rows={2} defaultValue={share.form.intro} /></Field>
+        <div>
+          <p className="mb-1.5 text-xs font-medium text-fg-2">Campos que o cliente preenche (além de nome, WhatsApp e e-mail)</p>
+          <div className="grid gap-1.5 sm:grid-cols-2">
+            {eligible.map((f) => (
+              <label key={f.id} className="flex items-center gap-2 text-sm">
+                <input type="checkbox" name="formFields" value={f.key} defaultChecked={chosen.includes(f.key)} className="accent-[var(--accent)]" /> {f.label}
+              </label>
+            ))}
+          </div>
+        </div>
+        <div className="flex justify-end"><Button loading={pending}>Salvar formulário</Button></div>
+      </form>
+      {share.feedAvailable && (
+        <div className="mt-5 space-y-2 border-t border-line pt-4">
+          <p className="flex items-center gap-2 text-sm font-medium"><Rss className="size-4" /> Feed para portais (ZAP Imóveis, VivaReal, OLX)</p>
+          <p className="text-xs text-muted">Arquivo XML no padrão VRSync com os imóveis em “Disponível” e marcados para publicar. Cadastre este link na área de integração do portal; fotos anexadas vão junto, a primeira como capa.</p>
+          {share.feedUrl && <CopyLine value={share.feedUrl} />}
+          <Button variant={share.feedUrl ? "danger" : "secondary"} size="sm" loading={pending} onClick={() => run(() => toggleModuleFeed(mod.id, !share.feedUrl))}>
+            {share.feedUrl ? "Desativar feed" : "Ativar feed"}
+          </Button>
+        </div>
+      )}
+    </Modal>
   );
 }

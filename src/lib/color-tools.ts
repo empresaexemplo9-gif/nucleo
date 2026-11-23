@@ -211,3 +211,30 @@ export function extractAesthetic(img: HTMLImageElement): Aesthetic | null {
   const active = [accent, primary].find((x) => contrast(x, navBg) >= 1.6) ?? on(navBg);
   return { bg, card, text, primary, accent, nav: [navBg, on(navBg), active, on(active)], btn: [primary, on(primary)] };
 }
+
+/**
+ * Tema completo a partir das cores reais do logotipo: a cor principal do logo vira a cor da marca
+ * (botões, item ativo do menu, destaques), a segunda cor vira o acento e o fundo, os painéis e o
+ * menu recebem um leve tom da marca. O menu fica claro para o próprio logotipo aparecer nele.
+ */
+export function logoTheme(palette: string[]): Aesthetic | null {
+  if (!palette.length) return null;
+  const info = palette.map((h) => ({ h, hsl: rgbToHsl(fromHex(h)) }));
+  const hueDist = (a: number, b: number) => Math.min(Math.abs(a - b), 360 - Math.abs(a - b));
+  const on = (x: string) => (contrast("#ffffff", x) >= contrast("#0a0a0a", x) ? "#ffffff" : "#0a0a0a");
+  const vivid = info.filter((x) => x.hsl[1] > 0.22 && x.hsl[2] > 0.1 && x.hsl[2] < 0.88);
+  // logo colorido: a cor viva mais presente; logo monocromático (preto, grafite, dourado discreto): a cor mais presente
+  const main = vivid[0] ?? info[0]!;
+  const primary = main.h;
+  const second =
+    vivid.find((x) => x.h !== primary && hueDist(x.hsl[0], main.hsl[0]) > 30) ??
+    info.find((x) => x.h !== primary && contrast(x.h, primary) > 1.6);
+  const accent = second?.h ?? mix(primary, main.hsl[2] < 0.4 ? "#ffffff" : "#000000", 0.35);
+  const darkest = [...info].sort((a, b) => a.hsl[2] - b.hsl[2])[0]!;
+  const bg = mix(primary, "#ffffff", 0.95);
+  const card = mix(primary, "#ffffff", 0.985);
+  // texto: a cor mais escura do logo quando ela tem leitura confortável; senão, quase preto com o tom da marca
+  const text = contrast(darkest.h, bg) >= 9 ? darkest.h : mix(mix(primary, "#000000", 0.85), "#000000", 0.4);
+  const navBg = mix(primary, "#ffffff", 0.9);
+  return { bg, card, text, primary, accent, nav: [navBg, text, primary, on(primary)], btn: [primary, on(primary)] };
+}

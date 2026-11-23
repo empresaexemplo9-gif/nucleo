@@ -89,6 +89,11 @@ export function AuthShell({
           <div className="mt-6 flex flex-col items-center gap-2">
             <p className="mono-label text-center text-[10px] text-muted">© {new Date().getFullYear()} {brand.name}</p>
             <DrapSignature />
+            <p className="flex gap-3 text-[11px] text-muted">
+              <a href="/privacidade" className="hover:text-fg">Privacidade</a>
+              <a href="/termos" className="hover:text-fg">Termos de uso</a>
+              <a href="/exclusao-de-dados" className="hover:text-fg">Exclusão de dados</a>
+            </p>
           </div>
         </section>
       </main>

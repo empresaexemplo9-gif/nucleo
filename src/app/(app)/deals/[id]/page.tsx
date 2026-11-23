@@ -15,6 +15,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
       contact: { include: { company: { select: { name: true } } } },
       company: true,
       products: { include: { product: true } },
+      checklist: { orderBy: [{ position: "asc" }, { createdAt: "asc" }] },
     },
   });
   if (!deal) notFound();
@@ -41,6 +42,8 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
         transfer: deal.transferredAt ? { at: deal.transferredAt.toISOString(), fromId: deal.transferFromId, byId: deal.transferById } : null,
         contact: deal.contact ? { id: deal.contact.id, label: deal.contact.name, email: deal.contact.email, phone: deal.contact.phone, whatsapp: deal.contact.whatsapp, position: deal.contact.position } : null,
         company: deal.company ? { id: deal.company.id, label: deal.company.name, city: deal.company.city, website: deal.company.website } : null,
+        checklist: deal.checklist.map((i) => ({ id: i.id, title: i.title, done: i.done, doneAt: i.doneAt?.toISOString() ?? null, doneById: i.doneById, stageId: i.stageId, createdById: i.createdById })),
+        checklistRequired: deal.stage.type === "OPEN" && deal.stage.checklistRequired,
         products: deal.products.map((p) => ({ id: p.id, name: p.product.name, quantity: Number(p.quantity), price: Number(p.price), discount: Number(p.discount) })),
       }}
       pipelineName={deal.pipeline.name}

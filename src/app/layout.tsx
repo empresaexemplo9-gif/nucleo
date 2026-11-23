@@ -27,6 +27,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       suppressHydrationWarning
     >
       <head>
+        {/* Verificação de domínio da Meta (Business Suite → Domínios) */}
+        <meta name="facebook-domain-verification" content="68xo2yt40t7rry15dz7w86glar6irm" />
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
       <body className="min-h-screen">

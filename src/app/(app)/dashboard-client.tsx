@@ -41,7 +41,7 @@ export function Welcome() {
   const [open, setOpen] = useState(true);
   if (!open) return null;
   const steps = [
-    { href: "/settings", title: "Personalize sua marca", text: "Logo, cores, moeda e nomes das entidades." },
+    { href: "/settings", title: "Ajuste os nomes", text: "Nomenclatura e preferências da equipe." },
     { href: "/settings/pipelines", title: "Ajuste seu funil", text: "Etapas, probabilidades e alertas." },
     { href: "/settings/users", title: "Convide sua equipe", text: "Perfis de acesso por função." },
     { href: "/settings/automations", title: "Crie automações", text: "Follow-ups automáticos por etapa." },
@@ -55,7 +55,7 @@ export function Welcome() {
       <h2 className="relative mt-2 text-[clamp(26px,3vw,40px)] font-medium tracking-[-0.035em]">
         <EditorialTitle text="Seu sistema está pronto" highlight="pronto" />
       </h2>
-      <p className="relative mt-1 text-fg-2">Funil, etapas e motivos de perda já foram configurados. Comece aplicando a identidade da sua empresa.</p>
+      <p className="relative mt-1 text-fg-2">Funil, etapas e motivos de perda já foram configurados. A identidade visual e os módulos contratados são implantados pela equipe da plataforma.</p>
       <div className="relative mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {steps.map((s, i) => (
           <Link key={s.href} href={s.href} className="group rounded-[var(--radius)] border border-line bg-[var(--surface-1)] p-4 transition duration-300 hover:-translate-y-0.5 hover:border-line-strong">

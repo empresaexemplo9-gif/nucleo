@@ -10,7 +10,7 @@ export function useAction() {
   const [pending, start] = useTransition();
   const toast = useToast();
   const router = useRouter();
-  function run<T extends ActionResult>(fn: () => Promise<T>, opts?: { success?: string; onSuccess?: (r: Extract<T, { ok: true }>) => void }) {
+  function run<T extends ActionResult>(fn: () => Promise<T>, opts?: { success?: string; onSuccess?: (r: Extract<T, { ok: true }>) => void; onError?: (error: string) => void }) {
     start(async () => {
       try {
         const r = await fn();
@@ -18,9 +18,13 @@ export function useAction() {
           if (opts?.success || r.message) toast(opts?.success || r.message!);
           opts?.onSuccess?.(r as Extract<T, { ok: true }>);
           router.refresh();
-        } else toast(r.error, "error");
+        } else {
+          toast(r.error, "error");
+          opts?.onError?.(r.error);
+        }
       } catch (e) {
         toast(e instanceof Error ? e.message : "Erro inesperado", "error");
+        opts?.onError?.(e instanceof Error ? e.message : "Erro inesperado");
       }
     });
   }
