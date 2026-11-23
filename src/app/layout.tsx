@@ -3,6 +3,7 @@ import { Inter_Tight, Instrument_Serif, JetBrains_Mono } from "next/font/google"
 import { cookies } from "next/headers";
 import "./globals.css";
 import { ToastProvider } from "@/components/toast";
+import { AvisoLegal } from "@/components/aviso-legal";
 
 const sans = Inter_Tight({ subsets: ["latin"], variable: "--font-inter-tight", weight: ["300", "400", "500", "600"], style: ["normal", "italic"] });
 const serif = Instrument_Serif({ subsets: ["latin"], variable: "--font-instrument", weight: "400", style: ["normal", "italic"] });
@@ -32,6 +33,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body className="min-h-screen">
         <ToastProvider>{children}</ToastProvider>
+        <AvisoLegal />
       </body>
     </html>
   );
